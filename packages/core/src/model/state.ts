@@ -1,7 +1,7 @@
 /**
  * The run state a study carries (`state:`, docs/reference.qmd, "Run state"), and the `{name}` placeholders a view
  * resolves against it, or, where no run wrote one, against the value the file declares: keyed by element id, a
- * container's entry read by everything inside it.
+ * container's entry read by everything inside it, a data store's read everywhere.
  */
 import { BPMN } from '@core/constants';
 import { literal } from '@core/engine/graph';
@@ -56,22 +56,30 @@ function declaredOn(model: StudyModel, scope: Element, name: string): unknown {
   return wiredPropertiesIn(model, scope).find((wired) => wired.name === name)?.value;
 }
 
-/** The value `name` is declared with from `elementId` outward, the innermost declaration winning; `undefined` when
- * no scope declares one. What a condition there reads before any run writes it. */
+/** The data store a name cites: the one so named, else the one with that id. */
+export function storeNamed(model: StudyModel, name: string): Element | undefined {
+  const stores = model.study.roots.filter((root) => model.host(root) === BPMN.DataStore);
+  return stores.find((store) => (store.name || store.id) === name) ?? stores.find((store) => store.id === name);
+}
+
+/** The value `name` is declared with from `elementId` outward, the innermost declaration winning, then the data
+ * store's; `undefined` when none declares one. What a condition there reads before any run writes it. */
 export function declaredIn(model: StudyModel, elementId: string, name: string): unknown {
   for (let scope = model.get(elementId); scope; scope = model.parentOf(scope)) {
     const value = declaredOn(model, scope, name);
     if (value !== undefined) return value;
   }
-  return undefined;
+  const store = storeNamed(model, name);
+  return store ? literal(store.value) : undefined;
 }
 
 /**
  * Lexical lookup of a dotted `path` from `elementId`: the element, then each container outward to the study root,
- * each read as the last run left it in the state, else as the file declares it ({@link declaredOn}), so a label shows
- * a threshold before any run. A lone `{reached}` is the element's own counter, `_meta.reached.<element id>`, and 0
- * when it has none — a run that never reached it counts 0, and so does a file no run has touched, never a
- * container's count. `state.a.b` is absolute (`state._meta.reached.X` included). `undefined` when nothing resolves.
+ * then the data store of that name, each read as the last run left it in the state, else as the file declares it
+ * ({@link declaredOn}), so a label shows a threshold before any run. A lone `{reached}` is the element's own counter,
+ * `_meta.reached.<element id>`, and 0 when it has none — a run that never reached it counts 0, and so does a file no
+ * run has touched, never a container's count. `state.a.b` is absolute (`state._meta.reached.X` included).
+ * `undefined` when nothing resolves.
  */
 export function resolveStateIn(model: StudyModel, elementId: string, path: string): unknown {
   const keys = path.split('.').map((key) => key.trim()).filter(Boolean);
@@ -84,6 +92,12 @@ export function resolveStateIn(model: StudyModel, elementId: string, path: strin
     if (run !== undefined) return run;
     const declared = declaredOn(model, scope, keys[0]);
     const value = keys.length === 1 ? declared : lookup(declared, keys.slice(1));
+    if (value !== undefined) return value;
+  }
+  const store = storeNamed(model, keys[0]);
+  if (store?.id) {
+    const kept = store.id in tree ? tree[store.id] : literal(store.value);
+    const value = keys.length === 1 ? kept : lookup(kept, keys.slice(1));
     if (value !== undefined) return value;
   }
   return keys.length === 1 && keys[0] === REACHED ? tree[META_KEY]?.[REACHED]?.[elementId] ?? 0 : undefined;

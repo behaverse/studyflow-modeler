@@ -33,7 +33,8 @@ export type Declared = { value: unknown; id?: string };
 
 /**
  * A plan as the walk reads it: each element's container and sequence flows, the properties each scope declares, the
- * message flows by the element or participant at each end, and the boundary events by the activity each sits on.
+ * data stores, the message flows by the element or participant at each end, and the boundary events by the activity
+ * each sits on.
  */
 export class Graph {
   readonly elements: Record<string, PlanElement>;
@@ -42,6 +43,8 @@ export class Graph {
   readonly children = new Map<string, PlanElement[]>();
   /** Lexical scopes: the properties each declares, by name. */
   readonly properties = new Map<string, Map<string, Declared>>();
+  /** The data stores, by name to id: each one value for the whole study, under its id in the state. */
+  readonly stores = new Map<string, string>();
   /** The properties the Parameters wired into a sub-process set: nothing inside it writes them. */
   readonly readonly = new Map<string, Set<string>>();
   readonly participants = new Map<string, PlanElement>();
@@ -79,6 +82,12 @@ export class Graph {
       } else if (element.type === 'boundaryEvent') push(this.boundaries, element.attributes.attachedToRef, element);
       if (element.type === 'property' && element.parent) {
         declare(element.parent, element.name || element.id, { value: literal(element.attributes.value), id: element.id });
+      }
+      if (element.type === 'dataStore') {
+        const name = element.name || element.id;
+        const other = this.stores.get(name);
+        if (other) throw new Error(`${other} and ${element.id} are both data stores named '${name}': rename one.`);
+        this.stores.set(name, element.id);
       }
       // The item a pass over a list binds is a property of the activity, with no value of its own.
       if (element.loop?.kind === 'multiInstance' && element.loop.inputItem) declare(element.id, element.loop.inputItem, { value: undefined });
@@ -175,11 +184,27 @@ export class Graph {
     return entries[0];
   }
 
-  /** A data element's `uri`, if it is one and has one. */
+  /** A data element's `uri`, if it is one and has one; a data store reference without one has its data store's. */
   uriOf(id: string): string | undefined {
     const element = this.elements[id];
-    return element && DATA_TYPES.has(element.type) ? element.attributes.uri || undefined : undefined;
+    if (!element || !DATA_TYPES.has(element.type)) return undefined;
+    const store = this.storeOf(id);
+    return element.attributes.uri || (store && store !== id ? this.elements[store].attributes.uri : undefined) || undefined;
   }
+
+  /** The references that show a data store, by its id. */
+  referencesOf(store: string): string[] {
+    if (!this.shown) {
+      this.shown = new Map();
+      for (const element of Object.values(this.elements)) {
+        const named = element.type === 'dataStoreReference' ? this.storeOf(element.id) : undefined;
+        if (named) this.shown.set(named, [...(this.shown.get(named) ?? []), element.id]);
+      }
+    }
+    return this.shown.get(store) ?? [];
+  }
+
+  private shown?: Map<string, string[]>;
 
   /** (scope, name) when the element is a property its scope declares. */
   propertyScope(id: string): { scope: string; name: string } | undefined {
@@ -187,6 +212,18 @@ export class Graph {
     if (element?.type !== 'property' || !element.parent) return undefined;
     const name = element.name || id;
     return this.properties.get(element.parent)?.has(name) ? { scope: element.parent, name } : undefined;
+  }
+
+  /** The data store an element stands for: itself, or the one a data store reference names. */
+  storeOf(id: string | undefined | null): string | undefined {
+    const element = this.get(id);
+    const store = element?.type === 'dataStoreReference' ? this.get(element.attributes.dataStoreRef) : element;
+    return store?.type === 'dataStore' ? store.id : undefined;
+  }
+
+  /** A data store's initial value, `undefined` when it declares none. */
+  storeValue(id: string): unknown {
+    return literal(this.elements[id]?.attributes.value);
   }
 
   /**

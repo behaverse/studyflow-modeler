@@ -69,6 +69,7 @@ export const PALETTE_GROUPS: PaletteGroup[] = [
     icon: ICONS.database,
     items: [
       { label: 'Data Object', bpmnType: BPMN.DataObjectReference, icon: ICONS.document },
+      { label: 'Data Store', bpmnType: BPMN.DataStoreReference, icon: ICONS.database },
     ],
   },
   {

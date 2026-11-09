@@ -16,6 +16,7 @@ import { checkLabels } from '@core/checks/labels';
 import { checkResults } from '@core/checks/results';
 import { checkExchanges } from '@core/checks/exchanges';
 import { checkUnimplemented } from '@core/checks/unimplemented';
+import { checkStores } from '@core/checks/stores';
 
 /* What `studyflow validate` checks beyond reading a file, each check in a file of its own; `studyflow run` applies
    the plan checks before it starts a study. */
@@ -27,10 +28,10 @@ export type Issue = {
   message: string;
 };
 
-/** The plan: one element an id, its edges between the elements they may join, sound, walkable, its expressions FEEL, its decisions exclusive, its choices listed, each exchange reaching someone, a consent form to fetch and a completion code to hand, no two paths at once writing one value, reading only the columns its schemas define and only the result fields its steps' types declare, a concealed allocation registering a digest and being one a seed can conceal, no name copying a value its element reads, and each BPMN construct the walk does not implement yet named. */
+/** The plan: one element an id, each data store a name, its edges between the elements they may join, sound, walkable, its expressions FEEL, its decisions exclusive, its choices listed, each exchange reaching someone, a consent form to fetch and a completion code to hand, no two paths at once writing one value, reading only the columns its schemas define and only the result fields its steps' types declare, a concealed allocation registering a digest and being one a seed can conceal, no name copying a value its element reads, and each BPMN construct the walk does not implement yet named. */
 export function planChecks(model: StudyModel): Issue[] {
   return [
-    ...checkIds(model), ...checkEndpoints(model), ...checkConnected(model), ...checkRunnerPaths(model), ...checkUnimplemented(model), ...checkExpressions(model), ...checkDecisions(model),
+    ...checkIds(model), ...checkStores(model), ...checkEndpoints(model), ...checkConnected(model), ...checkRunnerPaths(model), ...checkUnimplemented(model), ...checkExpressions(model), ...checkDecisions(model),
     ...checkValues(model), ...checkEntryExit(model), ...checkWrites(model), ...checkDataContract(model), ...checkConcealed(model), ...checkLabels(model),
     ...checkResults(model), ...checkExchanges(model),
   ];

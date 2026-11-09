@@ -93,6 +93,21 @@ with tempfile.TemporaryDirectory() as folder:
         assert out.execute(divide) == Fraction(1, 3) and "Third" not in out.bound
         assert python.Run(made, Path(folder), Path(folder) / ".cache", []).value_of("Third") == Fraction(1, 3)
 
+# Two references to one data store are one value: what a step writes through one, another reads through the other,
+# which takes the store's name as its slot and the store's `uri` as its file when it gives neither.
+with tempfile.TemporaryDirectory() as folder:
+    make = {"id": "Make", "attributes": {"implementation": "python://builtins.list"}, "additionalArguments": "args: [[1, 2]]",
+            "outputs": [{"target": "Write_Ref"}]}
+    shown = python.Plan({"elements": {
+        "Make": make,
+        "Tally": {"id": "Tally", "type": "dataStore", "name": "tally", "attributes": {"uri": "tally.json"}},
+        "Write_Ref": {"id": "Write_Ref", "type": "dataStoreReference", "attributes": {"dataStoreRef": "Tally"}},
+        "Read_Ref": {"id": "Read_Ref", "type": "dataStoreReference", "attributes": {"dataStoreRef": "Tally"}}}})
+    python.Run(shown, Path(folder), Path(folder) / ".cache", []).execute(make)
+    assert json.loads((Path(folder) / "tally.json").read_text()) == [1, 2]
+    assert python.Run(shown, Path(folder), Path(folder) / ".cache", []).value_of("Read_Ref") == [1, 2]
+    assert shown.name_of("Read_Ref") == "tally" and shown.written("Read_Ref")
+
 # One record, a mapping, into a `.jsonl` data store is a line more of it: a step that runs once per subject leaves a line
 # per subject. The store's value stays the file, so the record is not bound in its place.
 with tempfile.TemporaryDirectory() as folder:
@@ -195,4 +210,12 @@ for implementation, arguments, said in (
         raise AssertionError(implementation)
     except LookupError as failed:
         assert str(failed) == said if said else type(failed) is KeyError, failed
+
+# A path on a series indexed by labels reads the row of that label: `describe()` puts its statistics on the index, so
+# `result.accuracy.mean` is the mean over the folds, where a list of the column would have read nulls.
+run.values["Folds"] = pandas.DataFrame({"accuracy": [0.5, 1.0]})
+run.execute({"id": "Summary", "attributes": {"implementation": "python://pandas.DataFrame.describe"},
+             "inputs": [{"source": "Folds", "transformation": "self"}],
+             "outputs": [{"target": "Mean", "transformation": "result.accuracy.mean"}]})
+assert run.bound["Mean"] == 0.75, run.bound
 print("ok")

@@ -1,6 +1,6 @@
 import { evaluateFeel } from '@core/expression/feel';
 import { PLACEHOLDER } from '@core/model/state';
-import { CONTAINER_TYPES, DATA_TYPES, type Graph } from '@core/engine/graph';
+import { DATA_TYPES, type Graph } from '@core/engine/graph';
 import type { Note, StateTree } from '@core/engine/host';
 import type { Expression, PlanElement } from '@core/engine/plan';
 import type { Happening } from '@core/engine/record';
@@ -9,8 +9,8 @@ import type { Happening } from '@core/engine/record';
 type Own = { pool: string; study: Values; state: StateTree; held: Map<string, unknown> };
 
 /**
- * What a run holds: the `state` tree (`state.<scope>.<property>`, and `state._meta`, the walk's own), what each
- * element produced this run, and the order the walk reached them in. Every expression reads from here.
+ * What a run holds: the `state` tree (`state.<scope>.<property>`, `state.<data store>`, and `state._meta`, the walk's
+ * own), what each element produced this run, and the order the walk reached them in. Every expression reads from here.
  */
 export class Values {
   readonly state: StateTree;
@@ -39,24 +39,22 @@ export class Values {
   }
 
   /**
-   * The values one instance of a pool of several reads and writes: the pool's process, the sub-processes and
-   * repeating activities inside it, its passes (`state._meta.instance`), and what its elements produced are its own;
-   * the rest is the study's, shared with every instance (the counts a node's properties keep, the data elements, the
-   * other pools). So instances that run at once do not read each other's arm or properties. What an instance writes
-   * of its own reaches the study's too, as it is written, so the study's state is always what the record replays to.
+   * The values one instance of a pool of several reads and writes: the properties of its pool's process and of every
+   * element inside it, its passes (`state._meta.instance`), and what its elements produced are its own; the rest is
+   * the study's, shared with every instance (the counts, the data stores and data objects, the other pools). So
+   * instances that run at once do not read each other's arm or properties. What an instance writes of its own reaches
+   * the study's too, as it is written, so the study's state is always what the record replays to.
    */
   forInstance(pool: string): Values {
     return new Values(this.graph, {}, this.record, { pool, study: this, state: {}, held: new Map() });
   }
 
-  /** Whether a scope is an instance's own: its pool's process, or a sub-process or repeating activity in it. A plain
-   * element's properties are the study's (`Excluded (n={count})` counts every participant). */
+  /** Whether a scope is an instance's own: its pool's process, or an element in it. A data store is the study's. */
   private owns(scope: string): boolean {
     const { pool } = this.own!;
     if (scope === pool) return true;
     const element = this.graph.elements[scope];
-    if (!element || this.graph.poolOf(scope) !== pool) return false;
-    return CONTAINER_TYPES.has(element.type) || !!element.loop;
+    return !!element && !DATA_TYPES.has(element.type) && this.graph.poolOf(scope) === pool;
   }
 
   /** Whether a value under an id is an instance's own: what an element of its pool produced, or a property of a scope
@@ -89,13 +87,38 @@ export class Values {
     this.record(value.length > 0 ? { event: 'wrote', scope, name, value: value[0] } : { event: 'wrote', scope, name });
   }
 
+  /** A data store written, or cleared with no `value`: `state.<store id>`, the study's whichever instance writes it. */
+  setStore(store: string, ...value: [unknown?]): void {
+    if (value.length > 0) this.state[store] = value[0];
+    else delete this.state[store];
+    this.record(value.length > 0 ? { event: 'wrote', store, value: value[0] } : { event: 'wrote', store });
+  }
+
+  /** The data stores the state lacks take their initial value; what a run left in the others stays. */
+  startStores(note: Note): void {
+    for (const [name, store] of this.graph.stores) {
+      if (name.startsWith('_')) {
+        note('state.reserved', `    ${store}: names starting with _ are reserved`, { level: 'warning' });
+        continue;
+      }
+      const value = this.graph.storeValue(store);
+      if (value !== undefined && !(store in this.state)) this.setStore(store, structuredClone(value));
+    }
+  }
+
   meta(quantity: string): Record<string, any> {
     return ((this.state._meta ??= {})[quantity] ??= {});
   }
 
-  /** A value under an element's id. A data edge into a declared property writes the study state too:
-   * `state.<scope>.<name>`, wherever the value came from. */
+  /** A value under an element's id. A data edge into a declared property writes the study state too,
+   * `state.<scope>.<name>`, and one into a data store or a reference to one writes `state.<store id>`, wherever the
+   * value came from. */
   store(id: string, value: unknown): void {
+    const store = this.graph.storeOf(id);
+    if (store) {
+      this.setStore(store, value);
+      return;
+    }
     this.held.set(id, value);
     const declared = this.graph.propertyScope(id);
     if (declared) this.set(declared.scope, declared.name, value);
@@ -103,11 +126,17 @@ export class Values {
 
   /**
    * A value written under a property's name by whatever runs `from` (a runner in the walk's own process has no state
-   * file to hand back): into the innermost scope around `from` that declares the name, which is returned, or
-   * nowhere when none does. A property the Parameters wired into a sub-process set is not written.
+   * file to hand back): into the innermost scope around `from` that declares the name, else the data store of that
+   * name; the scope or store is returned, or nothing when none declares it. A property the Parameters wired into a
+   * sub-process set is not written.
    */
   write(name: string, value: unknown, from: string): string | undefined {
     const scope = this.graph.scopeChain(from).find((candidate) => this.graph.properties.get(candidate)?.has(name));
+    const store = this.graph.stores.get(name);
+    if (!scope && store) {
+      this.setStore(store, value);
+      return store;
+    }
     if (!scope) return undefined;
     if (this.graph.readonly.get(scope)?.has(name)) {
       throw new Error(`'${name}' is set by the Parameters wired into ${scope}, so nothing inside it writes it.`);
@@ -118,16 +147,17 @@ export class Values {
     return scope;
   }
 
-  /** The properties in scope of an element, by name: what `{name}` and a condition read there. */
+  /** The properties in scope of an element, and the data stores, by name: what `{name}` and a condition read there. */
   inScope(id: string): Record<string, unknown> {
-    const declared = Object.fromEntries(this.graph.scopeChain(id).reverse()
-      .flatMap((scope) => [...(this.graph.properties.get(scope)?.keys() ?? [])].map((name) => [name, undefined])));
+    const declared = Object.fromEntries([...this.graph.stores.keys(), ...this.graph.scopeChain(id).reverse()
+      .flatMap((scope) => [...(this.graph.properties.get(scope)?.keys() ?? [])])].map((name) => [name, undefined]));
     return { ...declared, ...this.scopeValues(id) };
   }
 
-  /** What an expression reads: `state`, then every element's value by its id and by its name. */
+  /** What an expression reads: `state`, then every element's value by its id and by its name, a data store's by its id. */
   private namespace(): Record<string, unknown> {
     const space: Record<string, unknown> = { state: { ...this.state, trace: [...this.trace] } };
+    for (const store of this.graph.stores.values()) if (store in this.state) space[store] = this.state[store];
     for (const [id, value] of this.held) {
       space[id] = value;
       const name = this.graph.plan.names[id];
@@ -136,9 +166,10 @@ export class Values {
     return space;
   }
 
-  /** The properties in scope of an element, the innermost winning. */
+  /** The data stores, then the properties in scope of an element, the innermost winning. */
   private scopeValues(id: string): Record<string, unknown> {
     const space: Record<string, unknown> = {};
+    for (const [name, store] of this.graph.stores) if (store in this.state) space[name] = this.state[store];
     for (const scope of this.graph.scopeChain(id).reverse()) {
       const held = this.state[scope] ?? {};
       for (const name of this.graph.properties.get(scope)?.keys() ?? []) if (name in held) space[name] = held[name];
@@ -156,6 +187,21 @@ export class Values {
     const { value, error } = evaluateFeel(expression.body, { ...this.namespace(), ...(scope ? this.inScope(scope) : {}), ...extra });
     if (error) throw new Error(error);
     return value;
+  }
+
+  /** A process's properties as a run starts it: each from its `value`, and one with none cleared of what the last run
+   * left, each change recorded. */
+  restartScope(id: string, note: Note): void {
+    for (const [name, declared] of this.graph.properties.get(id) ?? []) {
+      if (name.startsWith('_')) {
+        note('state.reserved', `    ${id}.${name}: names starting with _ are reserved`, { level: 'warning' });
+      } else if (declared.value !== undefined) {
+        this.set(id, name, structuredClone(declared.value));
+        if (declared.id) this.held.set(declared.id, this.state[id][name]);
+      } else if (name in (this.state[id] ?? {})) {
+        this.set(id, name);
+      }
+    }
   }
 
   /** Initialise the scope's properties from `value`; `reset` re-initialises ones the tree already holds. */
@@ -186,14 +232,20 @@ export class Values {
 
   /**
    * What `{path}` cites at `scope` (docs/reference.qmd, "Placeholders"): `state` from its root; then, from the element
-   * outward, what each scope holds under the name; then an element's value, by id or name; then, for a lone
-   * `{reached}`, the element's own counter, 0 when no run reached it. Undefined when nothing holds it.
+   * outward, what each scope holds under the name; then the data store of that name; then an element's value, by id
+   * or name; then, for a lone `{reached}`, the element's own counter, 0 when no run reached it. Undefined when nothing
+   * holds it.
    */
   cite(path: string, scope: string): unknown {
     const [head, ...fields] = path.split('.');
     if (head === 'state') return dig(this.state, fields);
     for (const id of this.graph.scopeChain(scope)) {
       const found = dig(this.state[id], [head, ...fields]);
+      if (found !== undefined && found !== null) return found;
+    }
+    const store = this.graph.stores.get(head) ?? this.graph.storeOf(head);
+    if (store) {
+      const found = dig(this.state[store], fields);
       if (found !== undefined && found !== null) return found;
     }
     const named = Object.entries(this.graph.plan.names).find(([, name]) => name === head)?.[0];
@@ -222,7 +274,7 @@ export class Values {
   }
 
   /** The JSON-able shadow of the run's values, for a runner's placeholders and intents, with the state tree under the
-   * one key no element may take. */
+   * one key no element may take: a data store's value under its id and each reference's to it. */
   json(): Record<string, unknown> {
     const shadow: Record<string, unknown> = {};
     for (const [id, value] of this.held) {
@@ -232,6 +284,10 @@ export class Values {
       } catch { /* not JSON-able: it stays with the walk */ }
     }
     shadow.state = JSON.parse(JSON.stringify(this.state));
+    const state = shadow.state as StateTree;
+    for (const store of this.graph.stores.values()) {
+      if (store in state) for (const id of [store, ...this.graph.referencesOf(store)]) shadow[id] = state[store];
+    }
     return shadow;
   }
 
@@ -241,20 +297,22 @@ export class Values {
     return sources.length === 0 ? null : Object.fromEntries(sources.map((source) => [source, this.inputValue(source)]));
   }
 
-  /** A data input's value: a declared property's from its scope (a list pass's item), else what the element holds
-   * this run, else its `uri`. */
+  /** A data input's value: a data store's from the state, a declared property's from its scope (a list pass's item),
+   * else what the element holds this run, else its `uri`. */
   private inputValue(source: string): unknown {
+    const store = this.graph.storeOf(source);
+    if (store) return store in this.state ? this.state[store] : this.graph.uriOf(store) ?? this.graph.uriOf(source) ?? null;
     const declared = this.graph.propertyScope(source);
     if (declared && !this.held.has(source)) return this.state[declared.scope]?.[declared.name] ?? null;
     return this.held.has(source) ? this.held.get(source) : this.graph.uriOf(source) ?? null;
   }
 
-  /** A claimed step's result into the properties its data edges target, narrowed by each edge's `transformation`
-   * (FEEL over `result` and the properties in scope), where its runner bound none itself: a property is the study's
-   * state, written the same way whichever runner ran the step. Data objects and stores stay the runner's to fill. */
+  /** A claimed step's result into the properties and data stores its data edges target, narrowed by each edge's
+   * `transformation` (FEEL over `result` and the names in scope), where its runner bound none itself: they are the
+   * study's state, written the same way whichever runner ran the step. Data objects stay the runner's to fill. */
   bindProperties(element: PlanElement, value: unknown, bound: ReadonlySet<string>): void {
     for (const { target, transformation, language } of element.outputs) {
-      if (!target || bound.has(target) || !this.graph.propertyScope(target)) continue;
+      if (!target || bound.has(target) || (!this.graph.propertyScope(target) && !this.graph.storeOf(target))) continue;
       const narrowed = value !== null && value !== undefined && transformation
         ? this.evaluate({ body: transformation, language }, element.id, { result: value })
         : value;

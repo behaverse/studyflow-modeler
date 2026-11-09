@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test';
 
 import { Study } from '@canvas/index.ts';
 import type { Element } from '@core/model/index';
-import { runUpdateStateProperties } from '@modeler/inspector/commands';
-import { getPropertiesInScope, itemTypeOptions } from '@modeler/inspector/stateProperties';
+import { runSetDataStore, runUpdateDataStores, runUpdateStateProperties } from '@modeler/inspector/commands';
+import { getDataStores, getPropertiesInScope, itemTypeOptions } from '@modeler/inspector/stateProperties';
 import type { Editor } from '@modeler/editor/port';
 import { freshMetamodel, studyModel } from './schemas';
 
@@ -74,6 +74,30 @@ test('a step may bind what its scopes declare, outward, an inner name hiding an 
 `);
 
   expect(getPropertiesInScope(model, model.get('Step')!).map((p) => `${p.name} from ${p.ownerId}`)).toEqual(['n from Loop', 'arm from Study']);
+});
+
+test('the study declares data stores at its root, and a data store reference shows one by name or declares it', async () => {
+  const { study, modeler } = await editorOver(`S:
+  type: Process
+  flowElements:
+    Ref: { type: DataStoreReference }
+`);
+  const update = (command: Record<string, unknown>) => runUpdateDataStores(modeler, { type: 'UpdateDataStores', element: study.element('S')!, ...command } as never);
+  const show = (name: string) => runSetDataStore(modeler, { type: 'SetDataStore', element: study.element('Ref')!, name });
+  const stores = () => getDataStores(study.model).map(({ id, name, itemType }) => `${id} ${name} ${itemType}`.trim());
+
+  update({ action: 'add' });
+  update({ action: 'rename', storeId: 'DataStore_1', name: 'tally' });
+  update({ action: 'rename', storeId: 'DataStore_1', name: '_meta' });
+  update({ action: 'retype', storeId: 'DataStore_1', itemType: 'integer' });
+  expect(stores(), 'a `_` name is refused').toEqual(['DataStore_1 tally integer']);
+
+  show('tally');
+  expect(study.element('Ref')!.dataStoreRef, 'a store the study declares, by its name').toBe('DataStore_1');
+  show('arm');
+  expect([study.element('Ref')!.dataStoreRef, stores()], 'a name none has declares a store').toEqual(['DataStore_2', ['DataStore_1 tally integer', 'DataStore_2 arm']]);
+  update({ action: 'remove', storeId: 'DataStore_2' });
+  expect([study.element('Ref')!.dataStoreRef, stores()], 'its references then show none').toEqual([undefined, ['DataStore_1 tally integer']]);
 });
 
 test.describe('property names', () => {

@@ -235,13 +235,13 @@ test('a timer event is the walk\'s to wait: its screen is told when the wait end
 });
 
 test.describe('the state a session keeps', () => {
-  /** Study declares `total` (initial 0); the battery declares `failed`; the gateway loops while it has been reached under 3 times. */
-  const REACH = `${HEAD}Study:
+  /** The study keeps `total` (initial 0) in a data store; the battery declares `failed`; the gateway loops while it has been reached under 3 times. */
+  const REACH = `${HEAD}Total:
+  type: bpmn:DataStore
+  name: total
+  value: "0"
+Study:
   type: bpmn:Process
-  properties:
-    P_Total:
-      name: total
-      value: "0"
   flowElements:
     Start:
       type: bpmn:StartEvent
@@ -313,7 +313,7 @@ test.describe('the state a session keeps', () => {
     expect(visited.filter((id) => id === 'Trial')).toHaveLength(3);
     expect(visited[visited.length - 1]).toBe('Excluded');
     expect(session.getState()).toEqual({
-      Study: { total: 0 },
+      Total: 0,
       Battery: { failed: 0 },
       _meta: {
         reached: {
@@ -325,8 +325,8 @@ test.describe('the state a session keeps', () => {
     expect(session.getUndeclaredVariables()).toEqual([]);
   });
 
-  test('a deposited state tree seeds the scopes and keeps accumulating its counters', async () => {
-    const studyflow = await load(`${REACH}state:\n  _meta: { reached: { Gate: 2 } }\n  Study: { total: 10 }\n`);
+  test('a deposited state tree seeds the data stores and keeps accumulating its counters', async () => {
+    const studyflow = await load(`${REACH}state:\n  _meta: { reached: { Gate: 2 } }\n  Total: 10\n`);
     expect(studyflow.state._meta.reached).toEqual({ Gate: 2 });
 
     const session = new Session(studyflow);
@@ -335,7 +335,7 @@ test.describe('the state a session keeps', () => {
 
     // Gate was reached twice before this run, so its first visit here is the third: no loop.
     expect(visited.filter((id) => id === 'Trial')).toHaveLength(1);
-    expect(session.getState().Study).toEqual({ total: 10 });
+    expect(session.getState().Total).toBe(10);
     expect(session.getState()._meta.reached.Gate).toBe(3);
   });
 });

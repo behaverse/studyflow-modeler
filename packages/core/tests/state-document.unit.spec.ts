@@ -15,6 +15,7 @@ const STATE = {
   Example_Study: { arm: 'A' },
   Battery: { failed_trials: 2 },
   Excluded_Pre: { count: 3 },
+  Tally: 5,
 };
 
 const STATE_BLOCK = yaml.dump({ state: STATE }, YAML_DUMP_OPTIONS);
@@ -22,6 +23,10 @@ const STATE_BLOCK = yaml.dump({ state: STATE }, YAML_DUMP_OPTIONS);
 const BODY = `id: state_probe
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
+Tally:
+  type: bpmn:DataStore
+  name: tally
+  value: 0
 Example_Study:
   type: bpmn:Process
   properties:
@@ -71,6 +76,8 @@ test.describe('state in the document', () => {
       ['Trial', 'arm', 'A'], // the study root's
       ['Example_Study', 'arm', 'A'],
       ['Trial', 'count', undefined], // a sibling's is out of scope
+      ['Trial', 'tally', 5], // a data store, from anywhere
+      ['Excluded_Pre', 'tally', 5],
       ['Nope', 'count', undefined],
       // A lone `{reached}` is the element's own counter, and an element no run reached counts 0, never its container's.
       ['Excluded_Pre', 'reached', 4],
@@ -81,6 +88,7 @@ test.describe('state in the document', () => {
       // `state.` reads the tree from its top, `_meta` included.
       ['Trial', 'state.Excluded_Pre.count', 3],
       ['Trial', 'state.Example_Study.arm', 'A'],
+      ['Trial', 'state.Tally', 5],
       ['Trial', 'state._meta.reached.Excluded_Pre', 4],
     ];
     for (const [elementId, path, expected] of CASES) {
@@ -92,7 +100,7 @@ test.describe('state in the document', () => {
     const CASES: [label: string, state: StateTree | undefined, text: string, expected: string][] = [
       ['a name in scope', STATE, 'Excluded (n={count})', 'Excluded (n=3)'],
       ['an unresolved name stays', STATE, '{arm}/{missing} {reached} {state.Battery.failed_trials}', 'A/{missing} 4 2'],
-      ['without state, the value the file declares', undefined, 'Excluded (n={count})', 'Excluded (n=0)'],
+      ['without state, the value the file declares', undefined, 'Excluded (n={count}) of {tally}', 'Excluded (n=0) of 0'],
       ['a name declared with no value stays', undefined, '{arm}', '{arm}'],
       // A deposited file no run has touched reads n=0, as a preregistered exit nobody took should.
       ['a counter with no run behind it is 0', undefined, 'Excluded (n={reached})', 'Excluded (n=0)'],

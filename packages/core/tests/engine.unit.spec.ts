@@ -4,7 +4,7 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
 import { HandoffError, MINIMIZATION_PROBABILITY, Walk, allocationOf, alternated, draw, dryHost, durationMs, explore, minimized, permutedBlock, pick, planOf, stateOf, type Handback, type Host, type PlanElement, type RunEvent, type Talk, type WalkOptions } from '@core/engine';
-import { studyModel } from '@tests/schemas';
+import { studyModel, xmlOf } from '@tests/schemas';
 import { exampleText } from '@tests/utils';
 
 /** The walk (packages/core/src/engine): what every runtime runs. Each case walks a study written inline with runners
@@ -140,13 +140,16 @@ test('a name several elements share is warned about only where a placeholder cit
   ]);
 });
 
-test('the plan spells a compact data association as the BPMN XML does: a data input its slot names, the selection alone', () => {
-  const plan = planOf(studyModel(`id: study
-${HEAD}S:
+test('the plan spells a compact data association as the BPMN XML does: a data input its slot names, the selection alone', async () => {
+  // A slot defaults to its source's name, and an unnamed data store reference's to its store's.
+  const text = `id: study
+${HEAD}Estimator: { type: DataStore, name: estimator }
+S:
   type: Process
   flowElements:
     Digits: { type: DataObjectReference, name: digits }
     Model: { type: DataObjectReference, name: model }
+    Estimator_Ref: { type: DataStoreReference, dataStoreRef: Estimator }
     Start: { type: StartEvent }
     Fit:
       type: Task
@@ -154,13 +157,16 @@ ${HEAD}S:
         A1: { sourceRef: [Digits], transformation: 'table = x[1]' }
         A2: { sourceRef: [Digits] }
         A3: { sourceRef: [Digits], transformation: table }
+        A5: { sourceRef: [Estimator_Ref] }
       dataOutputAssociations:
         A4: { targetRef: Model, transformation: result.model }
     F1: Start -> Fit
-`));
+`;
+  const plan = planOf(studyModel(text));
   const { ioSlots, inputs, outputs } = plan.elements.Fit;
-  expect(ioSlots).toEqual({ Fit_in_table: 'table', Fit_in_digits: 'digits', Fit_in_table_2: 'table' });
-  expect(inputs.map(({ target, transformation }) => [target, transformation])).toEqual([['Fit_in_table', 'x[1]'], ['Fit_in_digits', null], ['Fit_in_table_2', null]]);
+  expect(ioSlots).toEqual({ Fit_in_table: 'table', Fit_in_digits: 'digits', Fit_in_table_2: 'table', Fit_in_estimator: 'estimator' });
+  expect(inputs.map(({ target, transformation }) => [target, transformation])).toEqual([['Fit_in_table', 'x[1]'], ['Fit_in_digits', null], ['Fit_in_table_2', null], ['Fit_in_estimator', null]]);
+  expect(await xmlOf(text)).toContain('<bpmn:dataInput id="Fit_in_estimator" name="estimator" />');
   expect(outputs).toEqual([{ target: 'Model', transformation: 'result.model', language: null }]);
 });
 
@@ -1125,6 +1131,87 @@ S:
   expect(state._meta?.instance).toEqual({ Subjects: 2 });
   expect(state._meta?.reached).toMatchObject({ Look: 2, Answer: 2 });
   expect(walk.values.get('Answer')).toBe('answer 2');
+});
+
+test('a data store is the study\'s, kept from run to run; a process\'s properties start each instance and each run from their value, a task\'s each pass', async () => {
+  // Each subject counts itself into the store through a reference to it, and the gateway reads the store by name.
+  const study = `C:
+  type: Collaboration
+  participants:
+    Subjects:
+      name: Subjects
+      participantMultiplicity:
+        maximum: 3
+      processRef: S
+Tally:
+  type: DataStore
+  name: tally
+  value: "0"
+S:
+  type: Process
+  properties:
+    P_Mark: { name: mark, value: fresh }
+  flowElements:
+    S0: { type: StartEvent }
+    Tally_Ref: { type: DataStoreReference, dataStoreRef: Tally }
+    Count:
+      type: Task
+      properties:
+        P_Here: { name: here }
+      dataInputAssociations: { In_Tally: { sourceRef: [Tally_Ref] } }
+      dataOutputAssociations: { Out_Tally: { targetRef: Tally_Ref, transformation: tally + 1 } }
+    Gate: { type: ExclusiveGateway, default: F_Small }
+    Big: { type: EndEvent }
+    Small: { type: EndEvent }
+    SF1: S0 -> Count
+    SF2: Count -> Gate
+    F_Big: { sourceRef: Gate, targetRef: Big, conditionExpression: tally > 2 }
+    F_Small: Gate -> Small
+`;
+  const seen: unknown[] = [];
+  const runners: Record<string, Runner> = {
+    Count: (values) => {
+      seen.push([values.state._meta.instance.Subjects, values.state.Tally, values.state.S.mark, values.state.Count?.here ?? null]);
+      return { result: 1, state: { S: { mark: 'used' }, Count: { here: 'yes' } } };
+    },
+  };
+  const first = await walked(study, runners);
+  expect(first.error).toBeUndefined();
+  expect(seen).toEqual([[1, 0, 'fresh', null], [2, 1, 'fresh', null], [3, 2, 'fresh', null]]);
+  expect([first.state.Tally, first.reached.Big, first.reached.Small]).toEqual([3, 1, 2]);
+  expect(first.events.filter((event) => event.event === 'wrote' && 'store' in event).map((event) => 'value' in event && event.value)).toEqual([0, 1, 2, 3]);
+
+  // A run of the executed copy goes on from the store, while the properties start again from their values.
+  seen.length = 0;
+  const second = await walked(study, runners, { state: first.state });
+  expect(seen).toEqual([[1, 3, 'fresh', null], [2, 4, 'fresh', null], [3, 5, 'fresh', null]]);
+  expect([second.state.Tally, second.reached.Big]).toEqual([6, 4]);
+
+  // A study without pools: its one walk is one instance, the next run starts its properties again, and each pass of
+  // a step finds the step's own property unset.
+  const visits: unknown[] = [];
+  const once = `S:
+  type: Process
+  properties:
+    P_Mark: { name: mark, value: fresh }
+  flowElements:
+    S0: { type: StartEvent }
+    Count:
+      type: Task
+      loopCharacteristics: { type: StandardLoopCharacteristics, loopMaximum: 2 }
+      properties:
+        P_Here: { name: here }
+    S9: { type: EndEvent }
+    SF1: S0 -> Count
+    SF2: Count -> S9
+`;
+  const looping = { Count: (values: Record<string, any>) => {
+    visits.push([values.state.S.mark, values.state.Count?.here ?? null]);
+    return { state: { S: { mark: 'used' }, Count: { here: 'yes' } } };
+  } };
+  const looped = await walked(once, looping);
+  await walked(once, looping, { state: looped.state });
+  expect([looped.error, visits]).toEqual([undefined, [['fresh', null], ['used', null], ['fresh', null], ['used', null]]]);
 });
 
 // `concurrency`: the instances of a pool start in order, up to that many walking at once. Each keeps its own values

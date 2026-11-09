@@ -851,6 +851,7 @@ export class Study {
       const node = element.id ? scene.elementsById.get(element.id) : undefined;
       if (node && node.kind !== 'label') for (const shown of redrawn(scene, node)) drawn.add(shown);
       else if (scene.model.host(element) === 'bpmn:Participant' && about?.kind === 'node') for (const task of tasksReferencing(scene, element, about)) drawn.add(task);
+      else if (scene.model.host(element) === 'bpmn:DataStore') for (const shown of referencesTo(scene, element)) drawn.add(shown);
       else if (about) drawn.add(about);
     }
     if (drawn.size > 0) mutator.touch([...drawn]);
@@ -1039,6 +1040,12 @@ export class Study {
 function idsOf({ added, changed, removed }: Commit): ChangedIds {
   const ids = (elements: readonly { id: string }[]): string[] => elements.map((element) => element.id);
   return { added: ids(added), changed: ids(changed), removed: ids(removed) };
+}
+
+/** The references drawn for a data store, which an unnamed one draws the name of. */
+function referencesTo(scene: Scene, store: Element): SceneNode[] {
+  return [...scene.elementsById.values()].filter((element): element is SceneNode => element.kind === 'node'
+    && scene.model.host(element.element) === 'bpmn:DataStoreReference' && idsIn(element.element.dataStoreRef).includes(store.id!));
 }
 
 /** What shows `node`'s element once it changes: `node`, and whatever else draws it. */

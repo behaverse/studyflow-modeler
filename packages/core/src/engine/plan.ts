@@ -227,8 +227,9 @@ function dataAssociationsIn(model: StudyModel, element: Element): Pick<PlanEleme
     const sources = listIn(association.sourceRef).map(idOf).filter((source): source is string => !!source);
     if (!compact || association.targetRef !== undefined) return sources.map((source) => ({ source, ...binding(association, false) }));
     const first = model.get(sources[0]);
+    const store = model.get(idOf(first?.dataStoreRef) ?? undefined);
     const slot = splitBinding(expressionIn(association.transformation)?.body).slot
-      || (typeof first?.name === 'string' && first.name) || sources[0] || 'input';
+      || (typeof first?.name === 'string' && first.name) || (typeof store?.name === 'string' && store.name) || sources[0] || 'input';
     const stem = `${element.id}_in_${slot.replace(/[^A-Za-z0-9_]+/g, '_')}`;
     let target = stem;
     for (let n = 2; used.has(target); n += 1) target = `${stem}_${n}`;
@@ -322,7 +323,7 @@ export function modelIndexOf(model: StudyModel): ModelIndex {
 
   const others = roots.flatMap((definition) => {
     const host = model.host(definition);
-    if (host === 'bpmn:Message' || host === 'bpmn:ItemDefinition') return definition.id ? [definition] : [];
+    if (host === 'bpmn:Message' || host === 'bpmn:ItemDefinition' || host === 'bpmn:DataStore') return definition.id ? [definition] : [];
     if (host !== 'bpmn:Collaboration') return [];
     return [...listIn(definition.participants), ...listIn(definition.messageFlows)].filter((child): child is Element => isElement(child) && !!child.id);
   });

@@ -58,7 +58,8 @@ automated test in this repository, and the element types that the schemas declar
 | Sequence flow | bpmn:SequenceFlow | `condition` (BPMN's `conditionExpression`) |
 | Service task | `bpmn:ServiceTask` (also user, send, receive, and business-rule tasks) | `implementation` (`python://pkg.fn@version`), `additionalArguments` |
 | Script task | bpmn:ScriptTask | script |
-| Property | bpmn:Property | `value`, the initial value of the state a scope declares |
+| Property | bpmn:Property | `value`, the initial value of what one instance of its scope holds |
+| Data store | bpmn:DataStore | `value`, the initial value of what the study keeps for all its participants |
 | Conditional and timer events | `bpmn:ConditionalEventDefinition`, `bpmn:TimerEventDefinition` | `condition`; `timeDuration`, `timeDate`, `timeCycle` (a cycle is waited for its first firing only) |
 | Loop marker | bpmn:StandardLoopCharacteristics | `while` (BPMN's `loopCondition`) |
 | studyflow:Actor | bpmn:Participant | `actorType` (human, software, hardware; llm from the agentic extension), `implementation`, `memory (none, conversation, window), memoryWindow (the exchanges a window keeps, 20 by default)` |

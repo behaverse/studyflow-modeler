@@ -22,9 +22,10 @@ function forEachProcess(definitions: any, visit: (process: any) => void): void {
   }
 }
 
+/** The slot an input fills when it names none: its source's name, a data store reference's store's, else its id. */
 function defaultSlotFor(assoc: any): string {
   const source = assoc.sourceRef?.[0];
-  return source?.name || source?.id || 'input';
+  return source?.name || source?.dataStoreRef?.name || source?.id || 'input';
 }
 
 function effectiveSlot(assoc: any): string {

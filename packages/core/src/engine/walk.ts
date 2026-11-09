@@ -141,11 +141,11 @@ export class Walk {
       }
     }
     for (const id of graph.participants.keys()) if (host.claim(id)?.live) this.live.add(id);
-    // Study-scoped properties persist across runs, so only ones the tree lacks take their `value`; a plain element's
-    // properties live with the study (`Excluded (n={count})` counts across runs).
-    for (const scope of graph.properties.keys()) {
-      if (!CONTAINER_TYPES.has(graph.elements[scope]?.type ?? 'process')) this.memory.startScope(scope, false, this.note({ pool: '', path: '', depth: 0, watching: [], cancels: [], heard: new Map(), participant: 1, visits: new Map() }));
-    }
+    // A data store lives for the whole study, so only one the state lacks takes its `value`. A process's properties
+    // live for one instance of it, so a run starts each from its `value`, never from what the last run left.
+    const note = this.note({ pool: '', path: '', depth: 0, watching: [], cancels: [], heard: new Map(), participant: 1, visits: new Map() });
+    this.memory.startStores(note);
+    for (const process of plan.processes) this.memory.restartScope(process, note);
   }
 
   // --- the run ---
@@ -335,6 +335,8 @@ export class Walk {
       if (arriving) {
         this.valuesOf(thread).trace.push(id);
         this.valuesOf(thread).count(id);
+        // An event's properties live for one visit, an activity's for one pass (`perform`).
+        if (graph.properties.has(id) && (type === 'endEvent' || PASSTHROUGH_TYPES.has(type))) this.valuesOf(thread).startScope(id, true, this.note(thread));
       }
       this.post.checkInterrupt(thread);
       if (arriving && graph.joins(element) && !this.arrive(scope, element, path)) {
@@ -453,6 +455,8 @@ export class Walk {
         if (passes > this.maxSteps) throw new Error(`${id}: loop budget exhausted — does its loop ever end?`);
         // Which pass this is, for whatever runs inside: `state._meta.instance.<id>`, 1-based.
         if (element.loop) this.valuesOf(thread).instance(id, passes);
+        // A task's properties start each pass again, as a sub-process's do (`walkContainer`).
+        if (!CONTAINER_TYPES.has(element.type) && graph.properties.has(id)) this.valuesOf(thread).startScope(id, true, this.note(thread));
         if (listed) {
           // The pass's item in the activity's own scope, `{C}` to the steps inside, and no output yet.
           if (listed.item) this.valuesOf(thread).set(id, listed.item, listed.items[passes - 1]);
@@ -504,8 +508,11 @@ export class Walk {
     const { loop } = element;
     if (loop?.kind !== 'multiInstance' || !loop.input) return undefined;
     const declared = this.graph.propertyScope(loop.input);
+    const store = this.graph.storeOf(loop.input);
     let items: unknown;
-    if (declared) {
+    if (store) {
+      items = this.valuesOf(thread).state[store];
+    } else if (declared) {
       const held = this.valuesOf(thread).state[declared.scope] ?? {};
       items = declared.name in held ? held[declared.name] : this.graph.properties.get(declared.scope)!.get(declared.name)!.value;
     } else {
@@ -679,6 +686,11 @@ export class Walk {
     const memory = this.valuesOf(thread);
     keepRecord(entry, handed);
     for (const [scope, written] of Object.entries(handed.state ?? {})) {
+      // A data store is one value, under its own id.
+      if (this.graph.storeOf(scope) === scope) {
+        memory.setStore(scope, written);
+        continue;
+      }
       if (scope === '_meta' || !written || typeof written !== 'object') continue;
       const held = (memory.state[scope] ??= {});
       const fixed = [...(this.graph.readonly.get(scope) ?? [])].filter((name) => name in written && JSON.stringify(written[name]) !== JSON.stringify(held[name])).sort();

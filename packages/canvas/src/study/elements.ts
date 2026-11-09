@@ -10,10 +10,12 @@ export function nameOf(element: Element | undefined): string {
   return typeof element?.name === 'string' ? element.name : '';
 }
 
-/** The name as the canvas draws it, `{placeholders}` resolved (`> {max_unanswered:%}` as `> 20%`): what a caption is
- * sized, wrapped and drawn from, so its box fits the text it shows. The element keeps the name as written. */
+/** The name as the canvas draws it, `{placeholders}` resolved (`> {max_unanswered:%}` as `> 20%`), a data store
+ * reference with none drawn with its store's: what a caption is sized, wrapped and drawn from, so its box fits the
+ * text it shows. The element keeps the name as written. */
 export function drawnNameOf(model: StudyModel, element: Element | undefined): string {
-  return resolvePlaceholdersIn(model, nameOf(element), typeof element?.id === 'string' ? element.id : '');
+  const store = element && !nameOf(element) && model.host(element) === 'bpmn:DataStoreReference' ? model.get(idOf(element.dataStoreRef) ?? undefined) : undefined;
+  return resolvePlaceholdersIn(model, nameOf(element) || nameOf(store), typeof element?.id === 'string' ? element.id : '');
 }
 
 /** The elements `element` holds under `key`. */

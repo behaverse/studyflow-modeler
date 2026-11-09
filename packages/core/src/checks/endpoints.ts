@@ -12,7 +12,8 @@ const list = (value: Value | undefined): Element[] => (Array.isArray(value) ? va
 /**
  * Well-formedness condition 2: edges respect type and scope. A sequence flow runs between two flow nodes of the
  * process or sub-process that holds it; a data association connects a data element to the flow node it belongs to;
- * and a node reads or writes a property only where it or a scope around it declares it.
+ * a node reads or writes a property only where it or a scope around it declares it, and a data store through a
+ * reference drawn in its process; and a data store reference names a data store, if any.
  */
 export function checkEndpoints(model: StudyModel): Issue[] {
   const issues: Issue[] = [];
@@ -45,8 +46,16 @@ export function checkEndpoints(model: StudyModel): Issue[] {
       } else if (model.isA(data, BPMN.Property) && !scopes.has(model.parentOf(data)!)) {
         const owner = model.parentOf(data);
         report(edge, `${quoted(node)} ${verb} property ${quoted(data)}, which ${owner ? quoted(owner) : 'nothing'} declares, outside it: a node reads and writes the properties of the scopes around it`);
+      } else if (model.isA(data, BPMN.DataStore)) {
+        report(edge, `${quoted(node)} ${verb} data store ${quoted(data)} directly: a step reads and writes a data store through a data store reference to it, drawn in its process`);
       }
     }
+  }
+
+  for (const reference of model.all()) {
+    if (!model.isA(reference, BPMN.DataStoreReference)) continue;
+    const store = model.get(idOf(reference.dataStoreRef) ?? undefined);
+    if (store && !model.isA(store, BPMN.DataStore)) report(reference, `data store reference ${quoted(reference)} names ${quoted(store)}, which is no data store`);
   }
   return issues;
 }

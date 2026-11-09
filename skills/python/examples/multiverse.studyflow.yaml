@@ -16,31 +16,16 @@ multiverse:
 
     The choice here is the regularization strength `C` of a support vector
     classifier on scikit-learn's digits. The values it may take are the
-    study's own `cs` property, and `each_c` carries BPMN's multi-instance
+    study's `cs` data store, and `each_c` carries BPMN's multi-instance
     marker over that list: it runs once per value, binds the value as its
     `C`, and after each pass takes what its `score` property holds. The
     marker collects those, in the order of the list, into the study's
-    `scores` property, so the curve is a value of the run rather than a
-    table someone assembles afterwards.
+    `scores` data store, so the curve is a value the study keeps rather
+    than a table someone assembles afterwards.
 
     Nothing is computed by code of the study's own: loading the data,
     building the estimator and scoring it are library calls, named by their
     `python://` paths.
-  properties:
-    cs:
-      name: cs
-      value: "[0.1, 1, 10]"
-
-    features:
-      name: features
-      uri: features.joblib
-
-    labels:
-      name: labels
-      uri: labels.joblib
-
-    scores:
-      name: scores
   elements:
     start:
       type: StartEvent
@@ -54,15 +39,23 @@ multiverse:
       implementation: python://sklearn.datasets.load_digits
       documentation: >-
         `load_digits(return_X_y=True)`: the 8x8 images as 64 features, and the digit each shows. One call fills both
-        properties, each output taking its half of the pair.
+        data stores, each output taking its half of the pair.
       outputs:
         Out_Features:
-          target: $features
+          target: $features_ref
           transformation: result[1]
 
         Out_Labels:
-          target: $labels
+          target: $labels_ref
           transformation: result[2]
+
+    features_ref:
+      type: DataStoreReference
+      dataStore: $features
+
+    labels_ref:
+      type: DataStoreReference
+      dataStore: $labels
 
     each_c:
       type: SubProcess
@@ -102,11 +95,11 @@ multiverse:
             `score`.
           inputs:
             In_Features:
-              source: $features
+              source: $features_ref
               parameter: X
 
             In_Labels:
-              source: $labels
+              source: $labels_ref
               parameter: "y"
           outputs:
             Out_Score:
@@ -140,12 +133,37 @@ multiverse:
       source: $each_c
       target: $done
 
+cs:
+  type: DataStore
+  name: cs
+  value: "[0.1, 1, 10]"
+
+features:
+  type: DataStore
+  name: features
+  uri: features.joblib
+
+labels:
+  type: DataStore
+  name: labels
+  uri: labels.joblib
+
+scores:
+  type: DataStore
+  name: scores
+
 layout:
   start: 80 252 36 36
   load_digits: 156 230 120 80
+  Out_Features: 196,310 196,385
+  Out_Labels: 256,310 256,385
+  features_ref: {bounds: 178 385 36 50, label: 112 402 60 15}
+  labels_ref: {bounds: 238 385 36 50, label: 280 402 44 15}
   each_c: {bounds: 316 190 320 160, expanded: true}
   universe_start: 346 252 36 36
   score_svc: 422 230 120 80
+  In_Features: 196,435 196,470 512,470 512,310
+  In_Labels: 256,435 256,455 482,455 482,310
   universe_end: 582 252 36 36
   flow_universe_score: 382,270 422,270
   flow_universe_end: 542,270 582,270

@@ -8,6 +8,9 @@ import { studyModel } from '@tests/schemas';
 const study = (elements: string): string => `id: endpoints
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
+Tally:
+  type: DataStore
+  name: tally
 Study:
   type: Process
   name: Study
@@ -20,7 +23,12 @@ Study:
     Draw:
       type: Task
       name: Draw an arm
-      dataOutputAssociations: { Out_Arm: { targetRef: P_Arm } }
+      dataOutputAssociations:
+        Out_Arm: { targetRef: P_Arm }
+        Out_Tally: { targetRef: Tally_Ref }
+    Tally_Ref:
+      type: DataStoreReference
+      dataStoreRef: Tally
     Block:
       type: SubProcess
       name: Block
@@ -50,7 +58,7 @@ ${elements}`;
 test('a sequence flow joins two flow nodes of its own container, and a data association a data element in scope', () => {
   // Each issue as `<element id>: <message>`.
   const CASES: [label: string, edit: (text: string) => string, issues: string[]][] = [
-    ['a property read from inside the scope that declares it, and written from that scope', (text) => text, []],
+    ['a property read from inside the scope that declares it, and written from that scope; a data store written through a reference', (text) => text, []],
     ['a sequence flow into a data element', (text) => text.replace('    F3: Block -> Done\n', '    F3: Block -> Done\n    F4: Draw -> Trials\n'), [
       'F4: sequence flow "F4" has "Trials" as its target, which is no event, activity or gateway: data is drawn with a data association',
     ]],
@@ -62,6 +70,12 @@ test('a sequence flow joins two flow nodes of its own container, and a data asso
     ]],
     ['a property written outside the scope that declares it', (text) => text.replace('targetRef: P_Arm', 'targetRef: P_Trial'), [
       'Out_Arm: "Draw an arm" writes property "trial", which "Block" declares, outside it: a node reads and writes the properties of the scopes around it',
+    ]],
+    ['a data store written with no reference to it', (text) => text.replace('targetRef: Tally_Ref', 'targetRef: Tally'), [
+      'Out_Tally: "Draw an arm" writes data store "tally" directly: a step reads and writes a data store through a data store reference to it, drawn in its process',
+    ]],
+    ['a data store reference naming what is no data store', (text) => text.replace('dataStoreRef: Tally', 'dataStoreRef: Trials'), [
+      'Tally_Ref: data store reference "Tally_Ref" names "Trials", which is no data store',
     ]],
   ];
   for (const [label, edit, issues] of CASES) {

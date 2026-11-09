@@ -444,10 +444,14 @@ test('a message flow is dashed AND starts with the open circle BPMN gives it', a
 /**
  * `{count}` in a name draws its run-state value (docs/reference.qmd, "Run state"), in the internal
  * caption and the external label element alike, on the canvas and in a picture; the model keeps the raw name.
+ * A data store reference with no name draws its store's.
  */
 const STATE_YAML = `id: Defs_State
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
+Tally:
+  type: DataStore
+  name: tally
 Process_State:
   type: Process
   extensionElements:
@@ -468,6 +472,11 @@ Process_State:
       targetRef: Excluded_Pre
       waypoint: 200,140 300,138
       label: 220 118 70 14
+    Tally_Ref:
+      type: DataStoreReference
+      dataStoreRef: Tally
+      bounds: 125 220 50 50
+      label: 120 275 60 14
 state:
   Excluded_Pre:
     count: 3
@@ -490,8 +499,11 @@ test('a drawn label shows the run state its placeholders name; the model keeps t
   // A sequence flow's label too, from the flow's own count.
   const flowLabel = captionOf(canvas, 'Flow_1');
   expect(textsOf(canvas, flowLabel).join(' ')).toBe('excluded (n=1)');
+  // A data store reference with no name of its own draws its store's.
+  expect(textsOf(canvas, captionOf(canvas, 'Tally_Ref')).join(' ')).toBe('tally');
   // Serialization is untouched.
   expect(model.get('Excluded_Pre')!.name).toBe('Excluded (n={count})');
+  expect(model.get('Tally_Ref')!.name).toBeUndefined();
 
   // A picture shows what the view shows (the caption wraps after its first word).
   expect(renderSvg(canvas.study)).toContain('>(n=3)</text>');
