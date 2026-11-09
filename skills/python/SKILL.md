@@ -36,4 +36,6 @@ null, since JSON has neither: the step's answer reaches the walk, and a decision
 An output edge's `transformation` reads a table's column by name before an attribute, so
 `{statistic: result.T[1], pvalue: result.p_unc[1]}` takes the numbers a decision reads from the one-row table a test
 returns; `examples/within_subject_tests.studyflow.yaml` decides one question by p and one by a Bayes factor this way.
+A column indexed by labels reads a row by its label, so `result.test_accuracy.mean` of a `describe()` table is the
+mean, as `examples/sklearn_pipeline.studyflow.yaml`'s gate reads it.
 `test_local.py` is its self-check.

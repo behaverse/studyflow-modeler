@@ -224,6 +224,42 @@ def _host(value: Any) -> Any:
     return tolist() if callable(tolist) else value
 
 
+def _locate(node: tuple, scope: dict[str, Any]) -> Any:
+    """What a name or a path names, as the host holds it, so the next step of a path still sees a series' labels."""
+    if node[0] == "name":
+        if node[1] not in scope:
+            raise FeelError(f"{node[1]!r} is not declared by any scope in this run")
+        return scope[node[1]]
+    if node[0] == "path":
+        return _step(_locate(node[1], scope), node[2])
+    return _eval(node, scope)
+
+
+def _step(held: Any, key: str) -> Any:
+    """One step of a path, from a value as the host holds it. A series indexed by labels gives the row of that label
+    (`describe()`'s `mean`); any other is the list FEEL makes of it."""
+    labels = getattr(held, "index", None)
+    if callable(getattr(held, "tolist", None)) and labels is not None and not callable(labels):
+        try:
+            if key in labels:
+                return held[key]
+        except TypeError:
+            pass
+    base = _host(held)
+    if isinstance(base, dict):
+        return base.get(key)
+    if isinstance(base, list):  # FEEL projects a path over a list
+        return [item.get(key) if isinstance(item, dict) else None for item in base]
+    if base is not None and not isinstance(base, (str, int, float, bool)):
+        # A host value's field: a table's column (`result.trials`), else an object's attribute
+        # (`result.pvalue` of a test result). Beyond FEEL's own values, for what a python:// step returns.
+        try:
+            return base[key]
+        except (KeyError, IndexError, TypeError, ValueError):
+            return getattr(base, key, None)
+    return None
+
+
 def _number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
@@ -317,19 +353,7 @@ def _eval(node: tuple, scope: dict[str, Any]) -> Any:
             raise FeelError(f"{node[1]!r} is not declared by any scope in this run")
         return _host(scope[node[1]])
     if kind == "path":
-        base = _eval(node[1], scope)
-        if isinstance(base, dict):
-            return base.get(node[2])
-        if isinstance(base, list):  # FEEL projects a path over a list
-            return [item.get(node[2]) if isinstance(item, dict) else None for item in base]
-        if base is not None and not isinstance(base, (str, int, float, bool)):
-            # A host value's field: a table's column (`result.trials`), else an object's attribute
-            # (`result.pvalue` of a test result). Beyond FEEL's own values, for what a python:// step returns.
-            try:
-                return _host(base[node[2]])
-            except (KeyError, IndexError, TypeError, ValueError):
-                return _host(getattr(base, node[2], None))
-        return None
+        return _host(_locate(node, scope))
     if kind == "index":
         base = _host(_eval(node[1], scope))
         base = list(base) if isinstance(base, tuple) else base

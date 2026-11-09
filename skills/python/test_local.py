@@ -210,4 +210,12 @@ for implementation, arguments, said in (
         raise AssertionError(implementation)
     except LookupError as failed:
         assert str(failed) == said if said else type(failed) is KeyError, failed
+
+# A path on a series indexed by labels reads the row of that label: `describe()` puts its statistics on the index, so
+# `result.accuracy.mean` is the mean over the folds, where a list of the column would have read nulls.
+run.values["Folds"] = pandas.DataFrame({"accuracy": [0.5, 1.0]})
+run.execute({"id": "Summary", "attributes": {"implementation": "python://pandas.DataFrame.describe"},
+             "inputs": [{"source": "Folds", "transformation": "self"}],
+             "outputs": [{"target": "Mean", "transformation": "result.accuracy.mean"}]})
+assert run.bound["Mean"] == 0.75, run.bound
 print("ok")

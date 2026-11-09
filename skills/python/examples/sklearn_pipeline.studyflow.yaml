@@ -455,9 +455,9 @@ sklearn_pipeline:
             name, not a path into a file.
 
             `describe` puts the statistics on the index, so the transformation
-            indexes that axis - `result.test_accuracy['mean']`, the mean of the
-            `test_accuracy` column over the folds. Reaching for `.mean` instead
-            would name the method, not the number.
+            reads that axis by its label - `result.test_accuracy.mean`, the mean of
+            the `test_accuracy` column over the folds, a row of the summary rather
+            than the method of that name.
           inputs:
             DataInput_Fold_Report_Summary:
               source: $cv_fold_report
