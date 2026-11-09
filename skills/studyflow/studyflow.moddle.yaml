@@ -519,7 +519,7 @@ types:
     superClass:
       - bpmn:DataObjectReference
     meta:
-      icon: iconify ph--columns
+      icon: iconify ph--brackets-curly
       # An attribute that references a Schema (`Dataset#schema`) edits it as text.
       editor: code
     properties:
