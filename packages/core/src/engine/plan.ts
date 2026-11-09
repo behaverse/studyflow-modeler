@@ -36,6 +36,8 @@ export type Loop =
     inputItem: string | null;
     outputItem: string | null;
     output: string | null;
+    /** Read after each pass: once it holds, no further pass runs. */
+    completion: Expression | null;
   };
 
 export type PlanElement = {
@@ -59,6 +61,10 @@ export type PlanElement = {
   loop?: Loop;
   /** An event's definitions, by local name (`errorEventDefinition`). */
   events?: string[];
+  /** The error an error event throws or catches (its `errorRef`): an `error` element of the plan. */
+  errorRef?: string;
+  /** An ad-hoc sub-process's `completionCondition`. */
+  completion?: Expression;
   /** A timer event's time, as written. */
   timer?: Timer;
   /** A participant's `participantMultiplicity/@maximum`. */
@@ -86,6 +92,8 @@ export type Plan = {
   names: Record<string, string>;
   /** The processes the walk walks, each a pool of its own: every one with a sequence flow, the study's first. */
   processes: string[];
+  /** The processes call activities call, which no pool depicts: each is walked in a calling activity's place. */
+  called?: string[];
 };
 
 const CONTAINERS = new Set(['bpmn:SubProcess', 'bpmn:AdHocSubProcess', 'bpmn:Transaction']);
@@ -190,6 +198,7 @@ function loopIn(marker: Value | undefined): Loop | undefined {
       inputItem: nameOf(marker.inputDataItem),
       outputItem: nameOf(marker.outputDataItem),
       output: idOf(marker.loopDataOutputRef),
+      completion: expressionIn(marker.completionCondition) ?? null,
     };
   }
   return undefined;
@@ -269,6 +278,10 @@ export function planElement(model: StudyModel, element: Element): PlanElement {
   const loop = loopIn(element.loopCharacteristics);
   if (loop) digest.loop = loop;
   if (definitions.length > 0) digest.events = definitions.map((definition) => tagIn(model, definition.type));
+  const errorRef = idOf(definitions.find((definition) => definition.type === 'bpmn:ErrorEventDefinition')?.errorRef);
+  if (errorRef) digest.errorRef = errorRef;
+  const completion = host === 'bpmn:AdHocSubProcess' ? expressionIn(element.completionCondition) : undefined;
+  if (completion) digest.completion = completion;
   const timed = definitions.find((definition) => definition.type === 'bpmn:TimerEventDefinition');
   if (timed) {
     const time = (value: Value | undefined): string | undefined => expressionIn(value)?.body;
@@ -291,19 +304,45 @@ export function planElement(model: StudyModel, element: Element): PlanElement {
 /** A study model's elements as a run reads them. */
 export type ModelIndex = {
   processes: Element[];
+  /** The processes call activities call, walked in their place. */
+  called: Element[];
   root: Element;
   study: Element | undefined;
   walked: Map<string, { element: Element; parent: Element }>;
   others: Element[];
 };
 
+/** The processes among `processes` that a call activity in one of them calls. */
+function calledIn(model: StudyModel, processes: Element[]): Set<Element> {
+  const byId = new Map(processes.map((process) => [process.id, process]));
+  const called = new Set<Element>();
+  const visit = (container: Element): void => {
+    for (const element of listIn(container.flowElements)) {
+      if (!isElement(element)) continue;
+      if (model.host(element) === 'bpmn:CallActivity') {
+        const ref = element.calledElement;
+        const process = byId.get((typeof ref === 'string' ? ref : idOf(ref)) ?? undefined);
+        if (process) called.add(process);
+      }
+      if (CONTAINERS.has(model.host(element))) visit(element);
+    }
+  };
+  processes.forEach(visit);
+  return called;
+}
+
 export function modelIndexOf(model: StudyModel): ModelIndex {
   const roots = model.study.roots;
   const processes_ = roots.filter((root) => model.host(root) === 'bpmn:Process');
   const flows = (root: Element): Element[] => listIn(root.flowElements).filter(isElement);
-  let walkable = processes_.filter((root) => flows(root).some((element) => model.host(element) === 'bpmn:SequenceFlow'));
-  // A study of steps and no flow is walked from its one step (the walk refuses more than one).
-  if (walkable.length === 0) walkable = processes_.filter((root) => flows(root).length > 0).slice(0, 1);
+  // A process a call activity calls is walked in its place, so it is no pool of its own unless one depicts it.
+  const called = calledIn(model, processes_);
+  const depicted = new Set(roots.filter((root) => model.host(root) === 'bpmn:Collaboration')
+    .flatMap((collaboration) => listIn(collaboration.participants).filter(isElement).map((participant) => idOf(participant.processRef))));
+  const pools = processes_.filter((root) => !called.has(root) || depicted.has(root.id ?? null) || model.studyOf(root));
+  let walkable = pools.filter((root) => flows(root).some((element) => model.host(element) === 'bpmn:SequenceFlow'));
+  // A study of steps and no flow is walked from its steps, each a path of its own.
+  if (walkable.length === 0) walkable = pools.filter((root) => flows(root).length > 0).slice(0, 1);
   if (walkable.length === 0) throw new Error('no process with a sequence flow to walk');
   const process = walkable.find((candidate) => model.studyOf(candidate)) ?? walkable[0];
   const root = roots.find((candidate) => model.studyOf(candidate)) ?? model.primaryRoot() ?? process;
@@ -320,14 +359,15 @@ export function modelIndexOf(model: StudyModel): ModelIndex {
   };
   const processes = [process, ...walkable.filter((other) => other !== process)];
   for (const each of processes) index(each);
+  for (const each of called) if (!processes.includes(each)) index(each);
 
   const others = roots.flatMap((definition) => {
     const host = model.host(definition);
-    if (host === 'bpmn:Message' || host === 'bpmn:ItemDefinition' || host === 'bpmn:DataStore') return definition.id ? [definition] : [];
+    if (['bpmn:Message', 'bpmn:ItemDefinition', 'bpmn:DataStore', 'bpmn:Error'].includes(host)) return definition.id ? [definition] : [];
     if (host !== 'bpmn:Collaboration') return [];
     return [...listIn(definition.participants), ...listIn(definition.messageFlows)].filter((child): child is Element => isElement(child) && !!child.id);
   });
-  return { processes, root, study: model.studyOf(root) ?? model.studyOf(process), walked, others };
+  return { processes, called: [...called], root, study: model.studyOf(root) ?? model.studyOf(process), walked, others };
 }
 
 /**
@@ -362,10 +402,10 @@ function bandExchanges(model: StudyModel, walked: ModelIndex['walked'], elements
   }
 }
 
-/** The plan of a study: every element by id (pool participants, message flows, messages and item definitions
- * included), the study, and the processes to walk. */
+/** The plan of a study: every element by id (pool participants, message flows, messages, item definitions and errors
+ * included), the study, the processes to walk, and those call activities call. */
 export function planOf(model: StudyModel, { options = {}, sources = [] }: PlanOptions = {}): Plan {
-  const { processes, root, study, walked, others } = modelIndexOf(model);
+  const { processes, called, root, study, walked, others } = modelIndexOf(model);
   const elements: Record<string, PlanElement> = {};
   for (const [id, { element, parent }] of walked) {
     const digest = planElement(model, element);
@@ -398,5 +438,6 @@ export function planOf(model: StudyModel, { options = {}, sources = [] }: PlanOp
     elements,
     names,
     processes: processes.map((walkedProcess) => walkedProcess.id!),
+    ...(called.length > 0 ? { called: called.map((process) => process.id!) } : {}),
   };
 }

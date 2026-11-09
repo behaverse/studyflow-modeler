@@ -796,21 +796,417 @@ test('when no condition holds and there is no default, the one flow without a co
   expect(two.walk.steps.entries.at(-1)).toMatchObject({ node: 'Gate', status: 'stuck' });
 });
 
-test('a sub-process without a start event is stepped past', async () => {
-  const { reached, log } = await walked(`S:
+test('a sub-process without a start event starts at every node nothing flows into, and one with nothing in it ends at once', async () => {
+  const visit = (inside: string) => `S:
   type: Process
   flowElements:
     Start: { type: StartEvent }
     Visit:
       type: SubProcess
       flowElements:
-        Inside: { type: Task }
-    Done: { type: EndEvent }
+${inside}    Done: { type: EndEvent }
     F1: Start -> Visit
     F2: Visit -> Done
-`);
-  expect(reached).toEqual({ Start: 1, F1: 1, Visit: 1, F2: 1, Done: 1 });
-  expect(log.join('\n')).toContain('Visit has no start event');
+`;
+  const ran: string[] = [];
+  const both = await walked(visit('        Survey: { type: Task }\n        Test: { type: Task }\n        Debrief: { type: Task }\n        VF1: Test -> Debrief\n'),
+    { Survey: () => { ran.push('Survey'); return {}; }, Test: () => { ran.push('Test'); return {}; }, Debrief: () => { ran.push('Debrief'); return {}; } });
+  expect(both.error).toBeUndefined();
+  expect(ran.sort()).toEqual(['Debrief', 'Survey', 'Test']);
+  expect([both.reached.Visit, both.reached.Done]).toEqual([1, 1]);
+  const empty = await walked(visit(''));
+  expect([empty.error, empty.reached]).toEqual([undefined, { Start: 1, F1: 1, Visit: 1, F2: 1, Done: 1 }]);
+});
+
+test('a boundary event that does not interrupt starts a path beside its activity, which carries on', async () => {
+  // A reminder after a minute, while the task goes on: the task waits until the reminder has been sent.
+  const study = (cancel: string, time = 'timeDuration: PT1M') => `S:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Play: { type: Task }
+    Remind:
+      type: BoundaryEvent
+      attachedToRef: Play
+${cancel}      eventDefinitions:
+        - type: TimerEventDefinition
+          ${time}
+    Nudge: { type: Task }
+    Nudged: { type: EndEvent }
+    Done: { type: EndEvent }
+    F1: Start -> Play
+    F2: Play -> Done
+    F3: Remind -> Nudge
+    F4: Nudge -> Nudged
+`;
+  const now = { wait: () => Promise.resolve() };
+  // The task's runner ends once Nudge has run `times` times.
+  const nudging = (times: number): Record<string, Runner> => {
+    let nudged = 0;
+    let done: () => void = () => undefined;
+    const all = new Promise<void>((resolve) => { done = resolve; });
+    return {
+      Play: async () => { await all; return { result: 'played' }; },
+      Nudge: () => { nudged += 1; if (nudged === times) done(); return {}; },
+    };
+  };
+  const beside = await walked(study('      cancelActivity: false\n'), nudging(1), {}, now);
+  expect(beside.error).toBeUndefined();
+  expect(beside.reached).toMatchObject({ Play: 1, F2: 1, Done: 1, Remind: 1, F3: 1, Nudge: 1, Nudged: 1 });
+  expect(beside.walk.steps.entries.find((entry) => entry.node === 'Play')?.interruptedBy).toBeUndefined();
+  // A timer cycle starts a path at each firing, up to its repetitions, while the task runs.
+  const cycle = await walked(study('      cancelActivity: false\n', 'timeCycle: R3/PT1M'), nudging(3), {}, now);
+  expect([cycle.error, cycle.reached.Nudge, cycle.reached.Done]).toEqual([undefined, 3, 1]);
+  // An interrupting one ends the task once its hand-off returns, and the task's own flow is not taken.
+  const ended = await walked(study(''), { Play: () => new Promise((resolve) => setTimeout(() => resolve({}), 5)), Nudge: () => ({}) }, {}, now);
+  expect([ended.error, ended.reached.Done, ended.reached.Nudged]).toEqual([undefined, undefined, 1]);
+});
+
+test('a message at a boundary event of a step a runner performs stops the hand-off, and the walk goes on from the event', async () => {
+  // The supervisor stops the session: the step's runner is told to stop, and the walk leaves by the boundary event,
+  // which holds what the message carried. One that does not interrupt starts a path for each message, the step going on.
+  const study = (cancel: string) => `C:
+  type: Collaboration
+  participants:
+    P_Subject: { name: Subject, processRef: S }
+    P_Supervisor: { name: Supervisor, processRef: V }
+  messageFlows:
+    M_Stop: { sourceRef: Tell, targetRef: Stop }
+S:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Play: { type: Task }
+    Stop:
+      type: BoundaryEvent
+      attachedToRef: Play
+${cancel}      eventDefinitions:
+        - type: MessageEventDefinition
+    Stopped: { type: EndEvent }
+    Done: { type: EndEvent }
+    F1: Start -> Play
+    F2: Play -> Done
+    F3: Stop -> Stopped
+V:
+  type: Process
+  flowElements:
+    V0: { type: StartEvent }
+    Later: { type: IntermediateCatchEvent, timer: PT1M }
+    Tell:
+      type: SendTask
+      dataInputAssociations: { In_Why: { sourceRef: [Why] } }
+    Why: { type: DataObjectReference }
+    V9: { type: EndEvent }
+    VF0: V0 -> Later
+    VF1: Later -> Tell
+    VF2: Tell -> V9
+`;
+  // The supervisor's minute passes once the session is under way.
+  const later = { wait: () => new Promise<void>((resolve) => setTimeout(resolve, 5)) };
+  const stopped: string[] = [];
+  const perform: Host['perform'] = (id, _values, { signal }) => (id !== 'Play' ? Promise.resolve({}) : new Promise((_resolve, reject) => {
+    signal?.addEventListener('abort', () => { stopped.push(id); reject(new Error('stopped')); });
+  }));
+  const ended = await walked(study(''), { Play: () => ({}) }, {}, { ...later, perform });
+  expect(ended.error).toBeUndefined();
+  expect(stopped).toEqual(['Play']);
+  expect([ended.reached.Stop, ended.reached.Stopped, ended.reached.Done]).toEqual([1, 1, undefined]);
+  expect(ended.walk.values.get('Stop')).toEqual({ Why: null });
+  expect(ended.walk.untaken()).toEqual([]);
+
+  // Not interrupting, the message starts a path of its own, and the step ends as it would have.
+  let hold: () => void = () => undefined;
+  const heard = new Promise<void>((resolve) => { hold = resolve; });
+  const beside = await walked(study('      cancelActivity: false\n').replace('    F3: Stop -> Stopped\n', '    F3: Stop -> Note\n    Note: { type: Task }\n    F4: Note -> Stopped\n'),
+    { Play: async () => { await heard; return {}; }, Note: () => { hold(); return {}; } }, {}, later);
+  expect(beside.error).toBeUndefined();
+  expect([beside.reached.Stop, beside.reached.Note, beside.reached.Stopped, beside.reached.Done]).toEqual([1, 1, 1, 1]);
+});
+
+test('a conditional catch event waits until its condition holds, and a run that nothing can change any more is stuck', async () => {
+  // The analysis waits until enough sessions are in; the sessions run on a path of their own.
+  const study = (writes: string) => `S:
+  type: Process
+  properties:
+    P_Sessions: { name: sessions, value: 0 }
+  flowElements:
+    Start: { type: StartEvent }
+    Split: { type: ParallelGateway }
+    Enough:
+      type: IntermediateCatchEvent
+      condition: sessions >= 2
+    Analyse: { type: Task }
+    Collect:
+      type: Task
+      loopCharacteristics: { type: StandardLoopCharacteristics, loopMaximum: 3 }
+    Join: { type: ParallelGateway }
+    End: { type: EndEvent }
+    F1: Start -> Split
+    F2: Split -> Enough
+    F3: Enough -> Analyse
+    F4: Analyse -> Join
+    F5: Split -> Collect
+    F6: Collect -> Join
+    F7: Join -> End
+${writes}`;
+  const ran: string[] = [];
+  const collect: Runner = (values) => { ran.push(`Collect ${values.state.S.sessions + 1}`); return { state: { S: { sessions: values.state.S.sessions + 1 } } }; };
+  const waited = await walked(study(''), { Collect: async (values) => { await new Promise((resolve) => setTimeout(resolve, 1)); return collect(values); }, Analyse: (values) => { ran.push(`Analyse at ${values.state.S.sessions}`); return {}; } });
+  expect(waited.error).toBeUndefined();
+  expect(ran.indexOf('Analyse at 2')).toBe(2);
+  expect([waited.reached.Enough, waited.reached.End]).toEqual([1, 1]);
+  // Nothing writes `sessions`: once the other path is done, nothing can make the condition hold.
+  const stuck = await walked(study(''), { Collect: () => ({}) });
+  expect(stuck.error?.message).toBe('the pools wait for each other: Enough waits until sessions >= 2 holds');
+  // A conditional start event starts the pool once its condition holds; a dry run passes it.
+  const start = `S:
+  type: Process
+  properties:
+    P_Go: { name: go, value: true }
+  flowElements:
+    Start: { type: StartEvent, condition: go = true }
+    End: { type: EndEvent }
+    F1: Start -> End
+`;
+  expect((await walked(start)).reached).toEqual({ Start: 1, F1: 1, End: 1 });
+  expect((await walked(start.replace('value: true', 'value: false'))).error?.message).toBe('the pools wait for each other: Start waits until go = true holds');
+  const dry = new Walk(planOf(studyModel(`id: study\n${HEAD}${start.replace('value: true', 'value: false')}`)), dryHost(planOf(studyModel(`id: study\n${HEAD}${start}`))));
+  await dry.run();
+  expect(dry.state._meta.reached).toEqual({ Start: 1, F1: 1, End: 1 });
+});
+
+test('an event-based gateway takes the branch whose event comes first: a message, a timer that runs out, a condition that holds', async () => {
+  // The participant answers, or the reminder's time runs out first, or the session closes once the study says so.
+  const study = (send: boolean) => `C:
+  type: Collaboration
+  participants:
+    P_Study: { name: Study, processRef: S }
+    P_Person: { name: Person, processRef: P }
+  messageFlows:
+    M_Answer: { sourceRef: Answer, targetRef: Answered }
+S:
+  type: Process
+  properties:
+    P_Closed: { name: closed, value: false }
+  flowElements:
+    Start: { type: StartEvent }
+    Which: { type: EventBasedGateway }
+    Answered: { type: IntermediateCatchEvent }
+    Late: { type: IntermediateCatchEvent, timer: PT1H }
+    Closed: { type: IntermediateCatchEvent, condition: closed = true }
+    End: { type: EndEvent }
+    F1: Start -> Which
+    F2: Which -> Answered
+    F3: Which -> Late
+    F4: Which -> Closed
+    F5: Answered -> End
+    F6: Late -> End
+    F7: Closed -> End
+P:
+  type: Process
+  flowElements:
+    P0: { type: StartEvent }
+${send ? '    Answer: { type: IntermediateThrowEvent }\n    PF1: P0 -> Answer\n    PF2: Answer -> P9\n' : '    PF1: P0 -> P9\n    Answer: { type: IntermediateThrowEvent }\n'}    P9: { type: EndEvent }
+`;
+  const waits: string[] = [];
+  const later = { wait: (_ms: number, _signal: AbortSignal, at: string) => { waits.push(at); return new Promise<void>((resolve) => setTimeout(resolve, 5)); } };
+  const answered = await walked(study(true), {}, {}, later);
+  expect([answered.error, answered.reached.Answered, answered.reached.Late, answered.reached.Closed]).toEqual([undefined, 1, undefined, undefined]);
+  expect(answered.walk.steps.entries.find((entry) => entry.node === 'Which')?.taken).toMatchObject({ sequenceFlow: 'F2', how: 'first message' });
+  // No answer comes: the timer runs out, and the timer event is passed, not waited at again.
+  const late = await walked(study(false), {}, {}, later);
+  expect([late.error, late.reached.Late, late.reached.End]).toEqual([undefined, 1, 1]);
+  expect(waits).toEqual(['Late', 'Late']);
+  expect(late.walk.steps.entries.find((entry) => entry.node === 'Which')?.taken).toMatchObject({ sequenceFlow: 'F3', how: 'timer', timer: true });
+  // The condition holds before the timer runs out.
+  const closed = await walked(study(false).replace('value: false', 'value: true'), {}, {}, later);
+  expect([closed.error, closed.reached.Closed, closed.reached.Late]).toEqual([undefined, 1, undefined]);
+  // Every way it can go: the answer first, the timer, or the condition; once the timer is first, the answer goes
+  // untaken.
+  expect(await explore(planOf(studyModel(`id: study\n${HEAD}${study(true)}`)))).toEqual({
+    complete: true, runs: 3, findings: [{ message: 'a message along M_Answer is sent and nothing takes it', path: ['Which → F3'] }],
+  });
+});
+
+test('an error goes out to the innermost activity whose error boundary event catches it, by its error or its code', async () => {
+  // A visit ends at an error end event, or a step in it fails; which boundary event takes it depends on the error.
+  const study = (inside: string, boundaries: string) => `Err_Quit: { type: Error, name: quit, errorCode: quit }
+Err_Quit_Too: { type: Error, name: also quit, errorCode: quit }
+Err_Other: { type: Error, name: other, errorCode: other }
+S:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Visit:
+      type: SubProcess
+      flowElements:
+        V0: { type: StartEvent }
+        Inner:
+          type: SubProcess
+          flowElements:
+            I0: { type: StartEvent }
+${inside}        V9: { type: EndEvent }
+        VF1: V0 -> Inner
+        VF2: Inner -> V9
+${boundaries}    Done: { type: EndEvent }
+    Caught: { type: EndEvent }
+    F1: Start -> Visit
+    F2: Visit -> Done
+`;
+  const on = (id: string, error?: string) => `    ${id}:
+      type: BoundaryEvent
+      attachedToRef: Visit
+      eventDefinitions:
+        - type: ErrorEventDefinition${error ? `\n          errorRef: ${error}` : ''}
+    F_${id}: ${id} -> Caught
+`;
+  const quits = `            Quit:
+              type: EndEvent
+              eventDefinitions:
+                - type: ErrorEventDefinition
+                  errorRef: Err_Quit
+            IF1: I0 -> Quit
+`;
+  // The error end event's error, two scopes in, goes out past Inner, which catches nothing, to Visit's boundary event
+  // naming another error of its code; the one naming another code does not catch it.
+  const coded = await walked(study(quits, on('Other', 'Err_Other') + on('Also', 'Err_Quit_Too')));
+  expect(coded.error).toBeUndefined();
+  expect([coded.reached.Other, coded.reached.Also, coded.reached.Caught, coded.reached.Done, coded.reached.V9]).toEqual([undefined, 1, 1, undefined, undefined]);
+  // One naming no error catches any; nothing catching it, it ends its path.
+  expect((await walked(study(quits, on('Any')))).reached.Any).toBe(1);
+  const uncaught = await walked(study(quits, on('Other', 'Err_Other')));
+  expect([uncaught.error, uncaught.reached.Other, uncaught.reached.Done]).toEqual([undefined, undefined, 1]);
+
+  // A step that fails two scopes in is caught by Visit's boundary event that names no error; its record keeps the
+  // failure, and the run is not failed.
+  const fails = '            Play: { type: Task }\n            I9: { type: EndEvent }\n            IF1: I0 -> Play\n            IF2: Play -> I9\n';
+  const failed = await walked(study(fails, on('Other', 'Err_Other') + on('Any')), { Play: () => { throw new Error('missed'); } });
+  expect([failed.error, failed.reached.Any, failed.reached.Other, failed.walk.steps.status]).toEqual([undefined, 1, undefined, 'ok']);
+  expect(failed.walk.steps.entries.find((entry) => entry.node === 'Play')).toMatchObject({ status: 'error', interruptedBy: 'Any' });
+  // A runner that names the error's code is caught by the event naming that code; with no event to catch it, the run fails.
+  const named = await walked(study(fails, on('Other', 'Err_Other') + on('Also', 'Err_Quit_Too')), { Play: () => { throw new HandoffError('no time left', { errorCode: 'quit' }); } });
+  expect([named.error, named.reached.Also, named.reached.Other]).toEqual([undefined, 1, undefined]);
+  expect((await walked(study(fails, on('Other', 'Err_Other')), { Play: () => { throw new Error('missed'); } })).error?.message).toBe('missed');
+  // Exploring, the step's failure is one way the study can go: the boundary event's path is walked too.
+  expect(await explore(planOf(studyModel(`id: study\n${HEAD}${study(fails, on('Any'))}`)))).toMatchObject({ complete: true, runs: 2, findings: [] });
+});
+
+test('an ad-hoc sub-process runs its activities round after round until its completion condition holds', async () => {
+  // An agent loop: the model is asked, and a gateway after it runs the tool it named; the loop is done once the model
+  // says so. One after another (Sequential), the steps of a round run in the order drawn.
+  const study = (ordering: string, completion: string) => `S:
+  type: Process
+  properties:
+    P_Asked: { name: asked, value: 0 }
+  flowElements:
+    Start: { type: StartEvent }
+    Agent:
+      type: AdHocSubProcess
+${ordering}${completion}      flowElements:
+        Ask: { type: Task }
+        Pick:
+          type: ExclusiveGateway
+          default: AF_Search
+        Search: { type: Task }
+        Log: { type: Task }
+        AF1: Ask -> Pick
+        AF_Search: Pick -> Search
+    Done: { type: EndEvent }
+    F1: Start -> Agent
+    F2: Agent -> Done
+`;
+  const ran: string[] = [];
+  const steps: Record<string, Runner> = {
+    Ask: (values) => { ran.push('Ask'); return { state: { S: { asked: values.state.S.asked + 1 } } }; },
+    Search: () => { ran.push('Search'); return {}; },
+    Log: () => { ran.push('Log'); return {}; },
+  };
+  const sequential = await walked(study('      ordering: Sequential\n', '      completionCondition: asked >= 2\n'), steps);
+  expect(sequential.error).toBeUndefined();
+  // The second Ask makes it hold: the Search the gateway would start next does not run, nor does the round's Log.
+  expect(ran).toEqual(['Ask', 'Search', 'Log', 'Ask']);
+  expect(sequential.reached.Done).toBe(1);
+  // No condition: one round, every activity nothing flows into at once.
+  ran.length = 0;
+  const once = await walked(study('', ''), steps);
+  expect([once.error, [...ran].sort()]).toEqual([undefined, ['Ask', 'Log', 'Search']]);
+  // Exploring, another round is a choice.
+  expect(await explore(planOf(studyModel(`id: study\n${HEAD}${study('', '      completionCondition: asked >= 2\n')}`)))).toMatchObject({ complete: true, runs: 2, findings: [] });
+});
+
+test('a multi-instance marker stops once its completion condition holds, keeping what the passes that ran left', async () => {
+  const { error, state, walk } = await walked(`S:
+  type: Process
+  properties:
+    P_Words: { name: words, value: [red, green, blue, pink] }
+    P_Shouts: { name: shouts }
+  flowElements:
+    Start: { type: StartEvent }
+    Shout:
+      type: Task
+      loopCharacteristics:
+        type: MultiInstanceLoopCharacteristics
+        loopDataInputRef: P_Words
+        loopDataOutputRef: P_Shouts
+        inputDataItem: { id: Shout_Word, name: word }
+        outputDataItem: { id: Shout_Out, name: shout }
+        completionCondition: shout = "GREEN" or numberOfCompletedInstances = numberOfInstances
+      properties:
+        P_Shout: { name: shout }
+    End: { type: EndEvent }
+    F1: Start -> Shout
+    F2: Shout -> End
+`, { Shout: (values) => ({ state: { Shout: { shout: String(values.state.Shout.word).toUpperCase() } } }) });
+  expect(error).toBeUndefined();
+  expect(state.S.shouts).toEqual(['RED', 'GREEN']);
+  expect(walk.steps.entries.filter((entry) => entry.node === 'Shout')).toHaveLength(2);
+});
+
+test('a call activity walks the process it calls in its place, which is no pool of its own', async () => {
+  const study = (calls: string) => `S:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Screen: { type: CallActivity, calledElement: Screening }
+    Unsuitable:
+      type: BoundaryEvent
+      attachedToRef: Screen
+      eventDefinitions:
+        - type: ErrorEventDefinition
+    Excluded: { type: EndEvent }
+    Done: { type: EndEvent }
+    F1: Start -> Screen
+    F2: Screen -> Done
+    F3: Unsuitable -> Excluded
+Screening:
+  type: Process
+  name: Screening protocol
+  flowElements:
+    C0: { type: StartEvent }
+    Check: { type: Task }
+    Fit:
+      type: ExclusiveGateway
+      default: CF_Fit
+    Unfit:
+      type: EndEvent
+      eventDefinitions:
+        - type: ErrorEventDefinition
+    C9: { type: EndEvent }
+    CF1: C0 -> Check
+    CF2: Check -> Fit
+    CF_Fit: Fit -> ${calls}
+    CF_Unfit: { sourceRef: Fit, targetRef: Unfit, conditionExpression: Check.score < 3 }
+`;
+  const fine = await walked(study('C9'), { Check: () => ({ result: { score: 5 } }) });
+  expect(fine.plan.processes).toEqual(['S']);
+  expect(fine.plan.called).toEqual(['Screening']);
+  expect([fine.error, fine.reached.Screen, fine.reached.Check, fine.reached.C9, fine.reached.Done]).toEqual([undefined, 1, 1, 1, 1]);
+  // The error the called process throws is caught at the call activity's boundary event.
+  const unfit = await walked(study('C9'), { Check: () => ({ result: { score: 1 } }) });
+  expect([unfit.error, unfit.reached.Unfit, unfit.reached.Unsuitable, unfit.reached.Excluded, unfit.reached.Done]).toEqual([undefined, 1, 1, 1, undefined]);
+  // A process that calls itself is refused when it does.
+  const again = study('Again\n    Again: { type: CallActivity, calledElement: Screening }\n    CF9: Again -> C9');
+  expect((await walked(again, { Check: () => ({ result: { score: 5 } }) })).error?.message).toMatch(/Again calls Screening, which this path is already inside/);
 });
 
 // --- messages between pools ---
@@ -1595,11 +1991,11 @@ test('a step finds the read-only properties its sub-process takes from wired Par
   expect(error?.message).toMatch(/T writes speed.*Block/);
 });
 
-test('a study of one step and no flow starts at that step; two steps nothing leads to are refused, not guessed between', async () => {
+test('a study of steps and no flow starts at each, as BPMN starts every node nothing flows into', async () => {
   const one = await walked('S:\n  type: Process\n  flowElements:\n    Only: { type: Task }\n');
   expect([one.error, one.reached]).toEqual([undefined, { Only: 1 }]);
   const two = await walked('S:\n  type: Process\n  flowElements:\n    Only: { type: Task }\n    Second: { type: Task }\n');
-  expect(two.error?.message).toMatch(/start/);
+  expect([two.error, two.reached]).toEqual([undefined, { Only: 1, Second: 1 }]);
 });
 
 test('what repeats never skips or replays: a record keeps its last pass only', async () => {

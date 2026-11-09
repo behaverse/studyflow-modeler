@@ -15,6 +15,8 @@ const FLOW_NODE_TYPES: ReadonlySet<string> = new Set<string>([
   BPMN.ChoreographyTask,
   BPMN.CallActivity,
   BPMN.SubProcess,
+  'bpmn:AdHocSubProcess',
+  'bpmn:Transaction',
   BPMN.ExclusiveGateway,
   BPMN.InclusiveGateway,
   BPMN.ParallelGateway,
@@ -24,6 +26,9 @@ const FLOW_NODE_TYPES: ReadonlySet<string> = new Set<string>([
 ]);
 
 const STUDY = 'studyflow:Study';
+
+/** What holds steps of its own: a sub-process, an ad-hoc one, a transaction. */
+const CONTAINERS: ReadonlySet<string> = new Set<string>([BPMN.SubProcess, 'bpmn:AdHocSubProcess', 'bpmn:Transaction']);
 
 const listIn = (value: Value | undefined): Value[] => (Array.isArray(value) ? value : []);
 
@@ -163,8 +168,12 @@ export async function parseStudyflow(
 
   const flowNodes = new Map<string, FlowNode>();
   const sequenceFlows = new Map<string, SequenceFlow>();
+  const processes = new Map(model.study.roots.filter((root) => model.host(root) === BPMN.Process).map((root) => [root.id, root]));
+  const gathered = new Set<Element>();
 
   const gather = (container: Element): void => {
+    if (gathered.has(container)) return;
+    gathered.add(container);
     const children = elementsIn(container.flowElements).filter((el) => typeof el.id === 'string');
     for (const el of children) {
       const type = model.host(el);
@@ -190,7 +199,13 @@ export async function parseStudyflow(
       flowNodes.get(sourceId)?.outgoing.push(el.id!);
       flowNodes.get(targetId)?.incoming.push(el.id!);
     }
-    for (const el of children) if (model.host(el) === BPMN.SubProcess) gather(el);
+    for (const el of children) {
+      if (CONTAINERS.has(model.host(el))) gather(el);
+      // The process a call activity calls runs in its place, so its steps are this page's too.
+      const ref = model.host(el) === BPMN.CallActivity ? el.calledElement : undefined;
+      const called = processes.get((typeof ref === 'string' ? ref : idOf(ref)) ?? undefined);
+      if (called) gather(called);
+    }
   };
   gather(process);
 

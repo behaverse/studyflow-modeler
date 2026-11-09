@@ -44,6 +44,15 @@ test('a condition that is not the FEEL both runtimes run, and a timer that says 
     ['a cycle is kept for its first firing', 'score >= 0.9', ', timeCycle: R3/PT10M', ['warning Rest: waits for its first firing only']],
     ['a schedule is not a wait', 'score >= 0.9', ', timeCycle: "0 9 * * 1"', ['warning Rest: passes a schedule at once']],
   ];
+  // A boundary event that does not interrupt its activity fires at each repetition, so its cycle is kept whole.
+  const reminder = (cancel: string): string => study('score >= 0.9', ', timeDuration: PT5M').replace('    Gate:', `    Remind:
+      type: BoundaryEvent
+      attachedToRef: Rest
+${cancel}      eventDefinitions:
+        Remind_Timer: { type: TimerEventDefinition, timeCycle: R3/PT10M }
+    Gate:`);
+  expect(checkExpressions(studyModel(reminder('      cancelActivity: false\n')))).toEqual([]);
+  expect(checkExpressions(studyModel(reminder(''))).map((issue) => issue.message)).toEqual(['the timer on "Remind" is a cycle, and the walk waits for its first firing only']);
   for (const [label, gate, timer, says] of CASES) {
     const issues = checkExpressions(studyModel(study(gate, timer)));
     expect(issues, label).toHaveLength(says.length);

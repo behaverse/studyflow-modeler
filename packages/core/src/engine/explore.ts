@@ -7,10 +7,11 @@ import { Walk } from '@core/engine/walk';
 /**
  * Every way a study can go, walked: soundness, the property of workflow nets that every run can end and ends properly,
  * checked by exploring the runs rather than read off the graph. Each decision the walk would make by data or by chance
- * is a free choice ({@link Host.choose}): a gateway's flow, another pass of a repeating activity, a conditional or timer
- * boundary event, the failure of a step an error boundary event catches. The runs are walked dry, one instance of each
- * pool, depth first over the choices, so what a study's data decides is not what is checked: a path its conditions
- * never take may still be reported.
+ * is a free choice ({@link Host.choose}): a gateway's flow (at an event-based gateway, a timer or a condition coming
+ * before the first message), another pass of a repeating activity or round of an ad-hoc sub-process, a conditional or
+ * timer boundary event, the failure of a step an error boundary event on it or around it catches. A conditional catch
+ * event passes. The runs are walked dry, one instance of each pool, depth first over the choices, so what a study's
+ * data decides is not what is checked: a path its conditions never take may still be reported.
  *
  * What it finds: a run in which a pool waits for a message none will send (the pools wait for each other, or the
  * sender has ended), a parallel join one of whose tokens can never come, and a message sent that nothing takes. Each
@@ -37,7 +38,10 @@ const STUCK = /waits along|wait for each other|waits for a message|a parallel jo
 
 export async function explore(plan: Plan, { maxRuns = 2000, maxPasses = 2 }: ExploreOptions = {}): Promise<Exploration> {
   const graph = new Graph(plan);
-  const failing = new Set([...graph.boundaries].filter(([, boundaries]) => boundaries.some((boundary) => (boundary.events ?? []).includes('errorEventDefinition'))).map(([id]) => id));
+  // A step may fail where an error boundary event catches the failure: one on the step itself, or one on an activity
+  // around it, where the first step to run inside that activity in a run stands for every step in it.
+  const catching = new Set([...graph.boundaries].filter(([, boundaries]) => boundaries.some((boundary) => (boundary.events ?? []).includes('errorEventDefinition'))).map(([id]) => id));
+  const around = new Map([...graph.walked].map((id) => [id, graph.enclosing(id).find((activity) => catching.has(activity))]));
   const findings = new Map<string, Finding>();
   let script: number[] = [];
   let runs = 0;
@@ -57,12 +61,20 @@ export async function explore(plan: Plan, { maxRuns = 2000, maxPasses = 2 }: Exp
       path.push(describe(at, chosen));
       return chosen;
     };
+    // The activities around a step whose first step has had its chance to fail this run.
+    const tried = new Set<string>();
+    const fails = (id: string): boolean => {
+      const outer = catching.has(id) ? undefined : around.get(id);
+      if (!catching.has(id) && (!outer || tried.has(outer))) return false;
+      if (outer) tried.add(outer);
+      return choose(`${id}:fails`, ['ok', 'fails']) === 'fails';
+    };
     const dry = dryHost(plan);
     const host: Host = {
       ...dry,
       choose,
       perform: async (id, values, step) => {
-        if (failing.has(id) && choose(`${id}:fails`, ['ok', 'fails']) === 'fails') throw new Error(`${id} failed`);
+        if (graph.walked.has(id) && fails(id)) throw new Error(`${id} failed`);
         return dry.perform(id, values, step);
       },
       // A timer event passes at once; one at a boundary event runs out or not.

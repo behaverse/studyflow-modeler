@@ -67,6 +67,12 @@ test('each flow node lies on a path from a start event, or a boundary event, to 
       'Battery: "Battery" has sequence flows but no start event',
       'Battery: "Battery" has sequence flows but no end event',
     ]],
+    // An ad-hoc sub-process has neither in BPMN: its paths start where nothing flows in and end where nothing flows on.
+    ['an ad-hoc sub-process, which has neither', SOUND.replace('    F1: Start -> Play\n', `    F1: Start -> Battery\n${BATTERY.replace('SubProcess', 'AdHocSubProcess')}`), []],
+    ['an ad-hoc sub-process with a cycle nothing leads to', SOUND.replace('    F1: Start -> Play\n', `    F1: Start -> Battery\n${BATTERY.replace('SubProcess', 'AdHocSubProcess').replace('        FA: A -> B\n', '        FA: A -> B\n        FB: B -> A\n')}`), [
+      'A: "A" lies on no path through "Battery": it lies on a cycle no node nothing flows into leads to',
+      'B: "B" lies on no path through "Battery": it lies on a cycle no node nothing flows into leads to',
+    ]],
     ['a container with no sequence flow is not checked', '    Only:\n      type: Task\n', []],
   ];
   for (const [label, elements, messages] of CASES) {

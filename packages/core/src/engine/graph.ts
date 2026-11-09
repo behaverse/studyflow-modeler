@@ -53,6 +53,8 @@ export class Graph {
   readonly boundaries = new Map<string, PlanElement[]>();
   /** The elements of the walked processes: what a name may cite and a scope may hold. */
   readonly walked = new Set<string>();
+  /** The processes call activities call, each with the call activities that call it, in the order drawn. */
+  readonly callers = new Map<string, PlanElement[]>();
 
   readonly plan: Plan;
 
@@ -91,6 +93,11 @@ export class Graph {
       }
       // The item a pass over a list binds is a property of the activity, with no value of its own.
       if (element.loop?.kind === 'multiInstance' && element.loop.inputItem) declare(element.id, element.loop.inputItem, { value: undefined });
+    }
+    const called = new Set(plan.called ?? []);
+    for (const element of Object.values(plan.elements)) {
+      const process = element.type === 'callActivity' ? element.attributes.calledElement : undefined;
+      if (process && called.has(process)) push(this.callers, process, element);
     }
     // The Parameters wired into a sub-process are read-only properties of it, beside the ones it declares.
     for (const element of Object.values(plan.elements)) {
@@ -154,12 +161,53 @@ export class Graph {
     return [...this.participants.values()].find((participant) => participant.attributes.processRef === process)?.id;
   }
 
-  /** The process an element belongs to, or that a participant depicts; a participant with none is its own pool. */
+  /** The process an element belongs to, or that a participant depicts; a participant with none is its own pool. An
+   * element of a process a call activity calls belongs to the pool of the first activity calling it. */
   poolOf(end: string): string {
     const participant = this.participants.get(end);
     if (participant) return participant.attributes.processRef || end;
-    const chain = this.scopeChain(end);
-    return chain[chain.length - 1];
+    const top = (id: string): string => {
+      const chain = this.scopeChain(id);
+      return chain[chain.length - 1];
+    };
+    let process = top(end);
+    const seen = new Set<string>();
+    for (let caller = this.callerOf(process); caller && !seen.has(process); caller = this.callerOf(process)) {
+      seen.add(process);
+      process = top(caller);
+    }
+    return process;
+  }
+
+  /** The process a call activity calls, when the study has it: one walked in the activity's place. */
+  callee(element: PlanElement | undefined): string | undefined {
+    const process = element?.type === 'callActivity' ? element.attributes.calledElement : undefined;
+    return process && this.callers.has(process) ? process : undefined;
+  }
+
+  /** The first call activity that calls `process`, when no pool depicts it. */
+  private callerOf(process: string): string | undefined {
+    return this.plan.processes.includes(process) ? undefined : this.callers.get(process)?.[0]?.id;
+  }
+
+  /** The activities a step may run inside, innermost first: its containers, and out of a process a call activity
+   * calls, that activity and what is around it. */
+  enclosing(id: string): string[] {
+    const around: string[] = [];
+    const seen = new Set<string>();
+    const visit = (from: string): void => {
+      for (const scope of this.scopeChain(from).slice(1)) {
+        if (this.elements[scope]) around.push(scope);
+        for (const caller of this.elements[scope] ? [] : this.callers.get(scope) ?? []) {
+          if (seen.has(caller.id)) continue;
+          seen.add(caller.id);
+          around.push(caller.id);
+          visit(caller.id);
+        }
+      }
+    };
+    visit(id);
+    return around;
   }
 
   /** The pool depicting a process and how many instances of it run: BPMN's `participantMultiplicity/@maximum`. */
@@ -172,16 +220,15 @@ export class Graph {
     return (this.children.get(container) ?? []).find((element) => element.type === 'startEvent');
   }
 
-  /** Where a process starts: its start event; one that leaves it out (BPMN 2.0 §10.2) starts at the one node
-   * nothing flows into. */
-  entryOf(process: string): PlanElement {
-    const start = this.startEvent(process);
-    if (start) return start;
-    const targets = new Set([...this.outgoing.values()].flat().map((flow) => flow.attributes.targetRef));
-    const entries = (this.children.get(process) ?? [])
-      .filter((element) => !NOT_FLOW_NODES.has(element.type) && !targets.has(element.id));
-    if (entries.length !== 1) throw new Error(`no start event in ${process}`);
-    return entries[0];
+  /** Where a process or sub-process starts (BPMN 2.0 §10.5.2): at its start event, the first when it has several; one
+   * that has none starts at every flow node nothing flows into, in the order drawn, but for an event sub-process and
+   * an activity drawn for compensation. A scope with nothing inside it starts nowhere, and so ends at once. */
+  entriesOf(container: string): PlanElement[] {
+    const start = this.startEvent(container);
+    if (start) return [start];
+    return (this.children.get(container) ?? []).filter((element) => !NOT_FLOW_NODES.has(element.type)
+      && !this.incoming.get(element.id)?.length
+      && element.attributes.triggeredByEvent !== 'true' && element.attributes.isForCompensation !== 'true');
   }
 
   /** A data element's `uri`, if it is one and has one; a data store reference without one has its data store's. */
@@ -236,8 +283,10 @@ export class Graph {
     const talks = (scope: string): boolean => this.flowsIn.has(scope) || this.flowsOut.has(scope);
     let scope = id;
     while (!talks(scope)) {
-      const container = this.get(this.elements[scope]?.parent);
-      if (!container || !CONTAINER_TYPES.has(container.type)) {
+      // A step at the top of a process a call activity calls talks as a step inside that activity would.
+      const parent = this.elements[scope]?.parent ?? '';
+      const container = this.get(parent) ?? this.get(this.callerOf(parent));
+      if (!container || !(CONTAINER_TYPES.has(container.type) || container.type === 'callActivity')) {
         const pool = this.participantOf(this.poolOf(id)) ?? '';
         return talks(pool) ? pool : id;
       }

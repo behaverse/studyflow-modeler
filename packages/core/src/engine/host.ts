@@ -44,6 +44,9 @@ export type Handback = {
   /** A pool's runner leaves the message unanswered: nothing goes back, and the step that asked waits on, as it would
    * for a participant who never replies, until a boundary event of an activity around it ends the wait (its timer). */
   noReply?: boolean;
+  /** What a failed hand-off had handed back says which BPMN error it throws: an error boundary event naming an error
+   * of this `errorCode` catches it, and so does one naming none. */
+  errorCode?: string;
 };
 
 /** A hand-off that failed after binding something: what it had bound is kept, and the step still fails. */
@@ -104,12 +107,14 @@ export type Host = {
    * activity for its boundary event. The walk waits for it, so a host may show the move. `pool` names whose token. */
   moved?(to: string, along: string | undefined, pool: string): void | Promise<void>;
   /** A gateway the walk could not decide, because a condition could not be evaluated or a participant lacks the value
-   * its allocation is stratified on: a dry run, where no step ran to bind what it reads, names the flow to take. */
+   * its allocation is stratified on: a dry run, where no step ran to bind what it reads, names the flow to take. A
+   * conditional event whose condition does not hold asks too, with its own id as the one option: named, it passes. */
   decide?(gateway: string, flows: string[], error: Error): string | undefined;
   /** Free choice, for exploring every way a study can go: each decision the walk would make by data or by chance is
-   * the host's instead, one of `options` at `at`. A gateway's flow (`<gateway>`, the flow ids), another pass of an
-   * activity (`<activity>:again`, `again` or `done`), the conditional boundary event that ends a finished activity
-   * (`<activity>:ends`, `none` or a boundary id). */
+   * the host's instead, one of `options` at `at`. A gateway's flow (`<gateway>`, the flow ids; at an event-based
+   * gateway, a timer or conditional branch's flow, or `message` for the first message), another pass of an activity
+   * or another round of an ad-hoc sub-process (`<activity>:again`, `again` or `done`), the conditional boundary event a
+   * finished activity takes (`<activity>:ends`, `none` or a boundary id). */
   choose?(at: string, options: string[]): string;
 };
 
@@ -141,17 +146,23 @@ export class Cancelled extends Error {
   }
 }
 
-/** A message reached a boundary event of a running activity, or a failure its error boundary event: the walk leaves
- * the activity for the event. */
+/** A boundary event that interrupts its activity has happened: a timer ran out, a message came (`message`), an error
+ * was thrown inside it, or a step in it failed. */
+export type Due = { boundary: PlanElement; message?: Message };
+
+/** An interrupting boundary event of a running activity happened: the walk leaves the activity for the event, with
+ * the message the event caught (`caught`), if one did. */
 export class Interrupted extends Error {
   readonly activity: string;
   readonly boundary: PlanElement;
+  readonly caught: Message | undefined;
 
-  constructor(activity: string, boundary: PlanElement) {
+  constructor(activity: string, boundary: PlanElement, caught?: Message) {
     super(`${activity} ended by ${boundary.id}`);
     this.name = 'Interrupted';
     this.activity = activity;
     this.boundary = boundary;
+    this.caught = caught;
   }
 }
 
@@ -163,9 +174,9 @@ export type Thread = {
   /** Which path it is, unique in the run; a pool's own thread, before any path starts, is ''. */
   path: string;
   depth: number;
-  /** The activities it is inside, outermost first, each with the message flows that end it and their boundary events,
-   * the timer boundary events whose time has come, and what stops the hand-offs inside it when one has. */
-  watching: { activity: string; flows: Map<string, PlanElement>; due: PlanElement[]; stop: AbortController }[];
+  /** The activities it is inside, outermost first, each with the message flows into its interrupting boundary events
+   * and those events, the interrupting events that have happened, and what stops the hand-offs inside it once one has. */
+  watching: { activity: string; flows: Map<string, PlanElement>; due: Due[]; stop: AbortController }[];
   /** The scopes it walks in, outermost first: one aborts when another path of it failed, left it at a boundary event,
    * or ended it at a terminate end event, and every path still in it stops. */
   cancels: AbortSignal[];

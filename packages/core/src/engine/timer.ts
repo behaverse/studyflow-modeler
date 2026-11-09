@@ -31,3 +31,13 @@ export function timerDelay(timer: Timer, now: number = Date.now()): number {
   }
   return durationMs((timer.cycle ?? '').trim().split('/').find((part) => part.startsWith('P')) ?? '') ?? 0;
 }
+
+/** A timer cycle's repetitions and interval, when it is an ISO 8601 repeating interval: `R3/PT10M` fires three times,
+ * ten minutes apart, and `R/PT10M` without end. Undefined for anything else (a duration, a date, a cron schedule). */
+export function cycleOf(timer: Timer): { repeats: number; ms: number } | undefined {
+  const parts = (timer.cycle ?? '').trim().split('/');
+  const repeat = /^R(\d*)$/.exec(parts[0] ?? '');
+  const ms = durationMs(parts.find((part) => part.startsWith('P')) ?? '');
+  if (!repeat || ms === undefined) return undefined;
+  return { repeats: repeat[1] ? Number(repeat[1]) : Infinity, ms };
+}

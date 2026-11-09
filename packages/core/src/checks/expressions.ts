@@ -1,6 +1,6 @@
 import type { Issue } from '@core/checks';
 import { splitBinding } from '@core/model/spelling';
-import { timerDelay } from '@core/engine/timer';
+import { cycleOf, timerDelay } from '@core/engine/timer';
 import { feelSyntaxError } from '@core/expression/feel';
 import { expressionOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
 
@@ -49,7 +49,10 @@ export function checkExpressions(model: StudyModel): Issue[] {
     } catch (error) {
       issues.push({ severity: 'error', elementId: event, message: `the timer on ${JSON.stringify(event)} cannot be kept: ${(error as Error).message}` });
     }
-    if (timer.cycle !== undefined && timer.duration === undefined && timer.date === undefined) {
+    // A boundary event that does not interrupt its activity fires at each repetition of an interval; any other event
+    // a token passes once.
+    const beside = !!holder && model.isA(holder, 'bpmn:BoundaryEvent') && (holder.cancelActivity === false || holder.cancelActivity === 'false');
+    if (timer.cycle !== undefined && timer.duration === undefined && timer.date === undefined && !(beside && cycleOf(timer))) {
       const kept = timerDelay(timer) > 0 ? 'waits for its first firing only' : 'passes a schedule at once';
       issues.push({ severity: 'warning', elementId: event, message: `the timer on ${JSON.stringify(event)} is a cycle, and the walk ${kept}` });
     }

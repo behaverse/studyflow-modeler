@@ -11,6 +11,13 @@ const WINDOW = 20;
 /** What a pool's turn comes to when its runner left the message unanswered. */
 const WITHHELD = Symbol('withheld');
 
+/** A branch of an event-based gateway: its flow, and the event it starts at (`at`), which the messages along `into`
+ * reach, whose timer runs out after `ms`, or whose condition `holds`. */
+export type Branch = { flow: PlanElement; at: string; into?: PlanElement[]; ms?: number; holds?: () => boolean };
+
+/** What a path waits at, and, for a wait a change of the run's values may end, whether it would end now. */
+type Waiting = { what: string; ready?: () => boolean };
+
 /**
  * The messages between pools: the walk carries every one, along the flow it names. A message waits in its flow's
  * mailbox for the step that takes it; one sent to a pool a runner plays is that runner's to answer. A wait ends when
@@ -28,7 +35,9 @@ export class Post {
   /** Each pool's paths walking, and those of them waiting for a message, with what each waits at: when every path of
    * every pool still walking waits, no message will come. */
   private readonly walking = new Map<string, number>();
-  private readonly blocked = new Map<string, Map<string, string>>();
+  private readonly blocked = new Map<string, Map<string, Waiting>>();
+  /** Waits a condition ends: while there are any, a change of the run's values wakes every wait. */
+  private conditions = 0;
   /** The flows back from a pool whose runner left a message unanswered (`noReply`), by the path that sent it: a wait
    * along one holds, though the pool has nothing more to send, until something around the waiting step ends it. */
   private readonly withheld = new Map<string, Set<string>>();
@@ -70,14 +79,22 @@ export class Post {
     this.checkStuck();
   }
 
-  /** When every path of every pool still walking waits for a message, none will come: the run fails, saying what each
-   * waits at. A pool between its instances, with no path walking, is not waiting, and while a timer runs, its event
-   * may yet end a wait. */
+  /** When every path of every pool still walking waits for a message, or for a condition no value changed since makes
+   * hold, none will end: the run fails, saying what each waits at. A pool between its instances, with no path
+   * walking, is not waiting, and while a timer runs, its event may yet end a wait. */
   private checkStuck(): void {
     const pools = this.graph.plan.processes.filter((pool) => !this.poolsDone.has(pool));
-    const stuck = (pool: string): boolean => (this.walking.get(pool) ?? 0) > 0 && (this.blocked.get(pool)?.size ?? 0) >= this.walking.get(pool)!;
+    const ready = (waiting: Waiting): boolean => {
+      try {
+        return waiting.ready?.() === true;
+      } catch {
+        return false; // a condition that cannot be read fails its own wait, when it wakes
+      }
+    };
+    const stuck = (pool: string): boolean => (this.walking.get(pool) ?? 0) > 0
+      && [...(this.blocked.get(pool)?.values() ?? [])].filter((waiting) => !ready(waiting)).length >= this.walking.get(pool)!;
     if (this.failed !== undefined || this.timers > 0 || pools.length === 0 || !pools.every(stuck)) return;
-    this.failed = new Error(`the pools wait for each other: ${pools.flatMap((pool) => [...this.blocked.get(pool)!.values()]).join('; ')}`);
+    this.failed = new Error(`the pools wait for each other: ${pools.flatMap((pool) => [...this.blocked.get(pool)!.values()].map(({ what }) => what)).join('; ')}`);
     this.notify();
   }
 
@@ -85,11 +102,23 @@ export class Post {
     for (const wake of [...this.waiting]) wake();
   }
 
-  /** Resolves when something a wait may depend on has changed: a message arrived, a pool ended or failed. */
-  changed(): Promise<void> {
+  /** The run's values changed: a wait for a condition reads it again. */
+  valuesChanged(): void {
+    if (this.conditions > 0) this.notify();
+  }
+
+  /** Resolves when something a wait may depend on has changed: a message arrived, a pool ended or failed, a timer ran
+   * out, or, while a wait for a condition holds, a value changed. With `signal`, also once it aborts. */
+  changed(signal?: AbortSignal): Promise<void> {
     return new Promise((resolve) => {
-      const wake = (): void => { this.waiting.delete(wake); resolve(); };
+      const wake = (): void => {
+        this.waiting.delete(wake);
+        signal?.removeEventListener('abort', wake);
+        resolve();
+      };
+      if (signal?.aborted) return resolve();
       this.waiting.add(wake);
+      signal?.addEventListener('abort', wake, { once: true });
     });
   }
 
@@ -192,14 +221,8 @@ export class Post {
     try {
       for (;;) {
         this.checkInterrupt(thread);
-        for (const flow of flows) {
-          const message = this.next(flow.id, thread, (messages) => messages.shift());
-          if (message) {
-            // What this pool sends back to the sender's pool answers this message.
-            thread.heard.set(this.graph.poolOf(flow.attributes.sourceRef ?? ''), message.id);
-            return message;
-          }
-        }
+        const message = this.take(flows, thread);
+        if (message) return message;
         this.expectMore(id, flows, thread);
         await this.waitFor(thread, `${id} waits along ${flows.map((flow) => flow.id).join(', ')}`);
       }
@@ -209,12 +232,42 @@ export class Post {
     }
   }
 
-  /** A pool waits for a message. When every pool still walking waits so, no message will ever come: the run fails,
-   * saying what each waits at. */
-  private async waitFor(thread: Thread, what: string): Promise<void> {
-    const blocked = this.blocked.get(thread.pool) ?? new Map<string, string>();
+  /** The first message waiting for `thread` along one of `flows`, taken: what this pool sends back to the sender's
+   * pool answers it. */
+  take(flows: PlanElement[], thread: Thread): Message | undefined {
+    for (const flow of flows) {
+      const message = this.next(flow.id, thread, (messages) => messages.shift());
+      if (message) {
+        thread.heard.set(this.graph.poolOf(flow.attributes.sourceRef ?? ''), message.id);
+        return message;
+      }
+    }
+    return undefined;
+  }
+
+  /** A conditional event's wait: until `holds`, read again each time the run's values change. A boundary event of an
+   * activity around it ends the wait, and so does a failed pool; when nothing left can change a value, the run is
+   * stuck, saying `what` it waits for. */
+  async until(id: string, holds: () => boolean, thread: Thread, what: string): Promise<void> {
+    this.conditions += 1;
+    try {
+      for (;;) {
+        this.checkInterrupt(thread);
+        if (this.failed !== undefined) throw new Error(`${id}: the run ended while it waited`);
+        if (holds()) return;
+        await this.waitFor(thread, what, holds);
+      }
+    } finally {
+      this.conditions -= 1;
+    }
+  }
+
+  /** A pool waits for a message, or (`ready`) for a condition to hold. When every pool still walking waits so, nothing
+   * will end the waits: the run fails, saying what each waits at. */
+  private async waitFor(thread: Thread, what: string, ready?: () => boolean): Promise<void> {
+    const blocked = this.blocked.get(thread.pool) ?? new Map<string, Waiting>();
     this.blocked.set(thread.pool, blocked);
-    blocked.set(thread.path, what);
+    blocked.set(thread.path, { what, ready });
     // Heard before the check, so a run this very wait leaves stuck wakes it too, when it is the only one waiting.
     const changed = this.changed();
     this.checkStuck();
@@ -259,25 +312,43 @@ export class Post {
     return [...new Set([...this.mail].filter(([, messages]) => messages.length > 0).map(([box]) => box.split('@')[0]))];
   }
 
-  /** An event-based gateway's branch: the one whose event happens first. Each branch starts at a catch event or a
-   * receive task a message flow reaches; the first message along one picks that branch, and stays in its mailbox for
-   * the step to take. Messages already waiting go by the branches' order. */
-  async race(gateway: string, flows: PlanElement[], thread: Thread): Promise<PlanElement> {
-    const branches = flows.map((flow) => {
-      const target = flow.attributes.targetRef ?? '';
-      const into = this.graph.flowsIn.get(target) ?? [];
-      if (into.length === 0) {
-        throw new Error(`${gateway}: an event-based gateway waits for messages, and ${target} takes none. `
-          + 'Start each branch with a catch event or a receive task a message flow reaches.');
+  /**
+   * An event-based gateway's branch: the one whose event happens first. A branch a message flow reaches is picked by
+   * its first message, which stays in its mailbox for the step to take; one at a timer catch event, when its time
+   * comes; one at a conditional catch event, once its condition holds. Messages already waiting go first, in the
+   * branches' order, then a timer that has run out, then a condition that holds. `fired` says the branch's event has
+   * happened already, so the walk passes it.
+   */
+  async race(gateway: string, branches: Branch[], thread: Thread): Promise<{ flow: PlanElement; fired: boolean }> {
+    const messages = branches.filter((branch) => branch.into);
+    const conditions = branches.filter((branch) => branch.holds);
+    const waiting = (): string[] => messages.flatMap(({ into }) => into!).map((flow) => flow.id);
+    let rang: Branch | undefined;
+    const timers = branches.filter((branch) => branch.ms !== undefined)
+      .map((branch) => this.timer(branch.ms!, branch.at, () => { rang ??= branch; }));
+    const ready = (): boolean => messages.some(({ into }) => into!.some((flow) => this.next(flow.id, thread, (queued) => queued[0])))
+      || conditions.some((branch) => branch.holds!());
+    if (conditions.length > 0) this.conditions += 1;
+    try {
+      for (;;) {
+        this.checkInterrupt(thread);
+        const first = messages.find(({ into }) => into!.some((flow) => this.next(flow.id, thread, (queued) => queued[0])));
+        if (first) return { flow: first.flow, fired: false };
+        if (rang) return { flow: rang.flow, fired: true };
+        const held = conditions.find((branch) => branch.holds!());
+        if (held) return { flow: held.flow, fired: true };
+        if (timers.length + conditions.length === 0) this.expectMore(gateway, messages.flatMap(({ into }) => into!), thread);
+        else if (this.failed !== undefined) throw new Error(`${gateway}: the run ended while it waited`);
+        const what = [
+          ...(messages.length > 0 ? [`a message along ${waiting().join(', ')}`] : []),
+          ...conditions.map((branch) => `${branch.at} to hold`),
+          ...(timers.length > 0 ? ['a timer'] : []),
+        ];
+        await this.waitFor(thread, `${gateway} waits for ${what.join(', or ')}`, ready);
       }
-      return { flow, into };
-    });
-    for (;;) {
-      this.checkInterrupt(thread);
-      const first = branches.find(({ into }) => into.some((flow) => this.next(flow.id, thread, (messages) => messages[0])));
-      if (first) return first.flow;
-      this.expectMore(gateway, branches.flatMap(({ into }) => into), thread);
-      await this.waitFor(thread, `${gateway} waits for a message along ${branches.flatMap(({ into }) => into).map((flow) => flow.id).join(', ')}`);
+    } finally {
+      timers.forEach((timer) => timer.abort());
+      if (conditions.length > 0) this.conditions -= 1;
     }
   }
 
@@ -346,18 +417,22 @@ export class Post {
     }
   }
 
-  /** Throws when the path's scope was ended by another of its paths, or when a boundary event of an activity the path
-   * is inside has happened, innermost first: its timer has run out, or (unless `timersOnly`) a message waits at it. */
+  /** Throws when the path's scope was ended by another of its paths, or when an interrupting boundary event of an
+   * activity the path is inside has happened, innermost first: its timer has run out, an error or a failure inside
+   * the activity reached it, or a message came to it; unless `timersOnly`, a message waiting at it is taken here. */
   checkInterrupt(thread: Thread, timersOnly = false): void {
     if (thread.cancels.some((signal) => signal.aborted)) throw new Cancelled();
-    for (const { activity, flows, due } of [...thread.watching].reverse()) {
-      if (due.length > 0) throw new Interrupted(activity, due[0]);
-      if (timersOnly) continue;
-      for (const [flow, boundary] of flows) {
-        if (this.next(flow, thread, (messages) => messages.shift())) {
-          throw new Interrupted(activity, boundary);
+    for (const { activity, flows, due, stop } of [...thread.watching].reverse()) {
+      if (due.length === 0 && !timersOnly) {
+        for (const [flow, boundary] of flows) {
+          const message = this.take([this.graph.elements[flow]], thread);
+          if (!message) continue;
+          due.push({ boundary, message });
+          stop.abort();
+          break;
         }
       }
+      if (due.length > 0) throw new Interrupted(activity, due[0].boundary, due[0].message);
     }
   }
 

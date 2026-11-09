@@ -45,6 +45,15 @@ class Cancelled(Exception):
     """The walk stopped the step: a timer at a boundary event ran out, it outlasted `--step-timeout`, or the run ended."""
 
 
+class BpmnError(Exception):
+    """A failure that throws the BPMN error of `code`: an error boundary event naming an error of that `errorCode`
+    catches it, on the step or on an activity around it."""
+
+    def __init__(self, code: str, message: str = "") -> None:
+        super().__init__(message or code)
+        self.code = code
+
+
 def dig(value: Any, fields: list[str]) -> Any:
     for field in fields:
         value = value.get(field) if isinstance(value, dict) else getattr(value, field, None)
@@ -377,10 +386,13 @@ def serve(claims: Callable[[dict[str, Any]], Any], execute: Callable[[Step], Any
             result = execute(step)
             wire.send({"id": request_id, "result": step.handback(result, started)})
         except BaseException as error:  # noqa: BLE001 - reported to the walk, which records it
+            data = step.handback(None, started)
+            if isinstance(error, BpmnError):
+                data["errorCode"] = error.code
             wire.send({"id": request_id, "error": {
                 "code": 2 if isinstance(error, Cancelled) else 1,
                 "message": f"{type(error).__name__}: {error}",
-                "data": step.handback(None, started),
+                "data": data,
             }})
         finally:
             steps.pop(str(request_id), None)

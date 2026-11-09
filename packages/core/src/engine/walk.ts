@@ -1,12 +1,12 @@
 import { PLACEHOLDER } from '@core/model/state';
 import { allocationOf, alternated, draw, minimized, permutedBlock, pick, withoutCohort, withoutConcealedSeed, type Allocation } from '@core/engine/allocation';
 import { CONTAINER_TYPES, GATEWAY_TYPES, Graph, PASSTHROUGH_TYPES } from '@core/engine/graph';
-import { Cancelled, HandoffError, Interrupted, keepRecord, logAt, type Handback, type Host, type Note, type StateTree, type Talk, type Thread, type WalkOptions } from '@core/engine/host';
-import type { Plan, PlanElement } from '@core/engine/plan';
+import { Cancelled, HandoffError, Interrupted, keepRecord, logAt, type Handback, type Host, type Message, type Note, type StateTree, type Talk, type Thread, type WalkOptions } from '@core/engine/host';
+import type { Expression, Plan, PlanElement } from '@core/engine/plan';
 import type { Happening, RunEvent } from '@core/engine/record';
-import { Post } from '@core/engine/post';
+import { Post, type Branch } from '@core/engine/post';
 import { Steps, type Entry } from '@core/engine/steps';
-import { timerDelay } from '@core/engine/timer';
+import { cycleOf, timerDelay } from '@core/engine/timer';
 import { Values } from '@core/engine/values';
 
 /**
@@ -24,8 +24,19 @@ const bpmnType = (element: PlanElement): string => `bpmn:${element.type.charAt(0
 
 const has = (element: PlanElement, definition: string): boolean => (element.events ?? []).includes(definition);
 
+/** Whether a boundary event ends its activity when it happens: every one but those with `cancelActivity` false, and
+ * an error boundary event always (BPMN 2.0). */
+const interrupts = (boundary: PlanElement): boolean => boundary.attributes.cancelActivity !== 'false' || has(boundary, 'errorEventDefinition');
+
+/** A conditional event's condition, when it has one. */
+const conditionOf = (element: PlanElement): Expression | undefined => (has(element, 'conditionalEventDefinition') ? element.condition : undefined);
+
 /** A path walking a scope: the token, and the element it is at. */
 type Path = { at: string; thread: Thread };
+
+/** An ad-hoc sub-process's `completionCondition` as its scope reads it after each activity inside it: whether it holds
+ * now, whether its holding stops what still runs (`cancelRemainingInstances`), and whether it has held. */
+type Completion = { holds: () => boolean; cancel: boolean; held: boolean };
 
 /** The paths a scope's walk runs, the tokens waiting at its joins, and what ends them all. */
 type Scope = {
@@ -37,7 +48,12 @@ type Scope = {
   cancel: AbortController;
   /** What ended the scope, a path's failure or a boundary event outside it: the scope's walk throws it. */
   failure?: unknown;
+  /** The completion condition of the ad-hoc sub-process the scope is the inside of. */
+  completion?: Completion;
 };
+
+/** An error as a boundary event catches it: the error an error end event throws, or the code a failure carries. */
+type Thrown = { ref?: string; code?: string };
 
 /** Every non-empty subset of `items`, smallest first: which conditioned flows of a split may hold together. */
 function subsets<T>(items: T[]): T[][] {
@@ -82,6 +98,8 @@ export class Walk {
   private readonly record: (happened: Happening, thread?: Thread) => void;
   private early: RunEvent[] | undefined = [];
   private paths = 0;
+  /** The events an event-based gateway saw happen, by `<path> <event>`: the path passes each without waiting again. */
+  private readonly fired = new Set<string>();
 
   constructor(plan: Plan, host: Host, options: WalkOptions = {}) {
     this.host = host;
@@ -95,6 +113,8 @@ export class Walk {
       const event = { ...happened, ...(participant ? { participant } : {}), at: host.now() } as RunEvent;
       if (this.early) this.early.push(event);
       else host.record?.(event);
+      // What changed may make a condition a path waits for hold.
+      this.post?.valuesChanged();
     };
     this.memory = new Values(this.graph, options.state ?? {}, record);
     this.post = new Post(this.graph, host, this.steps, (thread) => this.valuesOf(thread), record);
@@ -188,7 +208,7 @@ export class Walk {
     const { graph } = this;
     const { participant, instances: drawn } = graph.instancesOf(pool);
     const instances = this.oneInstance ? 1 : drawn;
-    const start = graph.entryOf(pool);
+    const entries = graph.entriesOf(pool);
     const thread = (instance: number): Thread => ({ pool, path: '', depth: 0, watching: [], cancels: [], heard: new Map(), participant: this.oneInstance ? this.participant : instance, visits: new Map() });
     const walkInstance = async (instance: number): Promise<void> => {
       const own = thread(instance);
@@ -200,8 +220,8 @@ export class Walk {
         values.startScope(pool, true, this.note(own));
       }
       try {
-        await this.host.moved?.(start.id, undefined, pool);
-        await this.walk(start, 0, own);
+        for (const entry of entries) await this.host.moved?.(entry.id, undefined, pool);
+        await this.walk(entries, 0, own);
       } finally {
         this.instances.delete(`${pool}#${instance}`);
       }
@@ -233,17 +253,18 @@ export class Walk {
   }
 
   /**
-   * A scope (a pool's process, a sub-process) walked one level in, from `first`, until no path is left in it. Values
-   * are not scoped with it (BPMN §10.4.7). A split starts a path for each branch it takes; a join lets one path on
-   * once the paths it waits for have come. A path that fails, or leaves the scope at a boundary event of an activity
-   * around it, stops the others, and the scope's walk throws what it met.
+   * A scope (a pool's process, a sub-process, a called process) walked one level in, a path from each of `entries`,
+   * until no path is left in it. Values are not scoped with it (BPMN §10.4.7). A split starts a path for each branch
+   * it takes; a join lets one path on once the paths it waits for have come. A path that fails, or leaves the scope at
+   * a boundary event of an activity around it, stops the others, and the scope's walk throws what it met. Inside an
+   * ad-hoc sub-process, `completion` is read after each activity.
    */
-  private async walk(first: PlanElement, depth: number, thread: Thread): Promise<void> {
-    const scope: Scope = { depth, tasks: [], running: new Set(), joins: new Map(), cancel: new AbortController() };
+  private async walk(entries: PlanElement[], depth: number, thread: Thread, completion?: Completion): Promise<void> {
+    const scope: Scope = { depth, tasks: [], running: new Set(), joins: new Map(), cancel: new AbortController(), completion };
     // The path walking into the scope waits for the paths inside it: they are its pool's walking paths meanwhile.
     if (thread.path) this.post.leave(thread.pool);
     try {
-      this.spawn(scope, first, { ...thread, cancels: [...thread.cancels, scope.cancel.signal] });
+      for (const entry of entries) this.spawn(scope, entry, { ...thread, cancels: [...thread.cancels, scope.cancel.signal] });
       while (scope.tasks.length > 0) await Promise.all(scope.tasks.splice(0));
     } finally {
       if (thread.path) this.post.enter(thread.pool);
@@ -355,10 +376,11 @@ export class Walk {
         this.record({ event: 'executed', id, entry }, thread);
         this.log(thread, 'event.reached', `● ${id}`);
         host.passed?.(id);
-        const container = graph.get(element.parent);
-        const boundary = has(element, 'errorEventDefinition') ? this.errorBoundary(container) : undefined;
-        // An error end event ends the sub-process around it at that sub-process's error boundary event.
-        if (boundary) throw new Interrupted(container!.id, boundary);
+        // An error end event throws its error out to the innermost activity around it whose error boundary event
+        // catches it, ending every path of each scope it leaves. One nothing catches ends its own path, as BPMN
+        // leaves an uncaught error to the engine.
+        const caught = has(element, 'errorEventDefinition') ? this.catcher(thread, { ref: element.errorRef }) : undefined;
+        if (caught) throw new Interrupted(caught.activity, caught.boundary);
         // A terminate end event ends every path of its scope; any other ends its own.
         if (has(element, 'terminateEventDefinition')) this.end(scope);
         return;
@@ -369,13 +391,22 @@ export class Walk {
           + 'Make it an exclusive, inclusive or parallel gateway.');
       }
       let from: PlanElement = element;
+      const condition = conditionOf(element);
       if (GATEWAY_TYPES.has(type) || type === 'parallelGateway') {
         this.log(thread, 'gateway.reached', `◇ ${id}`);
+      } else if (type === 'boundaryEvent') {
+        // A path from a boundary event that does not interrupt its activity: the event has happened.
+        this.record({ event: 'executed', id }, thread);
+        await host.moved?.(id, undefined, thread.pool);
+        this.log(thread, 'event.reached', `○ ${id}  (beside ${element.attributes.attachedToRef})`);
       } else if (PASSTHROUGH_TYPES.has(type)) {
         const entry = this.steps.begin(id, name, bpmnType(element));
         const runner = host.claim(id);
         try {
-          if (runner) {
+          if (this.fired.delete(`${thread.path} ${id}`)) {
+            // An event-based gateway took this branch because its timer ran out or its condition held.
+            this.log(thread, 'event.waiting', `◐ ${id}  (happened at the gateway)`, { level: 'debug' });
+          } else if (runner) {
             // An event a runner executes waits in its runner: a catch event until sensed, a start until it may begin.
             this.log(thread, 'event.waiting', `◐ ${id}  (waiting via ${runner.name})`);
             this.adopt(id, await this.handOff(id, this.valuesOf(thread).json(), thread), entry, thread);
@@ -390,6 +421,12 @@ export class Walk {
             const ms = this.timerMs(element, thread);
             this.log(thread, 'event.waiting', `◐ ${id}  (waiting ${ms}ms for its timer)`);
             await this.post.sleep(ms, id, thread);
+          } else if (condition && !this.host.choose && !this.passes(element, condition, thread)) {
+            // A conditional event waits until its condition holds, read again each time a value changes; exploring,
+            // and in a dry run, where nothing binds what it reads, it passes.
+            this.log(thread, 'event.waiting', `◐ ${id}  (waiting until ${condition.body} holds)`);
+            const at = element;
+            await this.post.until(id, () => this.holds(at, condition, thread), thread, `${id} waits until ${condition.body} holds`);
           }
         } catch (error) {
           if (error instanceof Interrupted || error instanceof Cancelled) this.steps.end(entry);
@@ -401,7 +438,12 @@ export class Walk {
         this.record({ event: 'executed', id, entry }, thread);
         this.log(thread, 'event.reached', `○ ${id}`);
       } else {
-        const boundary = await this.perform(element, depth, thread);
+        // Once an ad-hoc sub-process's completion condition has held, what still runs inside it starts nothing new.
+        if (scope.completion?.held) {
+          this.log(thread, 'activity.skipped', `    ${id} does not start: the sub-process around it is complete`, { level: 'debug' });
+          return;
+        }
+        const boundary = await this.perform(element, scope, thread);
         if (boundary) {
           // The activity ended at one of its boundary events: the walk goes on from there.
           this.valuesOf(thread).trace.push(boundary.id);
@@ -410,6 +452,14 @@ export class Walk {
           await host.moved?.(boundary.id, undefined, thread.pool);
           this.log(thread, 'event.reached', `○ ${boundary.id}  (ended ${id})`);
           from = boundary;
+        } else if (scope.completion && !scope.completion.held && scope.completion.holds()) {
+          // An activity of an ad-hoc sub-process ended and its completion condition holds: the sub-process is complete.
+          scope.completion.held = true;
+          this.log(thread, 'activity.completed', `    the completion condition holds after ${id}`);
+          if (scope.completion.cancel) {
+            this.end(scope);
+            return;
+          }
         }
       }
       // After `next`, so a gateway's decision is in its record entry too.
@@ -425,32 +475,27 @@ export class Walk {
 
   /**
    * An activity, pass after pass while its loop marker asks for another, or once per item of the list its
-   * multi-instance marker names: each such pass binds its item under the `inputDataItem`'s name in the activity's own
-   * scope, and what that scope holds under the `outputDataItem`'s name after the pass joins the list stored into
-   * `loopDataOutputRef`. A message at one of its boundary events ends it at the next step, and once it is done a
-   * conditional boundary event whose condition now holds ends it too; that event is returned for the walk to go on from.
+   * multi-instance marker names, until that marker's `completionCondition` holds: each such pass binds its item under
+   * the `inputDataItem`'s name in the activity's own scope, and what that scope holds under the `outputDataItem`'s
+   * name after the pass joins the list stored into `loopDataOutputRef`. A call activity walks the process it calls.
+   *
+   * Its boundary events are watched while it runs ({@link watch}): one that interrupts it ends it, stopping every
+   * hand-off inside it, and is returned for the walk to go on from; one that does not starts a path beside it. Once it
+   * is done, a conditional boundary event whose condition now holds is taken too.
    */
-  private async perform(element: PlanElement, depth: number, thread: Thread): Promise<PlanElement | undefined> {
+  private async perform(element: PlanElement, scope: Scope, thread: Thread): Promise<PlanElement | undefined> {
     const { graph } = this;
     const { id } = element;
-    const due: PlanElement[] = [];
-    const stop = new AbortController();
-    thread.watching.push({
-      activity: id,
-      flows: new Map((graph.boundaries.get(id) ?? [])
-        .flatMap((boundary) => (graph.flowsIn.get(boundary.id) ?? []).map((flow): [string, PlanElement] => [flow.id, boundary]))),
-      due,
-      stop,
-    });
-    // A timer at a boundary event runs from the moment the activity is entered; when its time comes it ends the
-    // activity, stopping every hand-off inside it.
-    const timers = (graph.boundaries.get(id) ?? []).filter((boundary) => boundary.timer)
-      .map((boundary) => this.post.timer(this.timerMs(boundary, thread), boundary.id, () => { due.push(boundary); stop.abort(); }));
+    const { depth } = scope;
+    const watched = this.watch(element, scope, thread);
     try {
       let passes = 0;
       const listed = this.host.choose ? undefined : this.loopList(element, thread);
       const outputs: unknown[] = [];
+      const completion = element.loop?.kind === 'multiInstance' && !this.host.choose ? element.loop.completion : null;
       while (listed ? passes < listed.items.length : this.loopsAgain(element, passes, thread)) {
+        // What happened at a boundary event before this pass ends the activity here.
+        this.post.checkInterrupt(thread);
         passes += 1;
         if (passes > this.maxSteps) throw new Error(`${id}: loop budget exhausted — does its loop ever end?`);
         // Which pass this is, for whatever runs inside: `state._meta.instance.<id>`, 1-based.
@@ -462,45 +507,160 @@ export class Walk {
           if (listed.item) this.valuesOf(thread).set(id, listed.item, listed.items[passes - 1]);
           if (listed.output && listed.output in (this.valuesOf(thread).state[id] ?? {})) this.valuesOf(thread).set(id, listed.output);
         }
-        if (CONTAINER_TYPES.has(element.type)) await this.walkContainer(element, depth, thread);
+        const called = graph.callee(element);
+        if (CONTAINER_TYPES.has(element.type) || called) await this.walkContainer(element, depth, thread, called);
         else await this.runActivity(element, thread);
         if (listed) outputs.push(listed.output ? this.valuesOf(thread).state[id]?.[listed.output] ?? null : null);
+        if (completion && this.completes(element, completion, passes, listed?.items.length, thread)) break;
       }
       if (listed?.into) {
         this.valuesOf(thread).store(listed.into, outputs);
         this.host.reuse?.remade(listed.into); // re-made each run, so a recorded step that reads it runs again
       }
+      // The activity is done: what happens at its boundary events from now on is not its, and what happened by now is.
+      watched.close();
+      this.post.checkInterrupt(thread, true);
     } catch (error) {
       if (error instanceof Interrupted && error.activity === id) {
-        // What answers the activity along its own flows answers what it no longer asks.
+        // What answers the activity along its own flows answers what it no longer asks; the message the event
+        // caught, if one did, is its value.
         this.post.discard(id);
+        if (error.caught) this.valuesOf(thread).store(error.boundary.id, error.caught.content);
         return error.boundary;
       }
       throw error;
     } finally {
-      timers.forEach((timer) => timer.abort());
+      watched.close();
       thread.watching.pop();
     }
-    return this.conditionalBoundary(element, thread);
+    return this.conditionalBoundary(element, scope, thread);
   }
 
-  /** The first conditional boundary event of a finished activity whose `condition` holds, with the activity's result
-   * and bindings already adopted; its `{placeholders}` read as FEEL paths, so `unanswered > max_unanswered` reads the
+  /**
+   * What happens at an activity's boundary events while it runs, from the moment it is entered: a timer that runs out,
+   * a message that comes, taken as it comes whatever the activity is doing. An interrupting event is due at once and
+   * stops every hand-off inside the activity, which then ends at it; one that does not interrupt (`cancelActivity`
+   * false) starts a path from the event beside the activity each time it happens, a timer cycle at each firing up to
+   * its repetitions, the message it caught its value. `close` ends the watch.
+   */
+  private watch(element: PlanElement, scope: Scope, thread: Thread): { close(): void } {
+    const { graph } = this;
+    const boundaries = graph.boundaries.get(element.id) ?? [];
+    const outside: Thread = { ...thread, watching: [...thread.watching] };
+    const watched: Thread['watching'][number] = {
+      activity: element.id,
+      flows: new Map(boundaries.filter(interrupts)
+        .flatMap((boundary) => (graph.flowsIn.get(boundary.id) ?? []).map((flow): [string, PlanElement] => [flow.id, boundary]))),
+      due: [],
+      stop: new AbortController(),
+    };
+    thread.watching.push(watched);
+    const closed = new AbortController();
+    const happened = (boundary: PlanElement, message?: Message): void => {
+      if (!interrupts(boundary)) {
+        this.beside(scope, boundary, outside, message);
+      } else if (watched.due.length === 0) {
+        watched.due.push({ boundary, message });
+        watched.stop.abort();
+        this.post.notify(); // every wait inside the activity wakes to leave it
+      }
+    };
+    const timers: AbortController[] = [];
+    const arm = (boundary: PlanElement, fired: number): void => {
+      timers.push(this.post.timer(this.timerMs(boundary, thread), boundary.id, () => {
+        happened(boundary);
+        // Exploring, one firing shows what a cycle does.
+        const cycle = interrupts(boundary) || this.host.choose ? undefined : cycleOf(boundary.timer!);
+        if (cycle && !closed.signal.aborted && fired + 1 < cycle.repeats) arm(boundary, fired + 1);
+      }));
+    };
+    for (const boundary of boundaries) if (boundary.timer) arm(boundary, 0);
+    const heard = boundaries.map((boundary) => ({ boundary, into: graph.flowsIn.get(boundary.id) ?? [] })).filter(({ into }) => into.length > 0);
+    const listen = (): void => {
+      for (const { boundary, into } of heard) {
+        if (interrupts(boundary) && watched.due.length > 0) continue;
+        for (let message = this.post.take(into, thread); message; message = interrupts(boundary) ? undefined : this.post.take(into, thread)) {
+          happened(boundary, message);
+        }
+      }
+    };
+    if (heard.length > 0) {
+      listen();
+      void (async () => {
+        while (!closed.signal.aborted) {
+          await this.post.changed(closed.signal);
+          if (!closed.signal.aborted) listen();
+        }
+      })();
+    }
+    return {
+      close: () => {
+        closed.abort();
+        timers.forEach((timer) => timer.abort());
+      },
+    };
+  }
+
+  /** A boundary event that does not interrupt its activity happened: a path goes on from it, beside the activity, in
+   * the activity's scope, with the message it caught, if one did, as its value. */
+  private beside(scope: Scope, boundary: PlanElement, thread: Thread, message?: Message): void {
+    if (scope.cancel.signal.aborted) return;
+    if (message) this.valuesOf(thread).store(boundary.id, message.content);
+    this.spawn(scope, boundary, thread);
+  }
+
+  /** Once an activity is done, its conditional boundary events whose `condition` now holds, with the activity's result
+   * and bindings already adopted: each that does not interrupt starts a path beside the activity's own flow, and the
+   * first that does is returned. Its `{placeholders}` read as FEEL paths, so `unanswered > max_unanswered` reads the
    * property the activity's data edge has just written. */
-  private conditionalBoundary(element: PlanElement, thread: Thread): PlanElement | undefined {
-    const conditional = (this.graph.boundaries.get(element.id) ?? []).filter((boundary) => has(boundary, 'conditionalEventDefinition') && boundary.condition);
+  private conditionalBoundary(element: PlanElement, scope: Scope, thread: Thread): PlanElement | undefined {
+    const conditional = (this.graph.boundaries.get(element.id) ?? []).filter((boundary) => conditionOf(boundary));
+    let held: PlanElement[];
     if (this.host.choose && conditional.length > 0) {
       const chosen = this.host.choose(`${element.id}:ends`, ['none', ...conditional.map((boundary) => boundary.id)]);
-      return conditional.find((boundary) => boundary.id === chosen);
+      held = conditional.filter((boundary) => boundary.id === chosen);
+    } else {
+      held = conditional.filter((boundary) => {
+        const { body, language } = boundary.condition!;
+        const verdict = this.valuesOf(thread).evaluate({ body, language }, element.id) === true;
+        this.log(thread, 'conditionExpression.evaluated', `    ${body} → ${verdict}  [${boundary.id}]`, { level: 'debug' });
+        return verdict;
+      });
     }
-    for (const boundary of this.graph.boundaries.get(element.id) ?? []) {
-      if (!has(boundary, 'conditionalEventDefinition') || !boundary.condition) continue;
-      const { body, language } = boundary.condition;
-      const verdict = this.valuesOf(thread).evaluate({ body, language }, element.id) === true;
-      this.log(thread, 'conditionExpression.evaluated', `    ${body} → ${verdict}  [${boundary.id}]`, { level: 'debug' });
-      if (verdict) return boundary;
+    for (const boundary of held) if (!interrupts(boundary)) this.beside(scope, boundary, thread);
+    return held.find(interrupts);
+  }
+
+  /** Whether a multi-instance marker's `completionCondition` holds after `passes` of `total`, BPMN's instance
+   * attributes bound beside what the activity's scope holds, its output item among it: `loopCounter`,
+   * `numberOfInstances`, `numberOfCompletedInstances`, `numberOfActiveInstances` and `numberOfTerminatedInstances`. */
+  private completes(element: PlanElement, completion: Expression, passes: number, total: number | undefined, thread: Thread): boolean {
+    const { loop } = element;
+    if (loop?.kind !== 'multiInstance') return false;
+    const values = this.valuesOf(thread);
+    const instances = total ?? (loop.cardinality ? Math.trunc(Number(values.evaluate(loop.cardinality, element.id))) : passes);
+    const output = loop.outputItem ? { [loop.outputItem]: values.state[element.id]?.[loop.outputItem] ?? null } : {};
+    const verdict = values.evaluate(completion, element.id, {
+      ...output, loopCounter: passes, numberOfInstances: instances, numberOfCompletedInstances: passes, numberOfActiveInstances: 0, numberOfTerminatedInstances: 0,
+    }) === true;
+    this.log(thread, 'conditionExpression.evaluated', `    ${completion.body} → ${verdict}  [${element.id}]`, { level: 'debug' });
+    return verdict;
+  }
+
+  /** Whether a condition holds now, read at `element`. */
+  private holds(element: PlanElement, condition: Expression, thread: Thread): boolean {
+    return this.valuesOf(thread).evaluate(condition, element.id) === true;
+  }
+
+  /** Whether a conditional event passes now: its condition holds, or, where nothing bound what it reads, a host that
+   * decides such things (a dry run) says it does. */
+  private passes(element: PlanElement, condition: Expression, thread: Thread): boolean {
+    try {
+      if (this.holds(element, condition, thread)) return true;
+    } catch (error) {
+      if (!this.host.decide) throw error;
     }
-    return undefined;
+    return this.host.decide?.(element.id, [element.id], new Error(`${element.id} waits until ${condition.body} holds`)) === element.id;
   }
 
   /** What a multi-instance marker whose `loopDataInputRef` names a list runs over, read once as the activity starts. */
@@ -546,22 +706,26 @@ export class Walk {
     return this.valuesOf(thread).evaluate(loop.condition, element.id) === true;
   }
 
-  private async walkContainer(element: PlanElement, depth: number, thread: Thread): Promise<void> {
-    const { graph, host } = this;
+  /** A sub-process, walked one level in from its start event, or, with none, from every node nothing flows into; an
+   * ad-hoc one round after round ({@link walkAdHoc}); or the process a call activity calls (`called`), in the
+   * activity's place, its properties started afresh for each call. With nothing inside, it ends at once. */
+  private async walkContainer(element: PlanElement, depth: number, thread: Thread, called?: string): Promise<void> {
+    const { graph } = this;
     const { id } = element;
     const entry = this.steps.begin(id, graph.nameOf(id), bpmnType(element));
-    this.log(thread, 'activity.started', `⊞ ${id}`);
+    this.log(thread, 'activity.started', called ? `⊞ ${id}  (calls ${called})` : `⊞ ${id}`);
     this.valuesOf(thread).startScope(id, true, this.note(thread));
-    const start = graph.startEvent(id);
     try {
-      if (!start) {
-        // A sub-process without a start event only lists what it holds: the walk steps past it (the plan check asks
-        // for one only where sequence flows run inside).
-        this.log(thread, 'subProcess.unwalked', `    ${id} has no start event, so nothing inside it runs; stepping past it`, { level: 'warning' });
-      } else {
-        await host.moved?.(start.id, undefined, thread.pool);
-        await this.walk(start, depth + 1, thread);
+      if (called) {
+        // A process running around this call would call itself without end.
+        if (thread.watching.slice(0, -1).some(({ activity }) => graph.callee(graph.get(activity)) === called)) {
+          throw new Error(`${id} calls ${called}, which this path is already inside: a process cannot call itself`);
+        }
+        this.valuesOf(thread).startScope(called, true, this.note(thread));
       }
+      const entries = graph.entriesOf(called ?? id);
+      if (element.type === 'adHocSubProcess') await this.walkAdHoc(element, entries, depth, thread);
+      else await this.enter(entries, depth, thread);
     } catch (error) {
       if (error instanceof Interrupted) {
         entry.interruptedBy = error.boundary.id;
@@ -579,6 +743,38 @@ export class Walk {
     this.steps.end(entry);
     this.log(thread, 'activity.finished', `  ${id} done in ${entry.durationMs}ms`, { level: 'debug' });
     this.record({ event: 'executed', id, entry }, thread);
+  }
+
+  /** A scope one level below `depth`, entered at `entries`. */
+  private async enter(entries: PlanElement[], depth: number, thread: Thread, completion?: Completion): Promise<void> {
+    for (const entry of entries) await this.host.moved?.(entry.id, undefined, thread.pool);
+    await this.walk(entries, depth + 1, thread, completion);
+  }
+
+  /**
+   * An ad-hoc sub-process, whose activities BPMN leaves in no order. Each round starts every node nothing flows into
+   * inside it, all at once, or one after another in the order drawn when its `ordering` is Sequential, each going on
+   * along its flows (so a gateway after an agent's model call picks the tool it named). Its `completionCondition` is
+   * read after each activity inside it ends: once it holds, the sub-process ends, stopping what still runs, or, with
+   * `cancelRemainingInstances` false, letting that finish while nothing new starts. A round after which it does not
+   * hold starts the next; with no condition, one round ends it.
+   */
+  private async walkAdHoc(element: PlanElement, entries: PlanElement[], depth: number, thread: Thread): Promise<void> {
+    const { completion } = element;
+    // Exploring, another round is a choice, as another pass of a loop is.
+    const done: Completion | undefined = completion && !this.host.choose
+      ? { holds: () => this.holds(element, completion, thread), cancel: element.attributes.cancelRemainingInstances !== 'false', held: false }
+      : undefined;
+    const groups = element.attributes.ordering === 'Sequential' ? entries.map((entry) => [entry]) : [entries];
+    for (let round = 1; ; round += 1) {
+      if (round > this.maxSteps) throw new Error(`${element.id}: loop budget exhausted — does its completionCondition ever hold?`);
+      for (const group of groups) {
+        await this.enter(group, depth, thread, done);
+        if (done?.held) return;
+      }
+      if (!completion) return;
+      if (this.host.choose ? this.host.choose(`${element.id}:again`, ['again', 'done']) !== 'again' : done!.holds()) return;
+    }
   }
 
   private async runActivity(element: PlanElement, thread: Thread): Promise<void> {
@@ -610,17 +806,19 @@ export class Walk {
         this.steps.end(entry);
         throw error;
       }
-      const boundary = this.errorBoundary(element);
+      // The failure throws the error its runner names (`errorCode`), else one of no code: the innermost error
+      // boundary event that catches it, on the step or on an activity around it, takes it.
+      const caught = this.catcher(thread, { code: error instanceof HandoffError ? error.partial?.errorCode : undefined });
       const { status } = this.steps;
       this.steps.fail(entry, error);
       this.log(thread, 'activity.failed', `    ${id}: ${(error as Error)?.name ?? 'Error'}: ${(error as Error)?.message ?? error}`, { level: 'error' });
       this.record({ event: 'failed', id, entry }, thread);
-      if (!boundary) throw error;
-      // An error boundary event catches the failure: the record keeps the error, the run is not failed, and the walk
-      // goes on from the event, as a message at a boundary event ends an activity.
-      entry.interruptedBy = boundary.id;
+      if (!caught) throw error;
+      // The record keeps the error, the run is not failed, and the walk goes on from the event, ending each scope it
+      // leaves on the way.
+      entry.interruptedBy = caught.boundary.id;
       this.steps.status = status;
-      throw new Interrupted(id, boundary);
+      throw new Interrupted(caught.activity, caught.boundary);
     }
     this.steps.end(entry);
     host.reuse?.ran(id);
@@ -628,9 +826,23 @@ export class Walk {
     this.record({ event: 'executed', id, entry }, thread);
   }
 
-  /** The error boundary event an activity carries, if any: where a failure inside it goes on from. */
-  private errorBoundary(element: PlanElement | undefined): PlanElement | undefined {
-    return (this.graph.boundaries.get(element?.id ?? '') ?? []).find((boundary) => has(boundary, 'errorEventDefinition'));
+  /** The innermost activity a path is inside (the step it performs first) whose error boundary event catches
+   * `thrown`, with that event. */
+  private catcher(thread: Thread, thrown: Thrown): { activity: string; boundary: PlanElement } | undefined {
+    for (const { activity } of [...thread.watching].reverse()) {
+      const boundary = (this.graph.boundaries.get(activity) ?? []).find((candidate) => has(candidate, 'errorEventDefinition') && this.catches(candidate, thrown));
+      if (boundary) return { activity, boundary };
+    }
+    return undefined;
+  }
+
+  /** Whether an error boundary event catches `thrown`: one naming no error catches every error, one naming an error
+   * catches that error and any other of its `errorCode`. A failure no runner gave a code is caught by the first. */
+  private catches(boundary: PlanElement, thrown: Thrown): boolean {
+    if (!boundary.errorRef || thrown.ref === boundary.errorRef) return true;
+    const code = (ref: string | undefined): string | undefined => (ref ? this.graph.elements[ref]?.attributes.errorCode || undefined : undefined);
+    const caught = code(boundary.errorRef);
+    return caught !== undefined && caught === (thrown.code ?? code(thrown.ref));
   }
 
   private async executeActivity(element: PlanElement, entry: Entry, thread: Thread): Promise<void> {
@@ -708,8 +920,9 @@ export class Walk {
     }
   }
 
-  /** One hand-off to the host, which a timer at a boundary event of an activity around it may stop, and so may a
-   * path that ends its scope: the walk then leaves for that event, or stops, whatever the hand-off had done. */
+  /** One hand-off to the host, which an interrupting boundary event of an activity around it may stop (a timer that
+   * runs out, a message that comes), and so may a path that ends its scope: the walk then leaves for that event, or
+   * stops, whatever the hand-off had done. */
   private async handOff(id: string, values: Record<string, unknown>, thread: Thread, talk?: Talk): Promise<Handback> {
     const handoff = new AbortController();
     const stops = [...thread.watching.map(({ stop }) => stop.signal), ...thread.cancels];
@@ -809,9 +1022,25 @@ export class Walk {
     };
 
     if (element.type === 'eventBasedGateway') {
-      this.log(thread, 'event.waiting', `    (waiting for the first message along ${flows.length} branches)`);
       try {
-        return take([await this.post.race(id, flows, thread)], 'first message', { message: true });
+        let branches = flows.map((flow) => this.branchOf(id, flow, thread));
+        const at = (branch: Branch): Promise<PlanElement[]> => {
+          // The branch's timer ran out or its condition held: its event has happened, and the path passes it.
+          this.fired.add(`${thread.path} ${branch.at}`);
+          return take([branch.flow], branch.ms === undefined ? 'condition' : 'timer', branch.ms === undefined ? { condition: true } : { timer: true });
+        };
+        // Exploring, a timer or a condition comes first, or the first message does.
+        const quick = branches.filter((branch) => !branch.into);
+        if (host.choose && quick.length > 0) {
+          const chosen = host.choose(id, [...quick.map((branch) => branch.flow.id), ...(quick.length < branches.length ? ['message'] : [])]);
+          const branch = quick.find((candidate) => candidate.flow.id === chosen);
+          if (branch) return await at(branch);
+          branches = branches.filter((candidate) => candidate.into);
+        }
+        this.log(thread, 'event.waiting', `    (waiting for the first event along ${flows.length} branches)`);
+        const { flow, fired } = await this.post.race(id, branches, thread);
+        if (fired) return await at(branches.find((branch) => branch.flow === flow)!);
+        return await take([flow], 'first message', { message: true });
       } catch (error) {
         if (error instanceof Interrupted || error instanceof Cancelled) this.steps.end(entry);
         else this.steps.fail(entry, error);
@@ -933,6 +1162,20 @@ export class Walk {
     this.steps.end(entry);
     this.steps.status = 'error';
     throw new Error(`${id}: no condition held, and there is no default flow or single flow without a condition`);
+  }
+
+  /** An event-based gateway's branch as its race reads it: the event it starts at, and what makes that event happen,
+   * a message along a flow into it, its timer, or its condition. A branch none of them can start stops the run. */
+  private branchOf(gateway: string, flow: PlanElement, thread: Thread): Branch {
+    const target = this.graph.get(flow.attributes.targetRef);
+    const at = target?.id ?? flow.attributes.targetRef ?? '';
+    const into = this.graph.flowsIn.get(at);
+    if (into?.length) return { flow, at, into };
+    if (target?.timer) return { flow, at, ms: this.timerMs(target, thread) };
+    const condition = target ? conditionOf(target) : undefined;
+    if (target && condition) return { flow, at, holds: () => this.passes(target, condition, thread) };
+    throw new Error(`${gateway}: an event-based gateway waits for the first event of its branches, and ${at} has none to wait for. `
+      + 'Start each branch with a catch event or a receive task a message flow reaches, a timer catch event, or a conditional catch event.');
   }
 
   /** Whether a gateway deals along one participant's visits, inside a loop, rather than along the participants. */

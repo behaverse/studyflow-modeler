@@ -88,6 +88,15 @@ except subprocess.TimeoutExpired:
 answers = [json.loads(line) for line in out.splitlines()]
 assert served.returncode == 0 and [a["id"] for a in answers] == [1, 2] and answers[0]["error"]["code"] == 2, answers
 
+# A step that raises `BpmnError` throws that error: its code rides with the failure, for an error boundary event.
+served = subprocess.Popen(
+    [sys.executable, "-c", "import runner\ndef fail(step): raise runner.BpmnError('quit', 'no time left')\nrunner.serve(lambda plan: [], fail)"],
+    cwd=Path(__file__).parent, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+out, _ = served.communicate('{"jsonrpc":"2.0","id":1,"method":"execute","params":{"element":"Play"}}\n'
+                            '{"jsonrpc":"2.0","id":2,"method":"shutdown"}\n', timeout=5)
+failed = next(answer for answer in map(json.loads, out.splitlines()) if answer.get("id") == 1)
+assert failed["error"]["code"] == 1 and failed["error"]["data"]["errorCode"] == "quit", failed
+
 # Two hand-offs of one element at once (two instances of a pool walking at once): each message reaches the hand-off its
 # `handoff` names, and each answers with its own.
 served = subprocess.Popen(
