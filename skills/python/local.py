@@ -86,6 +86,13 @@ class Plan:
         store = ((self.elements.get(element_id) or {}).get("attributes") or {}).get("dataStoreRef")
         return store if (self.elements.get(store) or {}).get("type") == "dataStore" else element_id
 
+    def name_of(self, element_id: str) -> str | None:
+        """The name an element goes by: its own, else, for a reference, its data store's."""
+        if element_id in self.names:
+            return self.names[element_id]
+        held = self.datum(element_id)
+        return (self.elements.get(held) or {}).get("name") if held != element_id else None
+
     def artifact(self, element_id: str) -> tuple[str | None, str | None]:
         element = self.elements.get(element_id)
         if element is None or element.get("type") not in DATA_ELEMENT_TAGS:
@@ -386,6 +393,10 @@ class Run:
         for element_id, name in self.studyflow.names.items():
             if name == reference:
                 return element_id
+        # A data store, by its name.
+        for element_id, element in self.studyflow.elements.items():
+            if element.get("type") == "dataStore" and element.get("name") == reference:
+                return element_id
         return reference
 
     def resolve_arguments(self, arguments: dict, element_id: str) -> dict:
@@ -411,7 +422,7 @@ class Run:
             value = self.value_of(source_id)
             if lens:
                 value = self.evaluate(lens, language=binding.get("language"))
-            name = slot or self.studyflow.names.get(source_id) or source_id
+            name = slot or self.studyflow.name_of(source_id) or source_id
             if name in ("self", "*"):
                 # Positional, not keyword: `self` is an unbound method's receiver, `*` feeds a `*args` callable.
                 receiver.append(value)

@@ -22,10 +22,6 @@ Zelazo2014:
     only, encoded from the article alone, without its supplements, code, or the papers it cites. Every value is taken
     from the article; a value it does not state is written `unstated`. The Flanker is a standardized instrument, and a
     value the article leaves to the instrument is `unstated`, with a note in the record that the instrument holds it.
-  properties:
-    P_Retest_Interval:
-      name: retestInterval
-      value: 7 to 21 days (mean 15.5, SD 4.8)
   elements:
     Enroll:
       type: StartEvent
@@ -239,3 +235,8 @@ Zelazo2014:
     F_6:
       source: $Analysis
       target: $Analyzed
+
+P_Retest_Interval:
+  type: DataStore
+  name: retestInterval
+  value: 7 to 21 days (mean 15.5, SD 4.8)

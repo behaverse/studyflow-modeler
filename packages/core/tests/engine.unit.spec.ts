@@ -4,7 +4,7 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
 import { HandoffError, MINIMIZATION_PROBABILITY, Walk, allocationOf, alternated, draw, dryHost, durationMs, explore, minimized, permutedBlock, pick, planOf, stateOf, type Handback, type Host, type PlanElement, type RunEvent, type Talk, type WalkOptions } from '@core/engine';
-import { studyModel } from '@tests/schemas';
+import { studyModel, xmlOf } from '@tests/schemas';
 import { exampleText } from '@tests/utils';
 
 /** The walk (packages/core/src/engine): what every runtime runs. Each case walks a study written inline with runners
@@ -140,13 +140,16 @@ test('a name several elements share is warned about only where a placeholder cit
   ]);
 });
 
-test('the plan spells a compact data association as the BPMN XML does: a data input its slot names, the selection alone', () => {
-  const plan = planOf(studyModel(`id: study
-${HEAD}S:
+test('the plan spells a compact data association as the BPMN XML does: a data input its slot names, the selection alone', async () => {
+  // A slot defaults to its source's name, and an unnamed data store reference's to its store's.
+  const text = `id: study
+${HEAD}Estimator: { type: DataStore, name: estimator }
+S:
   type: Process
   flowElements:
     Digits: { type: DataObjectReference, name: digits }
     Model: { type: DataObjectReference, name: model }
+    Estimator_Ref: { type: DataStoreReference, dataStoreRef: Estimator }
     Start: { type: StartEvent }
     Fit:
       type: Task
@@ -154,13 +157,16 @@ ${HEAD}S:
         A1: { sourceRef: [Digits], transformation: 'table = x[1]' }
         A2: { sourceRef: [Digits] }
         A3: { sourceRef: [Digits], transformation: table }
+        A5: { sourceRef: [Estimator_Ref] }
       dataOutputAssociations:
         A4: { targetRef: Model, transformation: result.model }
     F1: Start -> Fit
-`));
+`;
+  const plan = planOf(studyModel(text));
   const { ioSlots, inputs, outputs } = plan.elements.Fit;
-  expect(ioSlots).toEqual({ Fit_in_table: 'table', Fit_in_digits: 'digits', Fit_in_table_2: 'table' });
-  expect(inputs.map(({ target, transformation }) => [target, transformation])).toEqual([['Fit_in_table', 'x[1]'], ['Fit_in_digits', null], ['Fit_in_table_2', null]]);
+  expect(ioSlots).toEqual({ Fit_in_table: 'table', Fit_in_digits: 'digits', Fit_in_table_2: 'table', Fit_in_estimator: 'estimator' });
+  expect(inputs.map(({ target, transformation }) => [target, transformation])).toEqual([['Fit_in_table', 'x[1]'], ['Fit_in_digits', null], ['Fit_in_table_2', null], ['Fit_in_estimator', null]]);
+  expect(await xmlOf(text)).toContain('<bpmn:dataInput id="Fit_in_estimator" name="estimator" />');
   expect(outputs).toEqual([{ target: 'Model', transformation: 'result.model', language: null }]);
 });
 

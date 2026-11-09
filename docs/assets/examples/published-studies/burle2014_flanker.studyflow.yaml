@@ -17,10 +17,6 @@ Burle2014:
     differences or hidden similarities with the Simon task?, its single experiment, the Eriksen flanker task only,
     encoded from the article alone, without its supplements, code, or the papers it cites. Every value is taken from the
     article; a value it does not state is written `unstated`.
-  properties:
-    P_Session_Interval:
-      name: sessionInterval
-      value: unstated
   elements:
     Enroll:
       type: StartEvent
@@ -163,3 +159,8 @@ Burle2014:
     F_5:
       source: $Analysis
       target: $Analyzed
+
+P_Session_Interval:
+  type: DataStore
+  name: sessionInterval
+  value: unstated

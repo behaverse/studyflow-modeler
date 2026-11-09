@@ -65,17 +65,19 @@ sklearn_pipeline:
     why the held-out report, not the cross-validation summary, is the result of
     this workflow.
 
-    What is drawn follows one rule: the canvas carries the artifacts a reader
-    is meant to see, and everything else is declared rather than drawn. The
-    shapes are the boundary input and the five files this workflow leaves
-    behind - two cross-validation reports, the held-out metrics, the confusion
-    matrix as a figure, and the fitted model. The values that only pass between
-    steps - the feature matrix, the label vector, the four split parts, the
-    unfitted estimator, the raw scores, the accuracy the gate tests, the
-    predictions - are `bpmn:Property` declarations on the process. BPMN
-    specifies that properties are never rendered, so they cost nothing visually
-    while staying fully explicit in the file, typed by an item definition and
-    readable by any BPMN 2.0 tool.
+    What is drawn follows BPMN's split between what the study keeps and what a
+    step passes on. The shapes are the boundary input, the five files this
+    workflow leaves behind - two cross-validation reports, the held-out
+    metrics, the confusion matrix as a figure, and the fitted model - and the
+    values the study keeps across its sub-processes: the four split parts, the
+    unfitted estimator and the accuracy the gate tests. Each of these is a
+    data store, declared once in the file and drawn as a reference in each
+    sub-process whose steps read or write it. The values that only pass
+    between the steps of one sub-process - the feature matrix, the label
+    vector, the raw scores, the predictions - are `bpmn:Property`
+    declarations on that sub-process. BPMN never renders properties, so they
+    cost nothing visually while staying explicit in the file, typed by an item
+    definition and readable by any BPMN 2.0 tool.
 
     The executable contract is small enough to state in a paragraph. Before an
     activity the engine materializes every wired input (loading a `uri` when
@@ -84,36 +86,10 @@ sklearn_pipeline:
     receiver of an unbound method and `parameter: "*"` appends positionally, for
     a callable like `train_test_split` whose arguments have no names. It
     resolves `{Element}` placeholders in `arguments`, evaluates CEL conditions over
-    the properties in scope, calls what `implementation` names, binds the return
+    the names in scope, calls what `implementation` names, binds the return
     value to the wired outputs - narrowed by a `transformation` over `result`
-    where one is declared, which is how one call fills four properties - and
+    where one is declared, which is how one call fills four data stores - and
     persists any output that declares a `uri` through its `codec`.
-  properties:
-    x_train:
-      name: x_train
-      item: $Item_Table
-
-    x_test:
-      name: x_test
-      item: $Item_Table
-      uri: x_test.joblib
-
-    y_train:
-      name: y_train
-      item: $Item_Series
-
-    y_test:
-      name: y_test
-      item: $Item_Series
-      uri: y_test.joblib
-
-    estimator:
-      name: estimator
-      item: $Item_Estimator
-
-    mean_cv_accuracy:
-      name: mean_cv_accuracy
-      item: $Item_Number
   elements:
     start_analysis:
       type: StartEvent
@@ -254,7 +230,7 @@ sklearn_pipeline:
             Two things about the call are worth reading off the diagram. Its arrays
             are positional - `train_test_split(*arrays)` gives them no names - so
             both wires bind with `parameter: "*"`, in wire order. And one call fills
-            four properties: `train_test_split` returns the four parts as a list, so
+            four data stores: `train_test_split` returns the four parts as a list, so
             each output association narrows the return value with a
             `transformation` that indexes it. `stratify` keeps the class balance of
             the whole set in both halves, and `random_state` makes the partition
@@ -273,20 +249,36 @@ sklearn_pipeline:
               parameter: stratify
           outputs:
             DataOutput_X_Train:
-              target: $x_train
+              target: $prepare_x_train
               transformation: result[1]
 
             DataOutput_X_Test:
-              target: $x_test
+              target: $prepare_x_test
               transformation: result[2]
 
             DataOutput_Y_Train:
-              target: $y_train
+              target: $prepare_y_train
               transformation: result[3]
 
             DataOutput_Y_Test:
-              target: $y_test
+              target: $prepare_y_test
               transformation: result[4]
+
+        prepare_x_train:
+          type: DataStoreReference
+          dataStore: $x_train
+
+        prepare_x_test:
+          type: DataStoreReference
+          dataStore: $x_test
+
+        prepare_y_train:
+          type: DataStoreReference
+          dataStore: $y_train
+
+        prepare_y_test:
+          type: DataStoreReference
+          dataStore: $y_test
 
         prepare_end:
           type: EndEvent
@@ -377,7 +369,19 @@ sklearn_pipeline:
             - the same reason the split above comes first.
           outputs:
             DataOutput_Estimator:
-              target: $estimator
+              target: $select_estimator
+
+        select_estimator:
+          type: DataStoreReference
+          dataStore: $estimator
+
+        select_x_train:
+          type: DataStoreReference
+          dataStore: $x_train
+
+        select_y_train:
+          type: DataStoreReference
+          dataStore: $y_train
 
         cross_validate:
           type: ServiceTask
@@ -401,14 +405,14 @@ sklearn_pipeline:
             it is the number the gate reads; it is not the reported result.
           inputs:
             DataInput_Estimator_CV:
-              source: $estimator
+              source: $select_estimator
 
             DataInput_X_Train_CV:
-              source: $x_train
+              source: $select_x_train
               parameter: X
 
             DataInput_Y_Train_CV:
-              source: $y_train
+              source: $select_y_train
               parameter: "y"
           outputs:
             DataOutput_CV_Result:
@@ -447,7 +451,7 @@ sklearn_pipeline:
             quantiles, and extrema per metric. It writes twice from one return
             value - the whole summary to the persisted report, and, through the
             output wire's `transformation`, the single number the gate tests to the
-            `mean_cv_accuracy` property. The decision therefore reads a declared
+            `mean_cv_accuracy` data store. The decision therefore reads a declared
             name, not a path into a file.
 
             `describe` puts the statistics on the index, so the transformation
@@ -463,8 +467,12 @@ sklearn_pipeline:
               target: $cv_summary
 
             DataOutput_Mean_CV_Accuracy:
-              target: $mean_cv_accuracy
+              target: $select_mean_cv_accuracy
               transformation: result.test_accuracy.mean
+
+        select_mean_cv_accuracy:
+          type: DataStoreReference
+          dataStore: $mean_cv_accuracy
 
         select_end:
           type: EndEvent
@@ -541,6 +549,18 @@ sklearn_pipeline:
               - {action: executed, when: "2026-08-20T12:28:42.599+02:00", run: sklearn-demo}
               - {action: executed, when: "2026-08-20T12:28:57.847+02:00", run: sklearn-demo}
 
+        report_estimator:
+          type: DataStoreReference
+          dataStore: $estimator
+
+        report_x_train:
+          type: DataStoreReference
+          dataStore: $x_train
+
+        report_y_train:
+          type: DataStoreReference
+          dataStore: $y_train
+
         fit_model:
           type: ServiceTask
           name: fit_model
@@ -556,19 +576,23 @@ sklearn_pipeline:
             predict, and the one the held-out numbers below describe.
           inputs:
             DataInput_Estimator_Fit:
-              source: $estimator
+              source: $report_estimator
               parameter: self
 
             DataInput_X_Train_Fit:
-              source: $x_train
+              source: $report_x_train
               parameter: X
 
             DataInput_Y_Train_Fit:
-              source: $y_train
+              source: $report_y_train
               parameter: "y"
           outputs:
             DataOutput_Fitted_Model:
               target: $fitted_model
+
+        report_x_test:
+          type: DataStoreReference
+          dataStore: $x_test
 
         predict_test:
           type: ServiceTask
@@ -589,11 +613,15 @@ sklearn_pipeline:
               parameter: self
 
             DataInput_X_Test_Predict:
-              source: $x_test
+              source: $report_x_test
               parameter: X
           outputs:
             DataOutput_Predictions:
               target: $predictions
+
+        report_y_test:
+          type: DataStoreReference
+          dataStore: $y_test
 
         score_test:
           type: ServiceTask
@@ -614,7 +642,7 @@ sklearn_pipeline:
             a mapping so the next step can shape it into a table.
           inputs:
             DataInput_Y_Test_Score:
-              source: $y_test
+              source: $report_y_test
               parameter: y_true
 
             DataInput_Predictions_Score:
@@ -669,7 +697,7 @@ sklearn_pipeline:
             writes it. Nothing about plotting is a studyflow concept.
           inputs:
             DataInput_Y_Test_Plot:
-              source: $y_test
+              source: $report_y_test
               parameter: y_true
 
             DataInput_Predictions_Plot:
@@ -777,6 +805,38 @@ sklearn_pipeline:
       source: $evaluate_and_report
       target: $done
 
+x_train:
+  type: DataStore
+  name: x_train
+  item: $Item_Table
+
+x_test:
+  type: DataStore
+  name: x_test
+  item: $Item_Table
+  uri: x_test.joblib
+
+y_train:
+  type: DataStore
+  name: y_train
+  item: $Item_Series
+
+y_test:
+  type: DataStore
+  name: y_test
+  item: $Item_Series
+  uri: y_test.joblib
+
+estimator:
+  type: DataStore
+  name: estimator
+  item: $Item_Estimator
+
+mean_cv_accuracy:
+  type: DataStore
+  name: mean_cv_accuracy
+  item: $Item_Number
+
 layout:
   start_analysis: {bounds: 80 252 36 36, label: 64 295 67 15}
   is_good_enough: {bounds: 1700 245 50 50, markerVisible: true, label: 1680 221 89 15}
@@ -789,6 +849,14 @@ layout:
   select_target: 422 230 120 80
   DataInput_Input_Target: 340,390 482,390 482,310
   split_train_test: 582 230 120 80
+  DataOutput_X_Train: 592,310 592,340 578,340 578,370
+  DataOutput_X_Test: 633,310 633,370
+  DataOutput_Y_Train: 688,310 688,370
+  DataOutput_Y_Test: 697,310 697,340 743,340 743,370
+  prepare_x_train: {bounds: 560 370 36 50, label: 553 425 50 15}
+  prepare_x_test: {bounds: 615 370 36 50, label: 611 425 44 15}
+  prepare_y_train: {bounds: 670 370 36 50, label: 663 425 50 15}
+  prepare_y_test: {bounds: 725 370 36 50, label: 721 425 44 15}
   prepare_end: 742 252 36 36
   Flow_Prepare_Start_Select_Features: 222,270 262,270
   Flow_Select_Features_Select_Target: 382,270 422,270
@@ -798,12 +866,21 @@ layout:
   select_model: {bounds: 1204 230 100 80, expanded: false, fill: "#f6e7c8", stroke: "#a8791f"}
   select_start: 180 182 36 36
   build_pipeline: 256 160 120 80
+  DataOutput_Estimator: 366,160 366,100
+  select_estimator: {bounds: 358 50 36 50, label: 344 32 64 15}
+  select_x_train: {bounds: 428 50 36 50, label: 421 32 50 15}
+  select_y_train: {bounds: 488 50 36 50, label: 481 32 50 15}
   cross_validate: 416 160 120 80
+  DataInput_Estimator_CV: 386,100 386,130 426,130 426,160
+  DataInput_X_Train_CV: 446,100 446,160
+  DataInput_Y_Train_CV: 506,100 506,160
   build_fold_report: 576 160 120 80
   DataOutput_Fold_Report: 636,240 636,327 704,327
   summarize_cv: 736 160 120 80
   DataInput_Fold_Report_Summary: 740,327 796,327 796,240
   DataOutput_CV_Summary: 822,240 822,327 896,327
+  DataOutput_Mean_CV_Accuracy: 796,160 796,100
+  select_mean_cv_accuracy: {bounds: 778 50 36 50, label: 740 32 112 15}
   select_end: 896 182 36 36
   cv_fold_report: {bounds: 704 302 36 50, label: 685 359 75 15}
   cv_summary: {bounds: 896 302 36 50, label: 883 356 63 15}
@@ -814,14 +891,25 @@ layout:
   Flow_Summarize_CV_Select_End: 856,200 896,200
   evaluate_and_report: {bounds: 2246 230 100 80, expanded: false, fill: "#d9ecdc", stroke: "#3f7a4a"}
   report_start: 180 182 36 36
+  report_estimator: {bounds: 228 50 36 50, label: 214 32 64 15}
+  report_x_train: {bounds: 298 50 36 50, label: 291 32 50 15}
+  report_y_train: {bounds: 368 50 36 50, label: 361 32 50 15}
   fit_model: 256 160 120 80
+  DataInput_Estimator_Fit: 246,100 246,130 276,130 276,160
+  DataInput_X_Train_Fit: 316,100 316,160
+  DataInput_Y_Train_Fit: 386,100 386,130 356,130 356,160
   DataOutput_Fitted_Model: 316,240 316,327 382,327
+  report_x_test: {bounds: 458 50 36 50, label: 454 32 44 15}
   predict_test: 416 160 120 80
   DataInput_Model_Predict: 418,327 476,327 476,240
+  DataInput_X_Test_Predict: 476,100 476,160
+  report_y_test: {bounds: 618 50 36 50, label: 614 32 44 15}
   score_test: 576 160 120 80
+  DataInput_Y_Test_Score: 636,100 636,160
   write_test_report: 736 160 120 80
   DataOutput_Test_Report: 796,240 796,282 796,302
   plot_confusion: 896 160 120 80
+  DataInput_Y_Test_Plot: 654,75 956,75 956,160
   DataOutput_Confusion_Matrix: 956,240 956,302
   report_end: 1056 182 36 36
   fitted_model: {bounds: 382 302 36 50, label: 364 352 72 15}

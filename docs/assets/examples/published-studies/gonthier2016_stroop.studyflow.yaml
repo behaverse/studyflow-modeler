@@ -17,10 +17,6 @@ Gonthier2016:
     cites. Every value is taken from the article; a value it does not state is written `unstated`. The article's second
     sample, Experiment 1b (58 community participants), ran the same materials in a single session with the blocks in
     another order (LWmc, LWmi, IS), so only Experiment 1a, the first sample, is encoded; the analyses pool the two.
-  properties:
-    P_Session_Interval:
-      name: sessionInterval
-      value: at most 1 week
   elements:
     Enroll:
       type: StartEvent
@@ -165,3 +161,8 @@ Gonthier2016:
     F_5:
       source: $Analysis
       target: $Analyzed
+
+P_Session_Interval:
+  type: DataStore
+  name: sessionInterval
+  value: at most 1 week
