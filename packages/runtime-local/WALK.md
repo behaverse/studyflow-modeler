@@ -46,15 +46,16 @@ Pools talk only along message flows, and the walk carries every message: `{"id",
 - A standard loop marker repeats its activity while `loopCondition` holds, up to `loopMaximum`, and with no condition until a boundary event ends it.
 - A multi-instance marker runs its activity `loopCardinality` times, whichever way `isSequential` reads: the instances run one after another, re-entering the activity's scope each time, so the parallel marker is honoured in order of completion only. When its `loopDataInputRef` names a list this run holds (a property, its declared `value` until a data edge writes one, or a data object's value), it runs once per item instead, and `loopCardinality` is ignored: each pass binds its item under the `inputDataItem`'s name in the activity's own scope (`state.<activity id>.<name>`, `{name}` to the steps inside, a name to its expressions), takes what that scope holds under the `outputDataItem`'s name once the pass is done, and after the last pass the list of them is stored into the `loopDataOutputRef` element. While a repeating activity runs, `state._meta.instance.<id>` is the pass it is on, 1-based, so a step inside knows which instance it is serving.
 - A pool whose participant carries a `participantMultiplicity` runs its process `maximum` times: the instances start in order, one after another unless the run is given a concurrency (`studyflow run --concurrency N`, at most N walking at once), each on a token and with values of its own (the pool's scope, the sub-processes and repeating activities inside it, what its steps produced, and `state._meta.instance.<pool id>`, the instance it is on) over the study's, which every instance shares (the counts, a plain element's properties, the data elements, the other pools), and the run ends with the last instance's, and a pool it talks to along message flows answers each instance in turn, the answer going to the instance that asked alone; a flow from that participant to a step in another pool is the whole pool's message, sent once, carrying null, after the last instance has ended, and a wait on it holds while the instances run. Each event an instance's steps, messages and answers add to the run's record names the participant, `participant: "<pool id>#<instance>"`, so the events of instances walking at once stay apart; the whole pool's message names none.
+- An activity's thousand-and-first pass stops the run, and so does a path's thousand-and-first step in one process or sub-process: what would not end is stopped rather than left running. `studyflow validate` refuses a standard loop marker with neither a `loopCondition` nor a `loopMaximum` and no boundary event but a conditional one, which is read only once the loop is done.
 - A lane set on a process or a sub-process is a partition of the drawing: the walk reads through it.
 - What repeats never skips or replays on a re-run, whether it sits in an activity with a loop or a multi-instance marker or in a pool of several instances: a record keeps an element's last pass only, so replaying it would give every pass the last one's outcome (every subject the last subject's arm).
 
 ## Boundary events and timers
 
-- A message at a boundary event ends the activity it sits on at that pool's next step, and the walk goes on from the event.
+- A message at a boundary event ends the activity it sits on at the next step or wait inside it, and the walk goes on from the event. A hand-off in progress runs to its end, so a task that does not itself wait for a message, such as one a runner performs, never reads it.
 - A timer event (`timeDuration`, `timeDate`, ISO 8601) waits for its time. At a boundary event the timer runs from the moment its activity is entered; when it runs out the activity ends there, the walk goes on from the event, and a hand-off in progress is stopped (its runner is told `cancel`), whatever it had done.
 - The timers wait on the machine's clock, so a rest of three weeks (`P21D`) takes three weeks. `studyflow run --clock virtual` runs them on a virtual clock instead: it starts at the run's start and passes as the machine's does, and whenever the walk is idle (no hand-off in progress, and every path waiting at a timer, for a message from another pool, or for an answer a pool's runner left unanswered) it jumps ahead to the earliest timer still waiting, which runs out. A hand-off in progress keeps it from jumping, so a timer at a boundary event never runs out ahead of an answer on its way; timers due at one moment run out in the order they were set. The run says it used it (`clock: virtual` in its own record, on the study's root, a `Prov-Clock` trailer on its commits, and its log), and what it records is timed by it: when each step began, how long a rest or a wait lasted, when each event happened. What a runner measures itself, such as a trial's latency, stays real.
-- A step that fails ends the same way when it carries an error boundary event (one with an `errorEventDefinition`): the record keeps the error, the run is not failed, and the walk goes on from the event; without one the failure ends the run. An error end event inside a sub-process ends that sub-process at its own error boundary event.
+- A step that fails ends the same way when it carries an error boundary event (one with an `errorEventDefinition`): the record keeps the error, the run is not failed, and the walk goes on from the event; without one the failure ends the run. The event catches whatever error the step fails with, and only its own step's, so a step that fails inside a sub-process ends the run whatever the sub-process carries. An error end event inside a sub-process ends that sub-process at its own error boundary event, and with none there ends its path as a plain end event does.
 - A step that finishes takes that path too when it carries a conditional boundary event (one with a `conditionalEventDefinition`) whose `condition` holds. It is read once the step's result and bindings are adopted, by the evaluator and `language` rule a sequence flow's `conditionExpression` gets, with `{placeholders}` resolved as everywhere else, so `unanswered > max_unanswered` reads the property the step's data edge has just written.
 
 ## State
@@ -73,40 +74,6 @@ gateway, every flow; an inclusive gateway, or an activity or event with several 
 and each without one, and its default flow when no condition holds), and the paths walk at once; a parallel join waits
 for a token along each flow into it, an inclusive join for the tokens that can still come. A path that fails, or leaves
 a sub-process at a boundary event, stops the paths beside it, and so does a terminate end event; a scope is done when
-its last path ends. Where the walk reads a construct otherwise than the specification does, it says so here, and
-`studyflow validate` refuses or warns about it:
-
-- **A complex gateway** is refused where it splits, and passes each token where it joins (a warning): the walk reads
-  no activation rule. A scope with several start events starts at the first only (a warning).
-- **Events the walk does not read.** A signal, escalation, compensation, link or cancel event is refused: each reaches
-  beyond where it is drawn (a signal to every catcher, a link to its target, a compensation back to steps already
-  done, an escalation or a cancel out to a scope around it), and the walk reads an event by its message flows, its
-  timer, its error, its condition or its terminate only.
-- **A join that cannot complete.** A parallel join one of whose tokens can never come (an exclusive split joined by a
-  parallel gateway) stops the run, where BPMN would wait for ever; `studyflow validate` finds it before a run.
-- **A loop that cannot end.** A standard loop marker with neither a `loopCondition` nor a `loopMaximum`, and no
-  boundary event to end it (a conditional one is read once the loop is done), stops the run after a thousand passes,
-  where BPMN would repeat it for ever; `studyflow validate` refuses it.
-- **A gateway's fallback.** When no condition holds, an exclusive gateway takes its default flow, else its one flow
-  without a condition; BPMN would take its default flow, and with none throw an exception.
-- **Repeats run in order.** A multi-instance marker's instances, parallel or not, run one after another. So do the
-  instances of a pool with a `participantMultiplicity`, unless the run is given a concurrency, which is the run's and
-  not the protocol's; they share the study's counts and meet the pools they talk to in turn. A random gateway draws for
-  each instance on its own (its participant number and its visit), so the order does not change what it draws; one
-  that deals in blocks or in turn deals by the place each instance arrives at, and one with `stratifyBy`, or
-  minimizing, by the instances before it, in their order. With instances walking at once, that order is the run's,
-  and the gateway's record entry keeps each draw's participant and place.
-- **A pool's messages.** A step with no message flow of its own exchanges along its enclosing sub-process's or its
-  pool's (see [Messages](#messages)). A flow out of a pool of several instances to a step in another pool is sent once,
-  after the last instance, where BPMN would send one per instance, each starting an instance of the receiver.
-- **A conditional boundary event** is read once, when its activity's step has finished and its result is adopted; BPMN
-  fires it whenever its condition becomes true while the activity runs. A step that is last in its sub-process reads
-  the same either way.
-- **A timer cycle** waits for its first firing only (a warning).
-- **Exchanges in a process.** A task drawn as a choreography task with bands (a cognitive task) sits in a process's
-  flow, where BPMN defines choreography tasks only in a choreography. The BPMN XML writes it as the `bpmn:task` it is,
-  marked `studyflow:exchange`, its bands as `studyflow:participants` and `studyflow:initiator`, so the XML stays valid
-  BPMN (`validate` checks it against the OMG's schema); reading the XML draws it back.
-- **Data elements are the study's.** A step in one pool may read or write a data object or data store reference drawn
-  in another; BPMN scopes a data object to its process, and shares a store through a `dataStore` root element that
-  each process references.
+its last path ends. Where the walk reads a construct otherwise than the specification does, by design or because it
+does not implement it yet, the section "Where a run departs from BPMN 2.0" of
+[docs/developers.qmd](../../docs/developers.qmd) lists it, with what `studyflow validate` reports of it.
