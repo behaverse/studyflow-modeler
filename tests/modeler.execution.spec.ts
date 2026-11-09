@@ -67,6 +67,26 @@ test('the study declares typed properties, a step binds one from the picker, and
   expect(studyflowText).toContain('transformation: lower case(arm)');
 });
 
+test('the study keeps a value in a data store, which a data store reference on the canvas shows by its name', async ({ page }) => {
+  await gotoModeler(page);
+  const inspector = page.getByTestId('inspector-root');
+
+  await inspector.getByRole('tab', { name: /execution/i }).click();
+  await page.getByTestId('add-data-store').click();
+  await page.getByRole('textbox', { name: /\bDataStore_1\b/ }).fill('excluded');
+
+  // A reference picks its store; with no name of its own, it is drawn with the store's.
+  await addPaletteElement(page, 'Data', 'Data Store', { x: 460, y: 420 });
+  await inspector.getByRole('tab', { name: /^data$/i }).click();
+  await page.getByTestId('data-store-name').click();
+  await page.getByRole('option', { name: 'excluded', exact: true }).click();
+  await expect(page.getByTestId('modeler-canvas').getByText('excluded', { exact: true })).toBeVisible();
+
+  const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
+  expect(studyflowText).toMatch(/\nDataStore_1:\n  type: DataStore\n  name: excluded\n/);
+  expect(studyflowText).toMatch(/type: DataStoreReference\n\s+dataStore: \$DataStore_1\n/);
+});
+
 test('a step repeats: its kind sets the canvas marker, its condition is FEEL and flagged when not, and edits undo', async ({ page }) => {
   await gotoModeler(page);
   const canvas = page.getByTestId('modeler-canvas');

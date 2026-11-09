@@ -60,7 +60,13 @@ run
 : One walk through the diagram, from a start event to an end event.
 
 state
-: The values declared (as `bpmn:Property`) on the diagram, at one moment of a run. Where a value is declared decides its scope. The *state history* is the sequence of states across a run. In the file, `state` is a tree keyed by element id; the runner's own entries live under `state._meta` (`_meta.reached.<element_id>`, how often a token reached each element or followed each sequence flow; `_meta.instance.<element_id>`, which pass a repeating activity is on), and the property values a data edge wrote under `state.<scope_id>`. A label may cite a value as `{count}`, `{reached}`, or `{state._meta.reached.Excluded_Pre}`; the canvas draws the resolved text, the file keeps the placeholder.
+: The values the diagram declares, at one moment of a run: its data stores and its properties (`bpmn:Property`). Where a value is declared decides how long it lives. The *state history* is the sequence of states across a run. In the file, `state` is a tree keyed by element id; the runner's own entries live under `state._meta` (`_meta.reached.<element_id>`, how often a token reached each element or followed each sequence flow; `_meta.instance.<element_id>`, which pass a repeating activity is on), each data store's value under `state.<store_id>`, and the property values a data edge wrote under `state.<scope_id>`. A label may cite a value as `{count}`, `{reached}`, or `{state._meta.reached.Excluded_Pre}`; the canvas draws the resolved text, the file keeps the placeholder.
+
+data store
+: A value the study keeps for all its participants and from one run to the next, as BPMN keeps data that outlive a process instance: a `bpmn:DataStore` at the top level of the file. A step reads or writes it through a data store reference drawn in its process, and conditions and placeholders read it by its name.
+
+property
+: A value of one instance: of a process (one participant), of a sub-process or a task (one pass), or of an event (one visit). It starts each instance from its initial `value`, so nothing one instance wrote reaches the next.
 
 partial runner
 : Any runner that claims only a subset of a diagram's elements and executes them. A collection of partial runners can run a studyflow together, each one executing the elements it claims. A domain's runners live in its skill, which translates between Studyflow's runner contract and each tool's own protocol ([Writing a partial runner](developers.qmd#writing-a-partial-runner)).
