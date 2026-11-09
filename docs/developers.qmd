@@ -1,6 +1,6 @@
 ---
 title: "Developers"
-description: "The programs that read studyflow files, how to build and run them, what a run produces, how to extend the vocabulary, and how a tool joins through a partial runner."
+description: "The programs that read studyflow files, how to build and run them, where a run departs from BPMN 2.0, what a run produces, how to extend the vocabulary, and how a tool joins through a partial runner."
 ---
 
 | Program | Does | Lives in |
@@ -98,6 +98,47 @@ Gateways decide which branch a run takes, and each kind decides differently:
 | Message flows between pools | a browser run refuses a flow to a pool no one in the page plays (a model, a device), and one from a screen | carried by the walk between the pools it walks; a pool with no process and a human actor is the person at the page, who answers each message on a screen | carried by the walk, pool to pool; a pool with no process is played by the runner that claims it |
 
 : What each runtime does with each family of elements, and what is checked before the run starts. Both host the same walk, so they differ only in what executes a step: a screen in the page, a partial runner on your machine. A dash means the runtime passes that step over. {#tbl-support}
+
+
+## Where a run departs from BPMN 2.0 {#bpmn-departures}
+
+The walk, which both runtimes host, is a profile of the execution semantics of BPMN 2.0. @tbl-departures lists where it reads a construct otherwise than the specification does, by design, and why; `studyflow validate` refuses or warns about each departure that could surprise an author. Three of them meet one limit of BPMN: the instances that run one after another, the message sent once after the last instance, and the data that every pool shares. BPMN treats each process instance as a separate case, whereas a study relates many participants to one allocation sequence, one cohort, and one analysis[^ocpm].
+
+| BPMN construct | How a run reads it | `studyflow validate` | Why |
+|:--|:--|:--|:--|
+| A process or sub-process with several start events | starts at the first, where BPMN starts at whichever is triggered | a warning | a run has one beginning |
+| A message or timer start event | the run starts each pool's instances itself, as many as the `maximum` of its `participantMultiplicity` (one without it), and the event makes each instance wait for its message or its time; BPMN starts a new instance each time the event is triggered | - | how many participants take part is the protocol's, drawn on the pool |
+| A multi-instance marker, parallel or not, and a pool with a `participantMultiplicity` | the instances run one after another, each re-entering the scope; a pool's instances walk at once only when the run is given a concurrency (`studyflow run --concurrency N`), which is the run's and not the protocol's, and the record then keeps the order they reached each random gateway in | - | the instances share the study's counts and data, which then do not depend on how they interleave |
+| A step with no message flow of its own | exchanges along the message flows of the nearest sub-process around it, else of its pool; a step no runner takes does so only when it has data inputs to send | - | the exchange is drawn once, on the container, and reaches no further than its border |
+| A message flow from a pool's border to a step in another pool | sent once, carrying null, when the pool's last instance has ended; BPMN sends one per instance, each starting an instance of the receiver | - | a step for the whole cohort, such as the analysis, starts once, after the last participant |
+| A data object or a data store reference | the study's: one value, shared by every pool and every instance of a pool, and kept from one pass of a sub-process to the next; BPMN gives each instance of the process or sub-process that holds a data object its own, and shares a store through a `dataStore` that each process references | - | the analysis reads the datasets that the participants' process writes |
+| An exclusive gateway none of whose conditions holds | takes its default flow, else its one flow without a condition; BPMN takes the default flow, else throws an exception | a warning where conditions on one number overlap, and an error where they leave a value no flow takes and there is no default flow | a flow drawn without a condition reads as the remaining case; overlapping conditions would be settled by the order of the flows in the file, which the drawing does not show |
+| A complex gateway | stops the run where it splits, and passes each token on where it joins | an error where it splits, a warning where it joins | its activation rule is an expression the drawing does not show |
+| A parallel join one of whose tokens can never come | stops the run, where BPMN waits for ever | a warning, from exploring every way the study can go | a run that cannot end is reported rather than left waiting |
+| A conditional boundary event | read once, when its activity has finished (on a loop, after the last pass) and its data edges have written; BPMN fires it whenever its condition becomes true while the activity runs | - | BPMN does not say when the condition is checked; one fixed point makes a run repeatable |
+| A timer cycle | waits for its first firing only, and a cron schedule passes at once | a warning | a cycle would repeat a step a number of times the drawing does not show |
+| A signal, escalation, compensation, link, or cancel event | not read | an error | each acts on steps away from where it is drawn: a signal on every catcher, a link at its target, a compensation on steps already done, an escalation or a cancel on a scope around it |
+| An activity that repeats more than a thousand times, under a loop or a multi-instance marker, and a path that takes more than a thousand steps in one process or sub-process | stops the run, where BPMN sets no bound | an error for a standard loop marker with neither a `loopCondition` nor a `loopMaximum`, and no message, timer or error boundary event to end it; - otherwise | a run that would not end is stopped rather than left running |
+| A choreography task in a process | written in BPMN XML as the task it is, marked as an exchange between the pools of its bands | the XML is checked against the OMG's BPMN 2.0 schema (a warning when the machine has no `xmllint`) | the exchange with the actor is drawn where it happens, in the process that runs it |
+
+: Where a run reads a BPMN 2.0 construct otherwise than the specification, by design, what `studyflow validate` reports, and why. A dash means it reports nothing. {#tbl-departures}
+
+The walk does not yet implement the constructs in @tbl-not-yet, so a run reads them otherwise than BPMN does. Most pass `studyflow validate` without a word, so draw what the last column says instead.
+
+| BPMN construct | What a run does | `studyflow validate` | Draw instead |
+|:--|:--|:--|:--|
+| A non-interrupting boundary event (`cancelActivity: false`) | ends its activity, as an interrupting one does | - | a timer or a message catch event on a parallel path beside the activity, which waits on after the activity ends |
+| A message boundary event | ends its activity at the next step or wait inside it, so a hand-off in progress runs to its end; a task that does not itself wait for a message, such as one a runner performs, never reads it, and the message goes untaken | a warning that a message is sent and nothing takes it, from exploring every way the study can go | the task inside a sub-process that carries the event, which the message ends once the task is done; to stop the task itself, a message flow into the task, which its runner reads while it runs |
+| An event-based gateway with a branch that starts at a timer or a conditional event | stops the run when it is reached: it waits for messages only | - | a receive task with a timer boundary event, for a wait that times out |
+| A conditional intermediate catch event or start event | passes at once, its condition unread, unless a runner claims it | - | a conditional boundary event on the step that writes what the condition reads, or an exclusive gateway after that step |
+| An error boundary event, and an error end event | one on a task catches every failure of that task, whatever error it names, and one on a sub-process an error end event directly inside it; a step that fails inside a sub-process fails the run, and an error end event with no error boundary event on the sub-process around it ends its path as a plain end event does | - | an error boundary event on each step that may fail, and on the sub-process directly around each error end event; to leave one more level, another error end event after that boundary event |
+| A process or sub-process with no start event, an ad-hoc sub-process among them | a sub-process is stepped past, nothing inside it running; a process starts at its one node nothing flows into, and stops the run when there are several; BPMN starts every node nothing flows into | an error where sequence flows run inside it; otherwise -, and the run's log warns of a sub-process stepped past | a start event, and sequence flows inside; for an agent loop, a loop marker whose `loopCondition` says when it stops |
+| A `completionCondition`, on a multi-instance marker or an ad-hoc sub-process | not read: every instance runs, and an ad-hoc sub-process with a start event is walked as a plain one | - | a standard loop marker whose `loopCondition` says when to stop |
+| A call activity | an activity like any other, which a runner may claim; the process it names is not called, and runs on its own, as a pool, when it has sequence flows | - | the process drawn as a sub-process where it is called |
+
+: The BPMN 2.0 constructs a run does not yet read as the specification does, what it does instead, and what to draw for the same effect. A dash means `studyflow validate` reports nothing. {#tbl-not-yet}
+
+[^ocpm]: van der Aalst, W. M. P. (2019). Object-centric process mining: Dealing with divergence and convergence in event data. *Software Engineering and Formal Methods (SEFM 2019)*, LNCS 11724, 3-25.
 
 
 ## What a run leaves behind
