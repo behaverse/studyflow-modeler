@@ -341,6 +341,34 @@ R:
     expect(back).toContain('Trial_Item:\n  type: ItemDefinition\n  structure: cognitive:Trial\n');
   });
 
+  test('a text of several lines, none longer than the width, stays a literal block however deep it sits', () => {
+    // A line that fits the width alone and not with its indentation: counted with it, as the YAML library counts, the
+    // block folds, and each line break is written as a blank line.
+    const line = 'Each message is one trial and lists the answers it accepts under ResponseOptions; answer with one of them, exactly.';
+    expect(line.length).toBeLessThanOrEqual(120);
+    expect(line.length + 12).toBeGreaterThan(120);
+    const template = `          template: |
+            You are taking a computerised test one trial at a time.
+            ${line}
+
+            Any other reply is a lost trial.
+`;
+    const text = `schemas:
+  agentic: https://w3id.org/studyflow/agentic
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+P:
+  type: Process
+  elements:
+    Prompt:
+      type: DataObjectReference
+      extensions:
+        agentic:Prompt:
+${template}`;
+    const metamodel = freshMetamodel();
+    expect(studyText(readStudy(text, metamodel), metamodel)).toContain(template);
+  });
+
   test('a schema is named by an attribute its trait lends an element, which the file writes bare', () => {
     // A domain schema whose one type is a trait: nothing of it is written with its prefix.
     const lab = fromModdleYaml(`

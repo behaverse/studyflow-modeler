@@ -914,8 +914,8 @@ export function studyText(study: Study, metamodel: Metamodel, warn?: Warn): stri
 
 /** `doc`, the document of a `.studyflow.yaml` file or a part of one, as its text: a blank line before each part of the
  * file after its head and between the elements of each list, each drawing and each run record on one line however
- * long, and prose too long for its line folded. YAML 1.1 quotes what any YAML reader could take for another type (a
- * date, `1:1`, `yes`). */
+ * long, prose too long for its line folded, and a text of several lines kept line for line unless one of them is
+ * longer than the width. YAML 1.1 quotes what any YAML reader could take for another type (a date, `1:1`, `yes`). */
 export function documentText(doc: YamlDoc): string {
   const document = new YAMLDocument(doc, { version: '1.1' });
   visit(document, {
@@ -937,6 +937,14 @@ export function documentText(doc: YamlDoc): string {
       const topLevel = path.length === 2 && !HEAD_KEYS.has(key);
       const listed = isPair(holder) && isScalar(holder.key) && ELEMENT_LISTS.has(String(holder.key.value)) && isMap(pair.value);
       if (topLevel || listed) pair.key.spaceBefore = true;
+    },
+    Scalar(key, scalar) {
+      // A text of several lines (a prompt, a checklist) keeps them as written, a literal block, unless one of them is
+      // longer than the width. Its lines alone decide: the library counts the indentation in, so the same text would
+      // fold, each of its line breaks written as a blank line, once it sat a level deeper.
+      const text = scalar.value;
+      if (key === 'key' || typeof text !== 'string' || !text.includes('\n')) return;
+      if (text.split('\n').every((line) => line.length <= TEXT_OPTIONS.lineWidth)) scalar.type = 'BLOCK_LITERAL';
     },
     Map(_, map, path) {
       const holder = path[path.length - 1];
