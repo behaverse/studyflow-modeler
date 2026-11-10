@@ -50,7 +50,7 @@ Schema_Map:
 
     Skill_Sets:
       type: DataObjectReference
-      name: "One per skill: cognitive, behaverse, eeg, agentic, reachy"
+      name: "One per skill: cognitive, behaverse, eeg, agentic, reachy, reporting"
 
     Settings:
       type: DataStoreReference

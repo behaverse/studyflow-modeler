@@ -251,7 +251,7 @@ function summarize(group: Row, children: Row[]): void {
  * any, in tree order: a container's rows follow it. Onsets are relative to a single shared anchor; a row that states
  * none starts where the rows it waits on end.
  */
-export function collectScheduleRows(modeler: Editor): Row[] {
+export function collectScheduleRows(modeler: Pick<Editor, 'study'>): Row[] {
   const { study } = modeler;
   const records = study.list();
   const { model } = study;

@@ -6,6 +6,7 @@ import { ICONS } from '@modeler/icons';
 import { getPaletteIconForBpmnType } from '@modeler/palette/groups';
 import type { PaletteCommand, PaletteDialogId } from '@modeler/commandPalette/types';
 import type { Editor } from '@modeler/editor/port';
+import { reportingDocuments } from '@modeler/skillModules';
 
 export type PaletteCommandDeps = {
   modeler: Editor;
@@ -37,6 +38,7 @@ export function buildElementEntries(modeler: Editor): PaletteCommand[] {
 
 export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[] {
   const { modeler, isSimulating, openSettings, openDialog, openReplay, linkedFileName } = deps;
+  const documents = reportingDocuments();
 
   return [
     {
@@ -157,6 +159,16 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       keywords: 'figure svg png drawio paper export',
       action: () => openDialog('manuscript'),
     },
+    // Offered while a skill in use draws one, and found by what those skills call theirs: a guideline's documents
+    // come and go with its extension.
+    ...(documents.length > 0 ? [{
+      id: 'view-reporting',
+      group: 'View',
+      label: 'View as Reporting Diagram...',
+      icon: ICONS.reporting,
+      keywords: `guideline ${documents.map((document) => `${document.guideline} ${document.label}`).join(' ')}`,
+      action: () => openDialog('reporting'),
+    }] : []),
     {
       id: 'view-provenance',
       group: 'View',

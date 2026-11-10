@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
+
+# A reporting guideline asks a study for documents its diagram already holds: CONSORT's participant flow, SPIRIT's
+# schedule of enrolment, interventions and assessments. The skill reads them off the diagram as it is drawn
+# (modeler/), so nothing here restates the study. What the vocabulary adds is the one thing a drawing cannot say:
+# what a participant who leaves at an exit counts as.
+
+name: Reporting guidelines
+prefix: reporting
+description: >-
+  The documents reporting guidelines ask of a study, drawn from its diagram: CONSORT's
+  participant flow and SPIRIT's schedule. An exit can say what leaving there counts as.
+uri: https://w3id.org/studyflow/reporting
+icon: iconify tabler--hexagon-letter-r
+order: 105
+xml:
+  tagAlias: lowerCase
+version: '26.11.1'
+
+enumerations:
+  # CONSORT's own four ways out after allocation. Before allocation every way out is an exclusion, so none is
+  # listed for it. A guideline that counts another way adds its literal here.
+  - name: AttritionEnum
+    description: What a participant who leaves after allocation counts as in a participant flow.
+    literalValues:
+      - name: Did not receive the intervention
+        value: not-received
+        description: Allocated, but the allocated intervention was not given.
+      - name: Lost to follow-up
+        value: lost-to-follow-up
+        description: Could not be followed any further, such as one who did not come back in time.
+      - name: Discontinued the intervention
+        value: discontinued
+        description: Started the intervention and stopped, or was stopped by a rule of the study.
+      - name: Excluded from analysis
+        value: excluded-from-analysis
+        description: Completed, but left out of the analysis.
+
+types:
+  - name: Exit
+    description: Says what a participant who leaves here counts as in a participant flow.
+    extends:
+      - bpmn:BoundaryEvent
+      - bpmn:EndEvent
+    isAbstract: true
+    properties:
+      # Unset, the flow decides from the drawing: a timer at a boundary event is a loss to follow-up, any other
+      # exit a discontinuation (modeler/participantFlow.ts).
+      - name: attrition
+        description: What leaving here counts as in a participant flow; unset, the drawing decides.
+        isAttr: true
+        type: AttritionEnum

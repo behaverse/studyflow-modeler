@@ -45,6 +45,7 @@ export type TypeRole =
   | 'signal'
   | 'instrument'
   | 'acquisition'
+  | 'screening'
   | (string & {});
 
 export type EnumLiteral = {

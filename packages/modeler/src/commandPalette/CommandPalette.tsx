@@ -27,6 +27,7 @@ import { SaveDialog } from '@modeler/export/Save';
 import { ChecklistDialog } from '@modeler/checklist/Checklist';
 import { ScheduleDialog } from '@modeler/schedule/Schedule';
 import { ManuscriptDialog } from '@modeler/manuscript/Manuscript';
+import { ReportingDialog } from '@modeler/reporting/Reporting';
 import { ProvenanceDialog } from '@modeler/provenance/Provenance';
 import { buildElementEntries, buildPaletteCommands } from '@modeler/commandPalette/menu';
 import {
@@ -46,6 +47,7 @@ const SUB_DIALOGS: Record<PaletteDialogId, ComponentType<SubDialogProps>> = {
   checklist: ChecklistDialog,
   schedule: ScheduleDialog,
   manuscript: ManuscriptDialog,
+  reporting: ReportingDialog,
   provenance: ProvenanceDialog,
 };
 

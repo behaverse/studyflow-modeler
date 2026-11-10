@@ -148,7 +148,7 @@ export async function runExportDiagram(modeler: Editor, command: ExportDiagramCo
 }
 
 /** Hand `blob` to the browser as a download named `filename`. */
-function saveBlob(blob: Blob, filename: string): void {
+export function saveBlob(blob: Blob, filename: string): void {
   const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: filename });
   document.body.append(link);
   link.click();

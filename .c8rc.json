@@ -20,6 +20,7 @@
     "**/packages/runtime-browser/src/jobs.ts",
     "**/packages/runtime-browser/src/nodes/types.ts",
     "**/skills/behaverse/browser/llm/types.ts",
+    "**/skills/reporting-guidelines/modeler/guideline.ts",
     "**/skills/*/browser/vite.ts",
     "**/skills/*/browser/**/*.mjs"
   ],

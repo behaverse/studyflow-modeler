@@ -68,6 +68,7 @@ export const ICONS = {
   database: 'iconify fluent--database-16-regular',
   schedule: 'iconify bi--bar-chart-steps',
   figure: 'iconify ph--image-square',
+  reporting: 'iconify ph--flow-arrow',
   script: 'iconify fluent--script-24-regular',
   function: 'iconify ph--function',
   broadcast: 'iconify bi--broadcast-pin',
