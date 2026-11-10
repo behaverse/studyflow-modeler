@@ -6,8 +6,10 @@ import * as yaml from 'js-yaml';
 
 import { studyToXml } from '@core/document';
 import { exampleNames as examples, exampleText } from '@tests/utils';
+import { metamodelOf } from '@core/model/packages';
 import { readStudy, studyText } from '@core/model/yaml';
-import { freshMetamodel, studyModel, xmlOf, yamlOf } from '@tests/schemas';
+import { fromModdleYaml } from '@core/notation/moddlePackage';
+import { freshMetamodel, loadSchemaModels, schemaPackages, studyModel, xmlOf, yamlOf } from '@tests/schemas';
 
 /** The `.studyflow.yaml` spelling: the short forms the writer emits, every shipped file spelled that way, and the long forms the reader still takes. */
 
@@ -337,6 +339,41 @@ R:
     expect(back).toContain('      message: $Trial\n');
     expect(back).toContain('Trial:\n  type: Message\n  item: $Trial_Item\n');
     expect(back).toContain('Trial_Item:\n  type: ItemDefinition\n  structure: cognitive:Trial\n');
+  });
+
+  test('a schema is named by an attribute its trait lends an element, which the file writes bare', () => {
+    // A domain schema whose one type is a trait: nothing of it is written with its prefix.
+    const lab = fromModdleYaml(`
+name: Lab
+prefix: lab
+uri: https://example.org/schemas/lab
+xml:
+  tagAlias: lowerCase
+version: '26.1.1'
+types:
+  - name: Bench
+    extends:
+      - bpmn:Task
+    isAbstract: true
+    properties:
+      - name: bench
+        isAttr: true
+        type: String
+`, 'lab.moddle.yaml');
+    const metamodel = metamodelOf(schemaPackages([...loadSchemaModels(), lab]));
+    const text = `schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+P:
+  type: Process
+  elements:
+    Weigh:
+      type: Task
+      lab:bench: B2
+`;
+    const written = studyText(readStudy(text, metamodel), metamodel);
+    expect(written).toContain('schemas:\n  lab: https://example.org/schemas/lab\n  studyflow: http://behaverse.org/schemas/studyflow/v1\n');
+    expect(written).toContain('      type: Task\n      bench: B2\n');
   });
 
   test('a data store, its initial value and a reference to it keep their spelling through a round trip', async () => {

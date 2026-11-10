@@ -24,6 +24,7 @@ import {
   splitBinding,
 } from '@core/model/spelling';
 import { EVENT_KINDS, LOOP_MARKERS, STANDARD_LOOP, definitionId, fileKey, isRefLike, modelKey, refId, refValue } from '@core/model/names';
+import { NON_EXTENSION_PREFIXES } from '@core/constants';
 import { BUILTIN_TYPES, type Descriptor, type Metamodel, type PropertyDef } from '@core/model/metamodel';
 import { isElement, type Drawing, type Element, type State, type Study, type Value } from '@core/model/types';
 
@@ -819,8 +820,9 @@ export function writtenStudy(study: Study, metamodel: Metamodel, warn?: Warn): S
 
 
 /** Each namespace the written study uses besides BPMN's, prefix to URI: the types of its elements and entries, its
- * prefixed keys, a schema type an item definition names, and the core's, which every study uses; then the namespaces
- * the definitions declare for elements no loaded schema knows. */
+ * prefixed keys, the schema of an attribute a trait lends an element (written bare, so only its declaration names
+ * it), a schema type an item definition names, and the core's, which every study uses; then the namespaces the
+ * definitions declare for elements no loaded schema knows. */
 function schemasOf(metamodel: Metamodel, written: Study): Record<string, string> {
   const prefixes = new Set(['studyflow']);
   const visit = (value: unknown): void => {
@@ -828,6 +830,10 @@ function schemasOf(metamodel: Metamodel, written: Study): Record<string, string>
     else if (isElement(value)) {
       for (const [key, item] of Object.entries(value)) {
         if (key.includes(':')) prefixes.add(key.split(':')[0]);
+        else if (key !== 'type' && metamodel.has(value.type)) {
+          const prefix = propertyOf(metamodel, value.type, key)?.ns.prefix;
+          if (prefix && !NON_EXTENSION_PREFIXES.has(prefix)) prefixes.add(prefix);
+        }
         if ((key === 'type' || key === 'structureRef') && typeof item === 'string' && item.includes(':') && !item.includes('://')) prefixes.add(item.split(':')[0]);
         visit(item);
       }
