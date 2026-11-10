@@ -2,6 +2,7 @@ id: consort2025-example
 schemas:
   cognitive: http://behaverse.org/schemas/studyflow/cognitive
   prov: https://w3id.org/studyflow/prov
+  reporting: https://w3id.org/studyflow/reporting
   studyflow: http://behaverse.org/schemas/studyflow/v1
 definitions:
   xsi:schemaLocation: http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd
@@ -14,7 +15,9 @@ CONSORT_2025:
     studyflow:Study: {}
     prov:Activity:
       - {action: created, when: "2026-07-30T22:51:30Z", with: studyflow-modeler/26.0615}
-  documentation: A CONSORT 2025 participant flow from enrollment to analysis, with attrition as boundary error events.
+  documentation: >-
+    A CONSORT 2025 participant flow from enrollment to analysis, with attrition as boundary error events, each saying
+    what leaving there counts as.
   elements:
     Enrollment_Start:
       type: StartEvent
@@ -64,6 +67,7 @@ CONSORT_2025:
       name: Did not receive (n=...)
       error: true
       attachedTo: $Activity_Allocation_A
+      attrition: not-received
 
     Activity_Followup_A:
       type: Task
@@ -82,12 +86,14 @@ CONSORT_2025:
       name: Lost to follow-up (n=...)
       error: true
       attachedTo: $Activity_Followup_A
+      attrition: lost-to-follow-up
 
     Discontinued_A:
       type: BoundaryEvent
       name: Discontinued (n=...)
       error: true
       attachedTo: $Activity_Followup_A
+      attrition: discontinued
 
     Activity_Analysis_A:
       type: Task
@@ -103,6 +109,7 @@ CONSORT_2025:
       name: Excluded from analysis (n=...)
       error: true
       attachedTo: $Activity_Analysis_A
+      attrition: excluded-from-analysis
 
     Activity_Allocation_B:
       type: Task
@@ -117,6 +124,7 @@ CONSORT_2025:
       name: Did not receive (n=...)
       error: true
       attachedTo: $Activity_Allocation_B
+      attrition: not-received
 
     Activity_Followup_B:
       type: Task
@@ -132,12 +140,14 @@ CONSORT_2025:
       name: Lost to follow-up (n=...)
       error: true
       attachedTo: $Activity_Followup_B
+      attrition: lost-to-follow-up
 
     Discontinued_B:
       type: BoundaryEvent
       name: Discontinued (n=...)
       error: true
       attachedTo: $Activity_Followup_B
+      attrition: discontinued
 
     Activity_Analysis_B:
       type: Task
@@ -153,6 +163,7 @@ CONSORT_2025:
       name: Excluded from analysis (n=...)
       error: true
       attachedTo: $Activity_Analysis_B
+      attrition: excluded-from-analysis
 
     Trial_Complete:
       type: EndEvent
@@ -218,41 +229,42 @@ CONSORT_2025:
       target: $Trial_Complete
 
     Flow_DidNotReceive_A:
-      name: reason
+      name: withdrew consent
       source: $DidNotReceive_A
       target: $Excluded_Post
 
     Flow_LostFollowup_A:
-      name: reason
+      name: could not be reached
       source: $LostFollowup_A
       target: $Excluded_Post
 
     Flow_Discontinued_A:
+      name: adverse event
       source: $Discontinued_A
       target: $Excluded_Post
 
     Flow_ExcludedAnalysis_A:
-      name: reason
+      name: protocol deviation
       source: $ExcludedFromAnalysis_A
       target: $Excluded_Post
 
     Flow_DidNotReceive_B:
-      name: reason
+      name: withdrew consent
       source: $DidNotReceive_B
       target: $Excluded_Post
 
     Flow_LostFollowup_B:
-      name: reason
+      name: could not be reached
       source: $LostFollowup_B
       target: $Excluded_Post
 
     Flow_Discontinued_B:
-      name: reason
+      name: adverse event
       source: $Discontinued_B
       target: $Excluded_Post
 
     Flow_ExcludedAnalysis_B:
-      name: reason
+      name: protocol deviation
       source: $ExcludedFromAnalysis_B
       target: $Excluded_Post
   artifacts:

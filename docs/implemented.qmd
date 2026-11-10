@@ -46,6 +46,7 @@ automated test in this repository, and the element types that the schemas declar
 | A task from another toolkit is named the same way | implemented for jsPsych tasks, which the browser runtime plays for a person and the local runtime for an artificial actor |
 | The run record exports as W3C PROV-O | implemented |
 | EEG acquisition is described in the diagram | implemented as elements of an extension |
+| The documents a reporting guideline asks for are drawn from the diagram | implemented for CONSORT 2025's participant flow and SPIRIT 2025's schedule, in the modeler's Reporting Diagram view, by an extension to which a guideline is added as one module |
 | The text of every exchange with a model is recorded, turn by turn | implemented |
 
 ## Element types
@@ -88,6 +89,7 @@ automated test in this repository, and the element types that the schemas declar
 | `reachy:Listen`, `reachy:Teleoperation` | `bpmn:ReceiveTask`, `bpmn:UserTask` | `timeout`; `instructions` |
 | `reachy:PerceptionGateway`, `reachy:SenseEvent` | `bpmn:ExclusiveGateway`, `bpmn:IntermediateCatchEvent` | `channel`; `trigger`, `wakeWord` |
 | reachy:InteractionRecording | `bpmn:DataStoreReference`, through `studyflow:Dataset` | streams |
+| reporting:Exit | `bpmn:BoundaryEvent`, `bpmn:EndEvent` (an attribute on both) | `attrition` (not-received, lost-to-follow-up, discontinued, excluded-from-analysis) |
 
 The element types the schemas declare, grouped by extension, with the BPMN type each extends and its key attributes; the versioned schemas remain the authoritative list. The rows without a prefix are BPMN elements to which the core schema adds attributes. Every element also carries documentation and a checklist; activities and events carry `onset`, `duration`, and `progress`, which the *Schedule* view reads, and data elements a `uri`. The palette's templates are not types of their own. A video game, for example, is a `cognitive:CognitiveTask` whose `platform` is a game engine, and stratified allocation is a `cognitive:RandomGateway` with `stratifyBy` set.
 

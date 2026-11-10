@@ -81,7 +81,7 @@ types point at (`prov:Activity`), and writes `superClass: [Element]`, moddle's r
 | --- | --- |
 | `icon` | Canvas + palette + append-menu glyph (Iconify class). |
 | `editor` (on a value type or any other type) | Default editor for every attribute *of that type* (see editor names below). |
-| `roles` | What the type stands for to exporters and the data-operation marker (`instrument`, `signal`, `acquisition`, …). `data-element` alone follows from the BPMN attach point; don't restate it. |
+| `roles` | What the type stands for to exporters, the data-operation marker and the reporting documents (`instrument`, `signal`, `acquisition`, `screening`, …). `data-element` alone follows from the BPMN attach point; don't restate it. |
 | `presenter` | The upper band of a typed choreography task: a template naming the extension's attributes in angle brackets (`"Behaverse · <instrument>"`), never a run's `{placeholder}`. Empty or absent, the band reads "Task software". |
 | `glyph` | The attribute whose value is drawn as text over the type icon (`instrument`). |
 | `participantKind` (on a `bpmn:Participant` type) | What a band-only actor can be: the name of one of the type's enum attributes, one kind per literal (`actorType`), or the label of the one kind the type itself is (`Reachy Mini`). |

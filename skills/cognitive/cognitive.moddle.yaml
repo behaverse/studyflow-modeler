@@ -301,6 +301,9 @@ types:
       - bpmn:ExclusiveGateway
     meta:
       icon: iconify ph--funnel
+      # What a participant flow reads: whoever takes no flow onward from here was assessed and excluded.
+      roles:
+        - screening
     properties:
       - name: inclusionCriteria
         description: What a participant must meet, one per entry (`Age 18 to 65`).

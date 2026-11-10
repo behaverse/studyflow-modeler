@@ -24,6 +24,7 @@ import {
   splitBinding,
 } from '@core/model/spelling';
 import { EVENT_KINDS, LOOP_MARKERS, STANDARD_LOOP, definitionId, fileKey, isRefLike, modelKey, refId, refValue } from '@core/model/names';
+import { NON_EXTENSION_PREFIXES } from '@core/constants';
 import { BUILTIN_TYPES, type Descriptor, type Metamodel, type PropertyDef } from '@core/model/metamodel';
 import { isElement, type Drawing, type Element, type State, type Study, type Value } from '@core/model/types';
 
@@ -819,8 +820,9 @@ export function writtenStudy(study: Study, metamodel: Metamodel, warn?: Warn): S
 
 
 /** Each namespace the written study uses besides BPMN's, prefix to URI: the types of its elements and entries, its
- * prefixed keys, a schema type an item definition names, and the core's, which every study uses; then the namespaces
- * the definitions declare for elements no loaded schema knows. */
+ * prefixed keys, the schema of an attribute a trait lends an element (written bare, so only its declaration names
+ * it), a schema type an item definition names, and the core's, which every study uses; then the namespaces the
+ * definitions declare for elements no loaded schema knows. */
 function schemasOf(metamodel: Metamodel, written: Study): Record<string, string> {
   const prefixes = new Set(['studyflow']);
   const visit = (value: unknown): void => {
@@ -828,6 +830,10 @@ function schemasOf(metamodel: Metamodel, written: Study): Record<string, string>
     else if (isElement(value)) {
       for (const [key, item] of Object.entries(value)) {
         if (key.includes(':')) prefixes.add(key.split(':')[0]);
+        else if (key !== 'type' && metamodel.has(value.type)) {
+          const prefix = propertyOf(metamodel, value.type, key)?.ns.prefix;
+          if (prefix && !NON_EXTENSION_PREFIXES.has(prefix)) prefixes.add(prefix);
+        }
         if ((key === 'type' || key === 'structureRef') && typeof item === 'string' && item.includes(':') && !item.includes('://')) prefixes.add(item.split(':')[0]);
         visit(item);
       }
@@ -908,8 +914,8 @@ export function studyText(study: Study, metamodel: Metamodel, warn?: Warn): stri
 
 /** `doc`, the document of a `.studyflow.yaml` file or a part of one, as its text: a blank line before each part of the
  * file after its head and between the elements of each list, each drawing and each run record on one line however
- * long, and prose too long for its line folded. YAML 1.1 quotes what any YAML reader could take for another type (a
- * date, `1:1`, `yes`). */
+ * long, prose too long for its line folded, and a text of several lines kept line for line unless one of them is
+ * longer than the width. YAML 1.1 quotes what any YAML reader could take for another type (a date, `1:1`, `yes`). */
 export function documentText(doc: YamlDoc): string {
   const document = new YAMLDocument(doc, { version: '1.1' });
   visit(document, {
@@ -931,6 +937,14 @@ export function documentText(doc: YamlDoc): string {
       const topLevel = path.length === 2 && !HEAD_KEYS.has(key);
       const listed = isPair(holder) && isScalar(holder.key) && ELEMENT_LISTS.has(String(holder.key.value)) && isMap(pair.value);
       if (topLevel || listed) pair.key.spaceBefore = true;
+    },
+    Scalar(key, scalar) {
+      // A text of several lines (a prompt, a checklist) keeps them as written, a literal block, unless one of them is
+      // longer than the width. Its lines alone decide: the library counts the indentation in, so the same text would
+      // fold, each of its line breaks written as a blank line, once it sat a level deeper.
+      const text = scalar.value;
+      if (key === 'key' || typeof text !== 'string' || !text.includes('\n')) return;
+      if (text.split('\n').every((line) => line.length <= TEXT_OPTIONS.lineWidth)) scalar.type = 'BLOCK_LITERAL';
     },
     Map(_, map, path) {
       const holder = path[path.length - 1];

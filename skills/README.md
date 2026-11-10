@@ -13,12 +13,12 @@ metadata:
   runtimes:                           # what executes its elements, per runtime
     local: "uv run --script local.py" #   a command run in this folder (the contract: packages/runtime-local/CONTRACT.md)
     browser: "browser/index.tsx"      #   a node module the browser runner imports (browser/src/nodes/README.md)
-  modeler: "modeler.ts"               # projections it exports, foreign formats it opens, inspector sections, Settings pages, Save destinations
+  modeler: "modeler.ts"               # projections it exports, foreign formats it opens, inspector sections, Settings pages, Save destinations, reporting documents it draws
 ---
 What the vocabulary means and how to author with it.
 ```
 
-A skill can be vocabulary only (`eeg`), a runner only (`python`), both (`behaverse`), or something the modeler exports or opens (`jspsych`). The runtimes are not skills: [`packages/runtime-local`](../packages/runtime-local/CONTRACT.md) and [`packages/runtime-browser`](../packages/runtime-browser/README.md) host the walk, and a skill hands them its runners. `examples/` holds its example diagrams, `tests/` its tests. A skill whose schema says `required: true` always loads and cannot be disabled: `studyflow`, with its `prov` schema.
+A skill can be vocabulary only (`eeg`), a runner only (`python`), both (`behaverse`), or something the modeler exports, opens or draws (`jspsych`, `reporting-guidelines`). The runtimes are not skills: [`packages/runtime-local`](../packages/runtime-local/CONTRACT.md) and [`packages/runtime-browser`](../packages/runtime-browser/README.md) host the walk, and a skill hands them its runners. `examples/` holds its example diagrams, `tests/` its tests. A skill whose schema says `required: true` always loads and cannot be disabled: `studyflow`, with its `prov` schema.
 
 A skill is the boundary between Studyflow and a domain (in domain-driven design, an anti-corruption layer): its vocabulary gives authors the domain's elements in the domain's words, and its runners translate between Studyflow's contract and each tool's own protocol. The apps find what it declares and learn nothing else, so how a tool behind a skill works changes that skill at most.
 

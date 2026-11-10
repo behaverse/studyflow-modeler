@@ -12,6 +12,7 @@ description: "Elements, attributes, and storage format"
 | `cognitive` | what a participant meets, and the research gateways | always |
 | `agentic` | models as actors, and prompts | on request |
 | `eeg` | biosignal sessions and recordings | on request |
+| `reporting` | what leaving at an exit counts as, for the documents reporting guidelines ask of a study | on request |
 
 # How a studyflow fits together
 
@@ -115,6 +116,9 @@ A view is a projection. It keeps some of the elements of the diagram and drops t
 | **Checklist** | elements with a checklist entry | what has been reported, and what is still open |
 | **Provenance** | the `prov:Activity` entries | what ran, when, by whom, with which seed |
 | **Figure** | the elements marked visible | what a reader should see |
+| **Reporting Diagram** | what a reporting guideline's document shows: the allocation, the arms and the exits, or the scheduled elements and the lanes | what the guideline asks to see: who was assessed, allocated, lost and analyzed (CONSORT's participant flow), or what happens at each visit (SPIRIT's schedule) |
+
+The Reporting Diagram view draws the documents of the guidelines a skill in use knows, each from the study as it stands and with the counts its last run left; the [reporting-guidelines](https://github.com/behaverse/studyflow-modeler/blob/main/skills/reporting-guidelines/SKILL.md) skill brings CONSORT 2025 and SPIRIT 2025, and says how each document is read off the diagram and how a guideline is added.
 
 # Elements
 
@@ -165,6 +169,7 @@ A cognitive task's `platform` names the experiment package that delivers it (Psy
 | the start event | `consentFormDigest` | the consent document's SHA-256, registering its text as a material ([Data](#data)) |
 | the end event | `redirectTo` | where the participant is sent; `{COMPLETION_CODE}` is substituted with the issued code |
 | the end event | `completionCodeType` | `none`, `static` (the fixed `completionCode`), or `dynamic` |
+| a boundary event or an end event | `attrition` | what leaving there counts as in a participant flow, with the reporting-guidelines skill: `not-received`, `lost-to-follow-up`, `discontinued` or `excluded-from-analysis`; unset, a timer is a loss to follow-up and any other exit a discontinuation |
 
 ## Branching
 
@@ -323,6 +328,7 @@ A model takes part as an actor, never as a setting on a step. It is a pool of it
 | `.studyflow.tif` | the same as the TIFF a journal asks for: LZW, its size on paper declared (the modeler asks the width in mm and the dpi), the `.studyflow.yaml` in its XMP packet, and any pasted image in a tag of its own |
 | `.studyflow.svg` | a picture, and the study's BPMN XML nested in its metadata |
 | `.svg`, `.png`, `.tif` (Manuscript view) | the figure, carrying the `.studyflow.yaml` and editable draw.io image; the TIFF at the width and resolution the view asks |
+| `.svg` (Reporting Diagram view) | a reporting guideline's document, drawn from the study: a picture alone, which carries no study |
 | `.drawio`, `.linkml.yaml`, `.nidm.ttl`, `.artemis.json`, `.json` (jsPsych timeline) | exported formats, non-reversible, for the tools that read them |
 
 A PNG pasted on the canvas is part of the drawing, not of the study. Only a `.studyflow.png` or a `.studyflow.tif` (and the Manuscript view's `.png` and `.tif`) keeps it: the image shows in the picture, its YAML holds a `TextAnnotation` with `textFormat: image/png` whose `text` names the image, and the image's own bytes ride in a PNG chunk, or a TIFF tag, of their own, so it comes back as it was pasted however many times the file is saved. Every other format leaves it out and says so, and the protocol digest does not read it.

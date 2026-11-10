@@ -17,5 +17,5 @@ is written as W3C PROV-O by `studyflow prov <run>`, packaged with its files as a
 `studyflow crate`, and written as an OCEL 2.0 event log by `studyflow ocel`. The local runtime keeps the run
 repository the records point at.
 
-`examples/` holds the demos every shelf of the gallery starts from (LabLink, CONSORT and SPIRIT
-protocols, the kitchen sink).
+`examples/` holds the demos every shelf of the gallery starts from (LabLink, the kitchen sink); the CONSORT and
+SPIRIT protocols ship with the [reporting-guidelines](../reporting-guidelines/SKILL.md) skill, which draws their documents.

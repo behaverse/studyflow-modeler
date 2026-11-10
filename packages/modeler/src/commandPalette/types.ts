@@ -20,6 +20,7 @@ export type PaletteDialogId =
   | 'checklist'
   | 'schedule'
   | 'manuscript'
+  | 'reporting'
   | 'provenance';
 
 export function searchCommands(commands: PaletteCommand[], query: string): PaletteCommand[] {
