@@ -5,7 +5,7 @@
       <studyflow:study>
         <studyflow:state>{"_meta":{"prov":[{"action":"created","when":"2026-09-29T21:38:32+02:00","with":"studyflow-modeler/26.9.29"}]}}</studyflow:state>
       </studyflow:study>
-      <prov:activity action="created" when="2026-11-10T13:39:41+01:00" with="studyflow-modeler/26.11.4"/>
+      <prov:activity action="created" when="2026-11-13T23:51:23+01:00" with="studyflow-modeler/26.11.5"/>
     </bpmn:extensionElements>
     <bpmn:startEvent id="Opens" name="The modeler opens">
       <bpmn:outgoing>Flow_Opened</bpmn:outgoing>

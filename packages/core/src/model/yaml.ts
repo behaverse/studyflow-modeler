@@ -73,8 +73,8 @@ function isMapping(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
-/** An element in its long form, a BPMN element and its schema type's entry, as its schema type: what the file
- * spells and the reader reads. Unchanged when the entry cannot fold (another schema type, or keys the element holds). */
+/** Folds an element in its long form (a BPMN element with its schema type's entry) into its schema type, the form
+ * the file spells and the reader reads. Unchanged when the entry cannot fold (another schema type, or keys the element holds). */
 export function foldTyped(metamodel: Metamodel, element: Element): Element {
   const entries = element.extensionElements;
   if (!Array.isArray(entries)) return element;
@@ -149,7 +149,7 @@ class Reader {
 
   private readonly metamodel: Metamodel;
   private readonly warn: Warn;
-  /** What the definitions declare, the namespaces of foreign elements among it. */
+  /** The definitions' declarations, including the namespaces of foreign elements. */
   private readonly namespaces: Record<string, unknown>;
   /** Whether a drawing written on an element moves to the layout: not in diagram interchange, which is drawing itself. */
   private readonly drawings: boolean;
@@ -161,7 +161,7 @@ class Reader {
     this.drawings = drawings;
   }
 
-  /** `raw`, a file's node, where `declared` is expected. */
+  /** Reads `raw`, a node of the file, as an element where a `declared` one is expected. */
   element(raw: Record<string, unknown>, declared: string | undefined): Element {
     let node = raw;
     let type: string;
@@ -259,7 +259,7 @@ class Reader {
     element[name] = isYamlValueProperty(p) ? yamlValue(raw) : this.value(raw, p.type);
   }
 
-  /** What `raw` is where a `declared` value is expected: an element, an expression's text, a list, or itself. */
+  /** The value `raw` reads as where a `declared` value is expected: an element, an expression's text, a list, or itself. */
   private value(raw: unknown, declared: string | undefined): Value {
     const elementType = !!declared && !BUILTIN_TYPES.has(declared);
     if (Array.isArray(raw)) {
@@ -387,8 +387,8 @@ export function readStudy(source: string | YamlDoc, metamodel: Metamodel, warn: 
   const reader = new Reader(metamodel, warn, definitions);
   const id = doc.id ?? definitions.id;
   delete definitions.id;
-  // What the definitions hold besides their attributes (documentation, imports, extension elements) reads as an
-  // element's would.
+  // The definitions' content besides their attributes (documentation, imports, extension elements) is read as an
+  // element's would be.
   const holder: Element = { type: 'bpmn:Definitions' };
   for (const p of metamodel.descriptor('bpmn:Definitions').properties) {
     const raw = definitions[p.ns.localName];
@@ -503,9 +503,9 @@ function impliedFlowLists(study: Study, metamodel: Metamodel): void {
 
 /* --- writing --- */
 
-/** What the file keeps of an element, in the order it writes it: each property in its type's order (a typed element's
- * schema attributes where its schema's entry would stand), then the keys no schema declares; none that holds nothing
- * or its default, no reference to an id the study does not hold, and no Study's run state. */
+/** The properties the file keeps of an element, in the order it writes them: each property in its type's order (a
+ * typed element's schema attributes where its schema's entry would stand), then the keys no schema declares. It leaves
+ * out a property that holds nothing or its default, a reference to an id the study does not hold, and a Study's run state. */
 class Writer {
   /** The ids of the elements written, in the order the file writes them: the layout map's order. */
   readonly order: string[] = [];
@@ -795,7 +795,7 @@ function redundantDiagram(node: Value, study: Study, metamodel: Metamodel): bool
     || study.roots.some((root) => root.id === named && isHeadlessCollaboration(root));
 }
 
-/** The study as its file holds it, what its YAML and its BPMN XML are both written from: the definitions without the
+/** The study as its file holds it, from which both its YAML and its BPMN XML are written: the definitions without the
  * namespaces the BPMN writer restores itself, each root as the {@link Writer} keeps it, the drawing of each element
  * written in the order it is written, the diagram unless it says only which root the reader infers anyway, and the
  * run state. `warn` hears each reference left out. */

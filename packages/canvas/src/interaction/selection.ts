@@ -16,8 +16,7 @@ export interface SelectionOptions {
   /** The selection changed, to these ids. */
   onChange: (ids: string[]) => void;
   canResize: (target: Resizable) => boolean;
-  /** Turns whatever a caller names an element by (an id, a stale copy) into the scene element. */
-  /** The element as the scene now holds it, by id; none when it holds none. */
+  /** Turns whatever a caller names an element by (an id, a stale copy) into the element as the scene now holds it; none when it holds none. */
   resolve: (value: SceneElement | string) => SceneElement | undefined;
 }
 

@@ -19,7 +19,7 @@ export async function checkSoundness(model: StudyModel): Promise<{ issues: Issue
   try {
     exploration = await explore(plan);
   } catch (error) {
-    // What stops a walk before it starts (an allocation it cannot apply) stops the exploration too.
+    // An error that stops a walk before it starts (an allocation it cannot apply) stops the exploration too.
     return { issues: [{ severity: 'warning', message: `soundness was not checked: ${(error as Error).message}` }] };
   }
   const { runs, complete, findings } = exploration;

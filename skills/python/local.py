@@ -3,7 +3,7 @@
 # requires-python = ">=3.10"
 # dependencies = ["pyyaml>=6.0", "joblib>=1.3"]
 # ///
-# What the implementations need (pandas, scikit-learn, matplotlib, pyarrow for parquet) is the study's business: its
+# The packages the implementations need (pandas, scikit-learn, matplotlib, pyarrow for parquet) are the study's to declare: its
 # `dependencies` entries, which the local runtime installs here with `uv run --with`. joblib is the runner's own: it
 # keeps a value that is not JSON (a table, a test result) between two steps.
 """Run the `python://` elements of a studyflow.
@@ -54,7 +54,7 @@ def split_binding(text: str | None) -> tuple[str | None, str | None]:
 
 
 def placeholder_of(value: Any) -> str | None:
-    """What a value that is one placeholder and nothing else cites: `"{model}"`, or an unquoted `{model}`, which
+    """The name a value cites when it is one placeholder and nothing else: `"{model}"`, or an unquoted `{model}`, which
     YAML reads as a one-key mapping."""
     if isinstance(value, dict) and len(value) == 1 and None in value.values():
         value = f"{{{next(iter(value))}}}"
@@ -251,7 +251,7 @@ def strings(value: Any) -> Iterator[str]:
 
 
 def missing_column(error: KeyError, arguments: list[Any]) -> str | None:
-    """What a KeyError means when its key, a column the step names, is not a column of a pandas DataFrame the step
+    """The message for a KeyError whose key, a column the step names, is not a column of a pandas DataFrame the step
     received: `reads column 'X', which the table does not have (closest: 'Y')`. None for any other KeyError."""
     pandas = sys.modules.get("pandas")
     named = set(strings(arguments))  # only these read as column names: pandas words other KeyErrors as sentences

@@ -3,8 +3,8 @@ import { expect, test } from '@playwright/test';
 import { checkEntryExit } from '@core/checks/entry-exit';
 import { studyModel } from '@tests/schemas';
 
-/** What a participant meets on the way in and is handed on the way out is refused before any run when a page could
- * not fetch the consent form, or the code promised would be blank. */
+/** The consent form a participant meets on the way in and the code handed on the way out are refused before any run:
+ * a form a page could not fetch, a promised code that would be blank. */
 
 const study = (start: string, end: string): string => `id: entry
 definitions:

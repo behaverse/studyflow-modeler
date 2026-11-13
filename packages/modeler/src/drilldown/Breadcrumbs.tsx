@@ -36,10 +36,9 @@ export function Breadcrumbs() {
     };
   }, [modeler]);
 
-  /* Centred over the CANVAS, not the window: the palette and the inspector eat into
-     the viewport, and a bar centred on the window would sit off-centre over the
-     diagram. Re-measured whenever the container resizes — which is also what a panel
-     opening or closing does to it. */
+  /* Centred over the canvas, not the window: the palette and the inspector take part of the
+     viewport, so a bar centred on the window would sit off-centre over the diagram. Re-measured
+     whenever the container resizes, which a panel opening or closing also causes. */
   useLayoutEffect(() => {
     const container = modeler.canvas.getContainer();
     if (!container) return;

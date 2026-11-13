@@ -171,9 +171,9 @@ export const carriesDiagram = (format: ExportFormat): boolean =>
   !!format.importable || !!format.embeddable;
 
 /**
- * Whether a file in this format is cheap enough to rewrite on every edit. Producing an image means
- * rendering the whole diagram — rasterizing, resolving icons, re-encoding — which is seconds of
- * work, so an image is only ever written by a save the user asked for.
+ * Whether a file in this format is cheap enough to rewrite on every edit. Producing an image means rendering the
+ * whole diagram (rasterizing, resolving icons, re-encoding), which takes seconds, so an image is only written by a
+ * save the user asked for.
  */
 export const autoSavable = (format: ExportFormat): boolean =>
   format.group !== 'Image' && format.group !== 'Manuscript';

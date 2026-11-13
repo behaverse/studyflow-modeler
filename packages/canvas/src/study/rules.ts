@@ -100,7 +100,7 @@ export function containerFor(parent: RuleElement | undefined): RuleElement | und
   return undefined;
 }
 
-/** What changes container with `shape` when it moves: itself, and for a lane the shapes in it and in the lanes inside it. */
+/** The shapes that change container with `shape` when it moves: itself, and for a lane the shapes in it and in the lanes inside it. */
 function carriedBy(shape: RuleElement): RuleElement[] {
   if (bpmnTypeOf(shape) !== 'bpmn:Lane') return [shape];
   return [shape, ...(shape.children ?? []).flatMap((child) => carriedBy(child as RuleElement))];
@@ -276,7 +276,7 @@ export class Rules {
     if (![...moving].every((shape) => ridesOn(shape, moving) || !!this.canCreate(shape, open))) return false;
     const to = dropContainerOf(target);
     const carried = new Set([...moving].flatMap(carriedBy));
-    // What moves lands in the target's container: a lane on the way there changes neither its pool nor its container.
+    // A moved shape lands in the target's container: a lane on the way there changes neither its pool nor its container.
     const landed = (end: RuleElement): RuleElement => (carried.has(end) ? { ...end, parent: to } : end);
     for (const shape of carried) {
       if (ruleContainerOf(shape) === to) continue;

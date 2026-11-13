@@ -4,9 +4,9 @@ import { STORAGE_KEYS } from '@core/storage';
 
 import { diagramTitle, gotoModeler, runPaletteCommand } from './utils';
 
-/** The New Diagram gallery: the blank card, then one card per shipped example, in shelves. */
+/** The New Study gallery: the blank card, then one card per shipped example, in shelves. */
 
-test.describe('New Diagram gallery', () => {
+test.describe('New Study gallery', () => {
   test('a card previews its diagram, wears its skill\'s icon, sits on its shelf, and opens it', async ({ page }) => {
     await gotoModeler(page);
     await runPaletteCommand(page, /^New/);
@@ -33,13 +33,11 @@ test.describe('New Diagram gallery', () => {
     await expect.poll(() => reachy.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
     await expect(page.getByTestId('example-sklearn_pipeline').getByTestId('example-badge')).toHaveCount(0);
 
-    // A shelf holds its skill's examples; the blank card sits under All only, while the header's
-    // blank button stays whatever shelf is open.
-    await expect(page.getByTestId('new-diagram-blank-card')).toBeVisible();
+    // A shelf holds its skill's examples, and the blank card leads every shelf.
+    await expect(page.getByTestId('new-diagram-blank')).toBeVisible();
     await page.getByTestId('example-filter-cognitive').click();
     await expect(card).toBeVisible();
     await expect(page.getByTestId('example-consort2025')).toHaveCount(0);
-    await expect(page.getByTestId('new-diagram-blank-card')).toHaveCount(0);
     await expect(page.getByTestId('new-diagram-blank')).toBeVisible();
     await page.getByTestId('example-filter-all').click();
     await expect(page.getByTestId('example-consort2025')).toBeVisible();

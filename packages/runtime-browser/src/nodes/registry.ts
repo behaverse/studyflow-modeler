@@ -36,7 +36,7 @@ export function findByFlowNode(node: FlowNode): AnyNodeDefinition | undefined {
   if (node.type === BPMN.IntermediateCatchEvent && !waitsForTime(node)) return undefined;
   const registered = getRegisteredNodes();
 
-  // What the step's `implementation` names runs it, whatever type the step is.
+  // A step runs as its `implementation` names, whatever its type.
   const reference = parseImplementationRef(readString(node, 'implementation'));
   const scheme = reference.ok ? reference.value.scheme : undefined;
   if (scheme) {

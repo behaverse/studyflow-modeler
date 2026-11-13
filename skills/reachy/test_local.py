@@ -102,4 +102,41 @@ run.values["Choice"] = "Left."
 interact = {"namespace": reachy.REACHY, "type": "interact", "attributes": {"move": "proud1", "side": "{Choice}", "text": "Hi"}}
 reachy.perform(run, {"id": "Show"}, interact)
 assert body.did == [("move", "proud1"), ("side", "left"), ("say", "Hi")], body.did
+
+
+# A robot action that fails fails its step: a motion on a dead link, a line with no renderer on this machine, and a
+# search whose model does not answer. A robot with no camera is no failure: it turns to where the screen was found.
+def fails(action, error):
+    try:
+        action()
+    except error:
+        return True
+    return False
+
+
+class Dead:
+    def goto_target(self, **pose): raise ConnectionError("the link is down")
+
+
+class Still:
+    def goto_target(self, **pose): pass
+
+
+class Blind(Head):
+    def snapshot(self, path, width=None, fresh=False): return False
+
+
+def silent(content): raise TimeoutError("no answer")
+
+
+robot = reachy.SimRobot(host="test-host", sim=True)
+robot.mini, robot._pose = Dead(), lambda **pose: pose
+assert fails(lambda: robot.signal("left"), ConnectionError) and fails(lambda: robot.look_at("sound"), ConnectionError)
+robot = reachy.SimRobot(host="test-host", media_backend="default", sim=False)
+robot.mini, robot._pose = Still(), lambda **pose: pose
+assert fails(lambda: robot.speak("Hi", ["no-such-renderer"]), RuntimeError)
+reachy.GAZE_FILE = Path(tempfile.mkdtemp()) / "gaze.json"
+assert fails(lambda: reachy.find_screen(Head(), silent, Path("/run"), "reachy/look"), TimeoutError)
+blind = Blind()
+assert not reachy.find_screen(blind, silent, Path("/run"), "reachy/look") and blind.aims == [(0.0, False), (0.0, False)]
 print("ok")

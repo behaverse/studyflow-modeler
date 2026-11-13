@@ -7,20 +7,17 @@
 @import "tailwindcss" source("../../");
 
 @plugin "@iconify/tailwind4" {
- prefixes: bi, ri, mdi, uil, ph, fluent, fluent-color, bpmn, material-symbols, flat-color-icons, tabler, solar, streamline-flex, mynaui, hugeicons, streamline;
+ prefixes: ph, bpmn, tabler;
 }
 
 /*
- * Custom warm-cream palette (Claude.ai-inspired).
+ * The app's surfaces, lightest first (`surface` in packages/modeler/src/ui/styles.ts):
  *
- *   cream-50  -> lightest, used for the canvas
- *   cream-100 -> primary surfaces (dialogs, modals, navbar/palette/inspector chrome)
- *   cream-200 -> recessed surfaces (inputs, list cards)
- *   cream-300 -> stronger menu/popup character
- *   cream-400 -> focus rings / divider accents
- *
- * Translucent chrome (navbar, palette, popups) uses cream-100/300 with
- * `backdrop-blur-2xl` to render the canvas through with vibrancy.
+ *   cream-50  -> the canvas
+ *   cream-100 -> chrome and dialogs (nav bar, palette, inspector)
+ *   cream-200 -> recessed surfaces (inputs, cards)
+ *   cream-300 -> menus and flyouts
+ *   cream-400 -> focus rings
  */
 @theme {
   --color-cream-50:  #faf9f6;
@@ -32,10 +29,6 @@
   /* The app's typeface: declared here, it is what `font-sans` means. */
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
 }
-
-/*
- * source of truth for modeler styling
- */
 
 /* Mask-based icon utility - used in the palette to recolor the BIDS SVG. */
 .bids-dataset-icon {
@@ -49,45 +42,17 @@
 }
 
 /*
- * The main canvas.
- *
- * The host div `Modeler.tsx` hands the canvas is the container `EditorPort`'s
- * `view.getContainer()` returns, so it is what carries the run-state classes
- * below. The native canvas paints no ground of its own - its root `<svg>` is
- * transparent - so this rule is the ground.
+ * The main canvas: the div `Modeler.tsx` mounts the canvas in. The simulation and replay rules below style it.
+ * The canvas's root `<svg>` is transparent, so this rule paints its background.
  */
 [data-testid="modeler-canvas"] {
   position: relative;
   background-color: var(--color-cream-50);
 }
 
-/*
- * simulation aura around the canvas
- */
-@property --aura-angle {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
-@keyframes aura-spin { to { --aura-angle: 360deg; } }
-@keyframes aura-breathe { from { opacity: 0.25; } to { opacity: 1; } }
-
-.simulation-active [data-testid="modeler-canvas"]::after {
-  --aura-w: 12px;
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  pointer-events: none;
-  background: conic-gradient(from var(--aura-angle),
-    #ff2d55, #ff9500, #ffcc00, #34c759, #5ac8fa, #af52de, #ff2d55);
-  mask:
-    linear-gradient(to right,  #000, transparent var(--aura-w), transparent calc(100% - var(--aura-w)), #000),
-    linear-gradient(to bottom, #000, transparent var(--aura-w), transparent calc(100% - var(--aura-w)), #000);
-  animation: aura-spin 8s linear infinite, aura-breathe 2.4s ease-in-out infinite alternate;
-}
-@media (prefers-reduced-motion: reduce) {
-  .simulation-active [data-testid="modeler-canvas"]::after { animation: none; }
+/* Simulating: the canvas wears a frame in the Simulate button's colour (`button.accentFill`). */
+.simulation-active [data-testid="modeler-canvas"] {
+  box-shadow: inset 0 0 0 3px #c028b0;
 }
 
 /* Browser-native <select> option list - needs explicit colors so the OS
@@ -111,8 +76,7 @@
 }
 /* `App.tsx` puts `replay-active` on the app while the replay panel is open. */
 .replay-active [data-testid="modeler-canvas"] {
-  box-shadow: inset 0 0 0 3px rgba(139, 92, 246, 0.6), inset 0 0 40px rgba(139, 92, 246, 0.08);
-  transition: box-shadow 0.3s ease;
+  box-shadow: inset 0 0 0 3px #8b5cf6;
 }
 
 /* The replay token: a pulsing circle on the element the active record touches. */
@@ -165,22 +129,19 @@ body.resizing-inspector * {
  * UI scale.
  *
  * Every piece of app chrome is sized in rem (Tailwind's spacing, type and radius
- * scales all are), so ONE root font-size resizes the whole modeler. That is the
- * fix for "tiny on a 4K panel": at 3840px the old fixed-px chrome was 11% of the
- * width it occupied on a laptop, and no amount of per-component tweaking gets
- * that back.
+ * scales all are), so one root font-size resizes the whole modeler, which keeps it
+ * readable on a 4K screen.
  *
  * Steps, not a fluid `clamp()`: a fractional root size rounds font metrics
- * inconsistently between browsers and blurs the 1px hairlines the panels wear.
- * Each step is >=12% from its neighbour, which is the smallest difference that
- * reads as deliberate rather than as a rendering accident.
+ * inconsistently between browsers and blurs the 1px hairlines of the panels.
+ * Each step is at least 12% from its neighbour, the smallest difference that
+ * looks deliberate.
  *
  * Height is in every query because the scarce axis on an ultrawide (3840x1080,
  * or any half-screen split) is vertical: growing the chrome there would push the
  * palette off the bottom of the window.
  *
- * 1.0 is the FLOOR. Small screens get a layout answer (below), never smaller
- * text -- 13px inspector labels is not "responsive", it is unreadable.
+ * 1.0 is the floor. A small screen gets a layout change (below), never smaller text.
  */
 :root { --ui-scale: 1; }
 
@@ -191,18 +152,15 @@ body.resizing-inspector * {
 html { font-size: calc(16px * var(--ui-scale)); }
 
 /*
- * Top-chrome gutters, and the navbar centring that falls out of them.
+ * Top-chrome gutters, and the navbar centring derived from them.
  *
  * The brand (left) and the inspector (right) are both `position: fixed`, so the
- * navbar has to centre itself in what is LEFT between them. It used to do that
- * with four hand-tuned offsets keyed to a 288px inspector
- * (`50% - 72px - (var(--inspector-width) - 288px)/2`), which drifted the moment
- * the panel was dragged, the wordmark wrapped, or the scale changed. One
- * `calc()` off two gutters is correct at every size, by construction.
+ * navbar centres itself in the space between them: one `calc()` over two gutters,
+ * which holds when the panel is dragged, the wordmark wraps or the scale changes.
  *
  * They live on `body`, not `:root`: a custom property is substituted against the
- * element it is declared on, and `--inspector-gutter` is what `body` carries the
- * collapsed/expanded state in.
+ * element it is declared on, and `--inspector-gutter` is where `body` carries the
+ * collapsed/expanded state.
  */
 :root {
   --brand-gutter: 3.75rem;  /* logo only */
@@ -222,7 +180,7 @@ body {
 /*
  * Expanded, on a screen wide enough to sit beside the canvas. Below 900px there
  * is no arrangement where a full inspector, a palette and a usable canvas all
- * fit side by side -- so the canvas wins and the panel floats over it, the way
+ * fit side by side, so the canvas wins and the panel floats over it, the way
  * it already does on a tablet. (`Panel` opens collapsed there for the same
  * reason; this rule is what keeps the navbar centred if it is reopened.)
  */

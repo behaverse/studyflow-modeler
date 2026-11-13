@@ -27,7 +27,7 @@ function targetFormat(path: string): TargetFormat {
 /** A print size, as a TIFF declares one. */
 type PrintSize = { dpi: number; mmPerUnit?: number };
 
-/** What a unit of the diagram is on paper unless `--mm-per-unit` says otherwise: the modeler's own default. */
+/** The size of a diagram unit on paper, in mm, unless `--mm-per-unit` says otherwise: the modeler's own default. */
 const MM_PER_UNIT = 0.2;
 const DPI = 300;
 
@@ -39,7 +39,7 @@ export type ConvertOptions = {
   origin?: string;
   /** For a TIFF target: its print size in dots per inch; a PNG's own when re-encoding one, else 300, unless given. */
   dpi?: number;
-  /** For a TIFF the modeler draws: what a unit of the diagram is on paper, in mm (0.2 unless given). */
+  /** For a TIFF the modeler draws: the size of a diagram unit on paper, in mm (0.2 unless given). */
   mmPerUnit?: number;
   /** Write nothing when reading the input raised a warning. */
   strict?: boolean;

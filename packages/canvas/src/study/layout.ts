@@ -40,12 +40,12 @@ const GROUP_PAD = 20;
 /** Room above an open sub-process's contents, for its name; how low a lane or pool with nothing in it is. */
 const HEADER = 20;
 const EMPTY_BAND = 120;
-/** How wide the rows are that what no flow joins stands in, when it had no arrangement of its own. */
+/** The width of the rows for shapes no flow joins, when they had no arrangement of their own. */
 const KEPT_ROW = 800;
 
 type Container = SceneNode | RootElement;
 
-/** How far what goes with a shape (what sits on it, its caption and theirs) reaches past each side of its box. */
+/** How far the things that go with a shape (what sits on it, its caption and theirs) reach past each side of its box. */
 interface Reach {
   left: number;
   top: number;
@@ -65,12 +65,12 @@ interface Band {
 interface Flow {
   next: Map<SceneNode, SceneNode[]>;
   prev: Map<SceneNode, SceneNode[]>;
-  /** What a shape leads to or sends a message to, and the other way round. */
+  /** The shapes a shape leads to or sends a message to, and the other way round. */
   after: Map<SceneNode, SceneNode[]>;
   before: Map<SceneNode, SceneNode[]>;
 }
 
-/** What containers hold, laid out: the room it takes, and where it goes once its corner is known. */
+/** The contents of containers, laid out: the room they take, and where they go once their corner is known. */
 interface Laid {
   width: number;
   height: number;
@@ -277,7 +277,7 @@ function layoutFlow(holders: readonly Container[], reach: (node: SceneNode) => R
           setBox(node, { x: left + m.dataAt[i] + node.x - room.x, y: below + node.y - room.y, width: node.width, height: node.height });
         }
         if (m.dataRow.length > 0) below += m.dataHeight + GAP_Y;
-        // What no flow joins keeps its own arrangement, under the rest.
+        // Shapes no flow joins keep their own arrangement, under the rest.
         for (const node of m.keep) {
           const at = m.keptBox!.at.get(node)!;
           const box = { x: left + at.x, y: below + at.y, ...sizeOf(node) };
@@ -572,7 +572,7 @@ function firstOf(node: SceneNode, flow: Flow): number {
   return source ? flow.next.get(source)!.indexOf(node) : 0;
 }
 
-/** What follows the flow: a boundary event its activity, a note what it annotates, a group the shapes it held. */
+/** The shapes that follow the flow's layout: a boundary event follows its activity, a note what it annotates, a group the shapes it held. */
 function follow(scene: Scene, nodes: readonly SceneNode[], before: ReadonlyMap<SceneNode, Bounds>, reach: (node: SceneNode) => Reach): void {
   for (const node of nodes) {
     const host = hostOf(scene, node);
@@ -593,7 +593,7 @@ function follow(scene: Scene, nodes: readonly SceneNode[], before: ReadonlyMap<S
   }
   for (const group of nodes.filter((node) => node.type === 'bpmn:Group')) {
     const was = before.get(group)!;
-    // What it held: what stood inside it, and what its category names.
+    // The shapes it held: those that stood inside it, and those its category names.
     const [value] = idsIn(group.element.categoryValueRef);
     const named = (node: SceneNode): boolean => !!value && idsIn(node.element.categoryValueRef).includes(value);
     const members = nodes.filter((node) => node.type !== 'bpmn:Group' && !isLane(node) && !isPool(node) && (inside(was, centerOf(before.get(node)!)) || named(node)));
@@ -676,7 +676,7 @@ function dataShapes(container: Container): SceneNode[] {
   return holdings(container).filter((child) => isDataShape(child.type));
 }
 
-/** What sits on the container's activities, its lanes' included. */
+/** The boundary events on the container's activities, its lanes' included. */
 function boundaryEvents(container: Container): SceneNode[] {
   return holdings(container).filter((child) => !!child.element.attachedToRef);
 }

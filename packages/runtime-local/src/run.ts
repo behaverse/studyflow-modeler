@@ -1,7 +1,7 @@
 /**
  * The local runtime: it hosts the walk (packages/core/src/engine) on this machine. It never executes an element
  * itself: each skill's `runtimes.local` command is started once, asked for its claims and then handed one element at
- * a time (SKILL.md, beside this folder, is that contract). What a run leaves is a run directory, `--repo DIR` or else
+ * a time (CONTRACT.md, beside this folder, is that contract). A run leaves a run directory, `--repo DIR` or else
  * `~/.studyflow/runs/<id>/` (YYMMDD plus a codename, `260821heron/`), or the one the study handed to it already
  * lives in: the artifacts the `uri`s name, a copy of the study stamped `executed` (of a `.studyflow.yaml`, the file's
  * own text with the run's state and records added), `studyflow.log` and the journal,
@@ -36,7 +36,7 @@ export type LocalRun = {
   sdk?: string;
   /** The protocol's digest (core's `protocolDigest`), recorded as the run's `plan`. */
   digest: string;
-  /** What the run record names as the tool that ran it. */
+  /** The tool name the run record gives for what ran it. */
   tool: string;
   /** Who ran it, `Name <email>` or a name alone: its commits and its record name them. Without one they name no one. */
   author?: string;
@@ -262,7 +262,7 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   const taking = new Set([...claimed.values()].map(({ runner }) => runner));
   await Promise.all(runners.filter((runner) => !taking.has(runner)).map((runner) => runner.shutdown()));
 
-  // What the study at a commit drew, by element, read once per commit.
+  // The study's drawing at a commit, by element, read once per commit.
   const studies = new Map<string, Map<string, string> | undefined>();
   const drawnAt = (commit: string, id: string): string | undefined | null => {
     if (!studies.has(commit)) studies.set(commit, undefined);
@@ -394,7 +394,7 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   // commit of its own: its record points at where the run had reached by the end.
   const commits = repo.executedSince(begun);
   const commitOf = (id: string): string | undefined => commits.get(id) || head;
-  // What the study keeps of the run is read off its record: the state it leaves, and each element's record.
+  // The study's account of the run is read off its record: the state it leaves, and each element's record.
   const { executed, decided, created, imported, reused } = recordOf(events);
   const stamps: [id: string, action: string, extra: Stamp][] = [
     ...[...executed.keys()].sort().map((id): [string, string, Stamp] => [id, 'executed', { commit: commitOf(id) }]),

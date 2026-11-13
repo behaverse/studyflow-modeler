@@ -179,7 +179,7 @@ test.describe('Studyflow runtime nodes', () => {
     const invalid = page.getByTestId('runner-invalid');
     // The link is the first thing to fix: the study leaves `task` to it.
     await expect(invalid).toContainText('This study cannot run');
-    await expect(invalid.getByRole('listitem')).toHaveText([/^This studyflow expects task to be set.*Add it to the address, e\.g\. &task=/]);
+    await expect(invalid.getByRole('listitem')).toHaveText([/^This study expects task to be set.*Add it to the address, e\.g\. &task=/]);
     await expect(page.getByRole('heading', { name: 'Welcome' })).toBeHidden();
 
     // `runStudyflow` stages the hand-off again on every navigation.

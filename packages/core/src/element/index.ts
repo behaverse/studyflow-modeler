@@ -1,4 +1,4 @@
-/** What an element of a type is, by its type's name: the data associations, an event's definition, a schema's defaults and attributes. */
+/** Facts about an element that follow from its type's name: the data associations, an event's definition, a schema's defaults and attributes. */
 import type { Element } from '@core/model/index';
 import { getCatalog } from '@core/notation';
 

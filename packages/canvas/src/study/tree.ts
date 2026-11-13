@@ -112,7 +112,7 @@ export function planeOf(element: SceneElement): SceneNode | undefined {
   return undefined;
 }
 
-/** The shape actually on screen for an edge end: the outermost collapsed ancestor, if any. */
+/** The shape on screen for an edge end: the outermost collapsed ancestor, if any. */
 export function visibleEndpointOf(node: SceneNode, scope?: SceneNode): SceneNode {
   let visible = node;
   for (let p = node.parent; p && p !== scope; p = p.parent) {

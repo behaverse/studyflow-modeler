@@ -3,11 +3,11 @@ import { expect, test } from '@playwright/test';
 import { gotoModeler, runPaletteCommand } from './utils';
 
 /**
- * WebKit will not render a CSS mask inside an SVG `<foreignObject>` — the box lays out, a plain
- * background paints, and the glyph never appears. Iconify's classes paint with exactly that mask,
- * so every icon on the canvas vanished in Safari while Chromium showed them all.
+ * WebKit will not render a CSS mask inside an SVG `<foreignObject>`: the box lays out, a plain
+ * background paints, and the glyph never appears. Iconify's classes paint with that mask, so an
+ * icon drawn that way vanishes in Safari while Chromium shows it.
  *
- * The canvas now reads every class's glyph out of the stylesheet and draws it as a real nested
+ * The canvas reads every class's glyph out of the stylesheet and draws it as a nested
  * `<svg>` (`render/icons.ts`), which WebKit has no trouble with; only a class the stylesheet does
  * not know is left as a `foreignObject`, and that one paints nothing anywhere. This test holds that
  * line in the engine that cares.

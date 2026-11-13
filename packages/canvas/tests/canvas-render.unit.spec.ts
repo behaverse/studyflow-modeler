@@ -96,7 +96,7 @@ for (const name of exampleNames) {
       expect(line, `${name}: edge ${id} draws a connection path`).toBeTruthy();
       const waypoints = waypointsOf(drawing)!;
       expect(line!.getAttribute('data-waypoints')).toBe(waypoints.map((wp) => `${wp.x},${wp.y}`).join(' '));
-      // The drawn geometry still STARTS at the first waypoint, whatever the
+      // The drawn geometry still starts at the first waypoint, whatever the
       // corners in between do (arcs are cut out of a corner, never added around it).
       const first = waypoints[0];
       expect(pathStart(line!.getAttribute('d')!), `${name}: edge ${id} starts at its first waypoint`).toEqual({ x: first.x, y: first.y });
@@ -126,7 +126,7 @@ function textAt(canvas: Canvas, id: string, content: string): SVGTextElement {
 
 test('a group is captioned from its categoryValue, centred across the frame', async () => {
   const canvas = await render('kitchensink');
-  // The caption is NOT the group's `name` (it has none): BPMN keeps it on the
+  // The caption is not the group's `name` (it has none): BPMN keeps it on the
   // referenced `bpmn:CategoryValue`.
   for (const id of ['Group_BpmnEvents', 'Group_BpmnGateways', 'Group_Exec']) {
     const { model } = canvas.study;
@@ -148,7 +148,7 @@ test('a text annotation draws its `text`, wrapped — not its `name`', async () 
   const note = node(canvas, 'Bd_Annotation').element;
   expect(lines.length).toBeGreaterThan(1);
   // The text, the whole text, and nothing else: a `name` is a placeholder BPMN does
-  // not display, and drawing it was the bug.
+  // not display, so it is not drawn.
   expect(lines.join(' ')).toBe(note.text);
   // A note reads left by default, and says so: its `font` may align it otherwise.
   expect(graphicsOf(canvas, 'Bd_Annotation')!.querySelector('text')!.getAttribute('text-anchor')).toBe('start');
@@ -185,10 +185,10 @@ test('a wrapped name never runs into the marker row of a task that draws a marke
 });
 
 /**
- * Every type the rules call a data shape must also DRAW as one. `bpmn:DataStore`
- * was in the rules' set (so associations could be drawn to it) but not the
- * renderer's, so it fell through to the unknown-vocabulary rect — and the cropper's
- * data-store branch, which lives under the `'data'` category, was unreachable.
+ * Every type the rules call a data shape must also draw as one. `bpmn:DataStore`
+ * is in the rules' set (so associations can be drawn to it); left out of the
+ * renderer's, it would fall through to the unknown-vocabulary rect, and the cropper's
+ * data-store branch, which lives under the `'data'` category, would be unreachable.
  */
 const DATA_YAML = `id: Defs_Data
 definitions:
@@ -218,10 +218,10 @@ test('a bare bpmn:DataStore draws as a cylinder, like a data store REFERENCE', a
   // A cylinder: the body path opens with the lid's elliptical arc.
   expect(pathOf('Store_1')).toContain('A');
   expect(pathOf('Store_1')).toBe(pathOf('StoreRef_1'));
-  // …and it is NOT the unknown-vocabulary fallback, which is a rounded <rect>.
+  // …and it is not the unknown-vocabulary fallback, which is a rounded <rect>.
   expect(graphicsOf(canvas, 'Store_1')!.querySelector('rect')).toBeNull();
 
-  // A data OBJECT still draws as the dog-eared page (no arcs at all).
+  // A data object still draws as the dog-eared page (no arcs at all).
   expect(pathOf('ObjRef_1')).not.toContain('A');
 });
 
@@ -231,11 +231,11 @@ test('a choreography task draws its name in the MIDDLE band, and shades the band
   const g = graphicsOf(canvas, 'Consent')!;
   const name = Array.from(g.querySelectorAll('text')).find((t) => t.textContent === 'Give consent')!;
   // The name is drawn inside a nested group translated down by one band height, so
-  // its EFFECTIVE y is the local y plus that shift.
+  // its effective y is the local y plus that shift.
   const shift = translateOf(name.parentElement as Element).y;
   expect(shift).toBeCloseTo(choreographyBandHeight(task.height), 6);
-  // Dead centre of the 20…70 middle band — where `labelBounds` opens the editor —
-  // rather than sitting on the top divider, which is where the un-nested draw put it.
+  // Dead centre of the 20…70 middle band, where `labelBounds` opens the editor,
+  // rather than sitting on the top divider, where an un-nested draw would put it.
   expect(shift + Number(name.getAttribute('y'))).toBeCloseTo(task.height / 2, 6);
 
   // The initiating participant's band has the task's plain fill; the other is shaded.
@@ -303,8 +303,8 @@ test('a routed edge renders as a path whose corners are quarter-arcs', async () 
 
   const line = graphicsOf(canvas, 'Flow_1')!.querySelector('path.sf-connection-line')!;
   const d = line.getAttribute('d')!;
-  // One arc per corner, cut out of the waypoints rather than added around them —
-  // the raw list is still on the element for anything that reads geometry.
+  // One arc per corner, cut out of the waypoints rather than added around them.
+  // The raw list is still on the element for anything that reads geometry.
   expect(d.startsWith('M ')).toBe(true);
   expect((d.match(/ A /g) ?? []).length).toBe(flow1.waypoints.length - 2);
   expect(line.getAttribute('data-waypoints'))
@@ -375,8 +375,8 @@ test('the flatter run jumps over the steeper edge it crosses, on either side of 
 });
 
 /**
- * Two pools and the message flow between them — no shipped example carries one, and
- * BPMN gives it a notation of its own: "a dashed line with an OPEN CIRCLE at the
+ * Two pools and the message flow between them. No shipped example carries one, and
+ * BPMN gives it a notation of its own: "a dashed line with an open circle at the
  * start and an open arrowhead at the end". The circle is what tells it apart from an
  * association, which is dashed too.
  */
@@ -416,6 +416,48 @@ Process_B:
       name: B
       bounds: 200 335 100 80
 `;
+
+/** A task with three boundary events: one that ends it, one that leaves it running, and an error event that says
+ * it leaves the task running and ends it all the same. */
+const BOUNDARY_YAML = `id: Defs_Boundary
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_1:
+  type: Process
+  flowElements:
+    Task_1:
+      type: Task
+      name: Play
+      bounds: 200 100 300 80
+    Ends:
+      type: BoundaryEvent
+      attachedToRef: Task_1
+      eventDefinitions:
+        - type: TimerEventDefinition
+      bounds: 232 162 36 36
+    Beside:
+      type: BoundaryEvent
+      attachedToRef: Task_1
+      cancelActivity: false
+      eventDefinitions:
+        - type: TimerEventDefinition
+      bounds: 332 162 36 36
+    Fails:
+      type: BoundaryEvent
+      attachedToRef: Task_1
+      cancelActivity: false
+      eventDefinitions:
+        - type: ErrorEventDefinition
+      bounds: 432 162 36 36
+`;
+
+test('a boundary event is drawn with dashed rings only when it leaves its activity running', async () => {
+  const { canvas } = loadYaml(BOUNDARY_YAML);
+  const rings = (id: string): (string | null)[] => Array.from(graphicsOf(canvas, id)!.querySelectorAll('circle'))
+    .map((ring) => ring.getAttribute('stroke-dasharray'));
+  // BPMN draws an interrupting event with solid rings, and an error event always ends its activity.
+  expect([rings('Ends'), rings('Beside'), rings('Fails')]).toEqual([[null, null], ['4,3', '4,3'], [null, null]]);
+});
 
 test('a message flow is dashed AND starts with the open circle BPMN gives it', async () => {
   const { canvas } = loadYaml(MESSAGE_YAML);
@@ -677,7 +719,7 @@ test('a picture draws what a view shows: an expanded container\'s contents, a co
 /** A resolver that answers every marker key, so markers draw as real SVG. */
 const ICONS = { iconResolver: () => ({ content: '<path d="M0 0h24v24H0z"/>', viewBox: '0 0 24 24' }) };
 
-/** A pool of four subjects, its process divided into lanes inside an expanded sub-process — both BPMN's own. */
+/** A pool of four subjects, its process divided into lanes inside an expanded sub-process, both BPMN's own. */
 const DIVIDED_YAML = `id: Defs_Divided
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
@@ -736,7 +778,7 @@ test('a sub-process divided into lanes draws them inside its frame, as a pool dr
   expect(node(canvas, 'S0').parent).toBe(node(canvas, 'Lane_Screen'));
 
   // A sub-process captions its top strip, not a title band, so its own multi-instance marker has nowhere
-  // else to go and stays in the foot row — where its filled bottom lane must still stop above it.
+  // else to go and stays in the foot row, where its filled bottom lane must still stop above it.
   const mi = loadYaml(DIVIDED_YAML
     .replace('      name: Session\n', '      name: Session\n      loopCharacteristics:\n        type: MultiInstanceLoopCharacteristics\n        isSequential: false\n')
     .replace('              name: Model\n', '              name: Model\n              fill: "#e8eef5"\n'), ICONS).canvas;
@@ -781,8 +823,8 @@ const BARE_POOL_YAML = MARKED_POOL_YAML.replace(/  laneSets:[\s\S]*?  flowElemen
 
 test('a pool of several participant instances marks them at the foot of its title band, not under its lanes', async () => {
   // BPMN's participant multiplicity: N instances of the pool's process, marked as a parallel multi-instance
-  // activity is. At the pool's bottom centre that marker sits immediately under the bottom lane and reads as
-  // that lane's — and a filled lane, painted after the pool it divides, covered it outright. The title band
+  // activity is. At the pool's bottom centre that marker would sit immediately under the bottom lane and read as
+  // that lane's, and a filled lane, painted after the pool it divides, would cover it outright. The title band
   // is the pool's own and no lane reaches into it, so the marker goes at its foot, upright, under the name.
   const { canvas } = loadYaml(MARKED_POOL_YAML, ICONS);
   const pool = node(canvas, 'Pool_Subjects');

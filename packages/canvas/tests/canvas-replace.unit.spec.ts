@@ -9,15 +9,15 @@ import type { Element } from '@core/model/index';
 import { edge, loadCanvas, loadYaml, node, rulesOf, sceneOf, xmlOf, type Loaded } from './canvasHarness';
 
 /**
- * Retyping an element in place — the context pad's wrench, "Change element",
+ * Retyping an element in place: the context pad's wrench, "Change element",
  * `study.replace`.
  *
  * There is no rewriting a moddle object's `$type`, so a replace is a create, a
  * rewire and a delete pretending to be one edit. What has to be true afterwards is
  * therefore all document-level, and all of it is asserted here through `toXML`
- * rather than off the scene alone: the old business object is GONE from the process
+ * rather than off the scene alone: the old business object is gone from the process
  * and from the plane, the new one is filed in its place, every flow that reached the
- * old one now names the new one on BOTH sides of the reference (`sourceRef`/
+ * old one now names the new one on both sides of the reference (`sourceRef`/
  * `targetRef` and the `incoming`/`outgoing` back-references bpmn-moddle serializes),
  * and the whole thing re-imports.
  */
@@ -77,13 +77,13 @@ test('replacing a task mints the new type, keeps the name and rewires both flows
 
   const xml = await xmlOf(loaded);
 
-  // The old element is gone from the document, not merely from the scene.
+  // The old element is gone from the document as well as the scene.
   expect(xml).not.toContain('id="Task_1"');
   expect(xml).not.toContain('bpmnElement="Task_1"');
   // …and the new one is filed in the process with the name carried across.
   expect(xml).toMatch(/<bpmn:userTask\b[^>]*\bname="Read the brief"/);
 
-  // Both flows name the replacement on the reference AND on the back-reference.
+  // Both flows name the replacement on the reference and on the back-reference.
   const id = replacement!.id;
   expect(xml).toMatch(new RegExp(`<bpmn:userTask\\b[^>]*\\bid="${id}"`));
   /** The opening tag of the element `elementId` names. */
@@ -96,7 +96,7 @@ test('replacing a task mints the new type, keeps the name and rewires both flows
   // The DI followed: one shape for the replacement, none for what it replaced.
   expect(xml).toMatch(new RegExp(`<bpmndi:BPMNShape[^>]*bpmnElement="${id}"`));
 
-  // And the whole thing re-imports — the strongest statement that nothing was left
+  // And the whole thing re-imports, the strongest statement that nothing was left
   // dangling (a flow pointing at an unfiled business object throws here).
   expect((await loadCanvas(xml)).canvas.study.get(id)).toBeTruthy();
 });

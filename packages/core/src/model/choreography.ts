@@ -1,8 +1,8 @@
 /**
  * A choreography task's bands, read off the study model: who is on top, who is below, and which of them starts the
- * exchange. A plain task names two participants; a typed one (a cognitive task) presents itself on top, its one
- * participant the actor below. Who takes the bands, and the kind of actor each is; and another tool's choreography,
- * read as the process a study is.
+ * exchange. A plain task names two participants; a typed one (a cognitive task) presents itself on top, with its one
+ * participant as the actor below. This module also sets who takes the bands and what kind of actor each is, and reads
+ * another tool's choreography as the process a study is.
  */
 import { idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
 import { getCatalog } from '@core/notation';
@@ -33,10 +33,10 @@ export function actorIn(model: StudyModel, task: Element): Element | undefined {
 }
 
 /**
- * What presents a typed task: its type's `meta.presenter`, a template naming its attributes in angle brackets
- * (`Behaverse - <instrument>`, `<platform>`; braces are a run's placeholders), as the Parameters wired into the task
- * set them, else as written. A type that declares none, or a template that comes out empty, presents as the study's
- * software.
+ * The presenter of a typed task: its type's `meta.presenter`, a template naming its attributes in angle brackets
+ * (`Behaverse - <instrument>`, `<platform>`; braces are a run's placeholders), filled with the values the Parameters
+ * wired into the task set, else the values as written. A type that declares none, or a template that comes out
+ * empty, presents as the study's software.
  */
 export function presenterIn(model: StudyModel, task: Element): string {
   const type = model.extensionType(task);
@@ -126,12 +126,13 @@ export function ensureParticipantsIn(model: StudyModel, task: Element, ids: Ids)
   return [top, bottom];
 }
 
-/** What a choreography root holds that is its own kind's: none of it travels when it is read as a process. */
+/** The keys of a choreography root that belong to its own kind; none of them carries over when it is read as a process. */
 const CHOREOGRAPHY_OWN = new Set(['type', 'id', 'participants', 'messageFlows', 'isExecutable']);
 
 /**
- * A `bpmn:Choreography` root, from another tool's file, read as the process a study is: its choreography tasks are
- * exchanges in a process, their participants held by a collaboration with no pool. Whether there was one to read.
+ * Reads a `bpmn:Choreography` root, from another tool's file, as the process a study is: its choreography tasks
+ * become exchanges in a process, their participants held by a collaboration with no pool. Returns whether there was
+ * one to read.
  */
 export function choreographyToProcessIn(model: StudyModel): boolean {
   const { roots } = model.study;
@@ -163,8 +164,8 @@ export function choreographyToProcessIn(model: StudyModel): boolean {
   return true;
 }
 
-/** A plane naming a collaboration with no pool draws the process's flow: it names the root the study is. Whether it
- * named one. */
+/** A plane naming a collaboration with no pool draws the process's flow, so it is made to name the root the study
+ * is. Returns whether a plane named one. */
 export function headlessPlaneToProcessIn(model: StudyModel): boolean {
   const diagram = model.study.diagram?.[0];
   const plane = isMapping(diagram) && isMapping(diagram.plane) ? diagram.plane : undefined;
@@ -249,7 +250,7 @@ export function listParticipants(model: StudyModel): Element[] {
     .flatMap((holder) => (Array.isArray(holder.participants) ? holder.participants.filter(isElement) : []));
 }
 
-/** What types a participant: itself, when a schema types it, and the entries it carries. */
+/** The elements that type a participant: itself, when a schema types it, and the entries it carries. */
 const typingsOf = (model: StudyModel, participant: Element): Element[] =>
   [...(model.host(participant) !== participant.type ? [participant] : []), ...model.entries(participant)];
 
@@ -323,9 +324,9 @@ export function selectBandParticipant(model: StudyModel, task: Element, ids: Ids
 export type BandChange = { participant: string } | { name: string } | null;
 
 /**
- * Who takes a choreography task's bands, and how: each band given, the participant on it; `initiator`, which band
- * starts the exchange; `kinds`, what kind of actor the participant on a band is (a kind's id, or `''` for none).
- * The participants the task lacks are minted, and one that took only this task's band and takes none any more goes.
+ * Sets who takes a choreography task's bands: for each band given, the participant on it; `initiator`, the band that
+ * starts the exchange; `kinds`, the kind of actor the participant on a band is (a kind's id, or `''` for none). The
+ * participants the task lacks are minted, and one that took only this task's band and now takes none is dropped.
  * Throws when a participant or a kind it names does not exist.
  */
 export function setBandsIn(model: StudyModel, task: Element, ids: Ids, change: { top?: BandChange; bottom?: BandChange; initiator?: 'top' | 'bottom'; kinds?: { top?: string; bottom?: string } }): void {

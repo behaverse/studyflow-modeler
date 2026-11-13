@@ -3,8 +3,8 @@
  * spliced in. A run adds two things to a study, its state (`state:`, which it writes whole) and each element's
  * `prov:Activity` records (its list of them, where a re-run may replace one), so a line diff of the registered file and
  * its executed copy shows those additions alone, and the file's comments, folded text and short forms stay as they were
- * written. What is added is written as the writer writes it ({@link documentText}). The `yaml` package's parser is used
- * here for the one thing js-yaml does not give, which is where in the text each node is. What the text says is still
+ * written. The additions are written as the writer writes them ({@link documentText}). The `yaml` package's parser is used
+ * here for the one thing js-yaml does not give, which is where in the text each node is. The text itself is still
  * read by js-yaml, the study's own reader, and the copy is kept only when it reads back as the study the run left.
  */
 import { isMap, isScalar, isSeq, parseDocument, type Document, type Node, type Pair, type Scalar, type YAMLMap, type YAMLSeq } from 'yaml';
@@ -28,7 +28,7 @@ type Edit = { start: number; end: number; text: string };
 /** An element's mapping in the text, and the id it is written under when its list is keyed by id. */
 type Found = { map: YAMLMap; key?: Scalar };
 
-/** What a run changed in an element's entries: the records it took out, by their place among the element's records,
+/** A run's change to an element's entries: the records it took out, by their place among the element's records,
  * and the entries it added after the rest, all of them records. */
 type Change = { dropped: number[]; added: Element[] };
 
@@ -49,10 +49,10 @@ const lineAfter = (text: string, offset: number): number => (offset === 0 || tex
 const columnOf = (text: string, offset: number): number => offset - lineStart(text, offset);
 /** `block`, YAML text, moved `column` spaces to the right; its empty lines stay empty. */
 const indented = (block: string, column: number): string => block.replace(/^(?=.)/gm, ' '.repeat(column));
-/** What `value` is written as under `key`: its lines, at column 0. */
+/** The text `value` is written as under `key`: its lines, at column 0. */
 const heldText = (key: string, value: unknown): string => documentText({ [key]: value }).replace(/^.*\n/, '').replace(/^ {2}/gm, '');
 
-/** A `.studyflow.yaml` text read as `parseStudy` reads one; what the reader says about it was said when the run read it. */
+/** A `.studyflow.yaml` text read as `parseStudy` reads one. The reader's warnings are dropped: the run reported them when it read the text. */
 function studyOf(text: string, metamodel: Metamodel): StudyModel {
   const model = new StudyModel(readStudy(text, metamodel, () => {}), metamodel);
   choreographyToProcessIn(model);
@@ -105,8 +105,8 @@ export function executedText(source: string, executed: StudyModel): string | und
   }
 }
 
-/** How a run changed an element's entries, from `before` to `after`; undefined when it is no change a run makes, which
- * takes records out and adds records after the rest. */
+/** The change a run made to an element's entries, from `before` to `after`. Undefined when it is not a change a run
+ * makes: a run only takes records out and adds records after the rest. */
 function changeIn(before: Value[], after: Value[]): Change | undefined {
   const dropped: number[] = [];
   let kept = 0;

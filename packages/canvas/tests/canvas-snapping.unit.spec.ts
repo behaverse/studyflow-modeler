@@ -19,7 +19,7 @@ import { boundsOf, loadYaml, node, pointerDown, pointerMove, pointerUp, savedDra
 /**
  * Two shapes far enough apart that a drag between them is unambiguous, and an end
  * event whose centre sits at (418, 123), off the 10-unit grid on `y`: a shape pulled
- * onto that centre shows alignment beat the grid rather than merely agreeing with it.
+ * onto that centre shows alignment beat the grid rather than agreeing with it.
  */
 const FIXTURE_YAML = `id: Defs_1
 definitions:
@@ -60,7 +60,7 @@ test('a move aligns each axis with a neighbour\'s centre within 7 units, else la
     expect({ x: task.x, y: task.y }, label).toEqual(landed);
     expect(guides(canvas), label).toEqual(drawn);
 
-    // What was on screen is what is committed, DI included, and the guides go with the gesture.
+    // The commit is what was on screen, DI included, and the guides go with the gesture.
     pointerUp(canvas, to);
     expect(boundsOf(savedDrawing(loaded, 'Task_1')), label).toMatchObject(landed);
     expect(guides(canvas), label).toEqual([]);

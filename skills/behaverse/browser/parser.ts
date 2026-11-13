@@ -117,6 +117,12 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
   return payload;
 }
 
+/** Whether the task's screen itself plays who takes it: a model, which it asks at each trial, or the build's bot. A
+ * page then carries the exchange a band naming that pool stands for (packages/runtime-browser/src/nodes/README.md). */
+export function playsBand(node: FlowNode): boolean {
+  return getBehaverseTaskPayload(node)?.agentType === 'bot';
+}
+
 type Actor = { kind: string; model: string };
 
 /** Who takes the task, from what the diagram draws, most explicit first: the task's receiving band; else the
@@ -167,7 +173,7 @@ function poolsOf(model: StudyModel, element: Element): Element[] {
 const TRIAL = 'cognitive:Trial';
 const RESPONSE = 'cognitive:Response';
 
-/** What a message flow carries: its message's item definition (`structureRef`), '' when it names none. */
+/** The structure a message flow carries: its message's item definition (`structureRef`), '' when it names none. */
 function messageStructureOf(model: StudyModel, flow: Element): string {
   const message = model.get(idOf(flow.messageRef) ?? undefined);
   return String(model.get(idOf(message?.itemRef) ?? undefined)?.structureRef ?? '');
@@ -203,17 +209,28 @@ function messagePartnersOf(model: StudyModel, element: Element): Element[] {
   return partners;
 }
 
-/** The `agentic:Prompt` data object wired into the task, as its template text. */
-export function promptOf(model: StudyModel, task: Element): string {
+/** The `agentic:Prompt` data object wired into the task. */
+function promptIn(model: StudyModel, task: Element): Element | undefined {
   for (const association of listIn(task.dataInputAssociations).filter(isElement)) {
     for (const ref of listIn(association.sourceRef)) {
       const source = model.get(idOf(ref) ?? undefined);
-      if (source && [source, ...model.entries(source)].some((typed) => typed.type.toLowerCase() === 'agentic:prompt')) {
-        return String(model.attributeOrDefault(source, 'template') ?? '');
-      }
+      if (source && [source, ...model.entries(source)].some((typed) => typed.type.toLowerCase() === 'agentic:prompt')) return source;
     }
   }
-  return '';
+  return undefined;
+}
+
+/** The `agentic:Prompt` data object wired into the task, as its template text. */
+export function promptOf(model: StudyModel, task: Element): string {
+  const prompt = promptIn(model, task);
+  return prompt ? String(model.attributeOrDefault(prompt, 'template') ?? '') : '';
+}
+
+/** The data objects wired into the task that its screen reads itself, beside its Parameters: the Prompt, which a model
+ * taking the task is told (packages/runtime-browser/src/nodes/README.md). */
+export function readsOf(node: FlowNode): string[] {
+  const prompt = actorOf(node.model, node.element).kind === 'llm' ? promptIn(node.model, node.element) : undefined;
+  return prompt?.id ? [prompt.id] : [];
 }
 
 /** `claude://<model>` or `ollama://<model>`, as the actor's `implementation` writes it; there is no default. */

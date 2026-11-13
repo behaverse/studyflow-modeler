@@ -64,6 +64,8 @@ test('a jspsych:// step plays its plugin with the Parameters wired into it, and 
   await expect(page.getByRole('heading', { name: /complete/i })).toBeVisible();
 
   await page.getByRole('button', { name: /logs/i }).click();
+  // Its Parameters are bound before the walk and its result is written along its data output, so neither is warned of.
+  await expect(page.getByText(/reads or writes data/)).toHaveCount(0);
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: /download the run's record/i }).click();
   const events: { event: string; name?: string; value?: { response: string; stimulus: string }[] }[] = fs.readFileSync(await (await download).path(), 'utf8').trim().split('\n').map((line) => JSON.parse(line));

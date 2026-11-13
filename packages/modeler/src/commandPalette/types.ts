@@ -4,7 +4,7 @@ export type PaletteCommand = {
   label: string;
   icon: string;
   hint?: string;
-  /** Extra search terms, for a command whose label no longer holds the word people look for. */
+  /** Extra search terms, for a command whose label lacks the word people look for. */
   keywords?: string;
   /** Fires only while the search box is empty; see `CommandPalette`'s key handler. */
   shortcut?: string;

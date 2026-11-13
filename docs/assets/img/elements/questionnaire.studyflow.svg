@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="sf-canvas" viewBox="-4 -4 128 88" width="128" height="88"><metadata><bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:prov="https://w3id.org/studyflow/prov" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="element_questionnaire" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Element" name="questionnaire">
+    <bpmn:extensionElements>
+      <studyflow:study/>
+      <prov:activity action="created" when="2026-11-13T23:55:20+01:00" with="studyflow-modeler/26.11.5"/>
+    </bpmn:extensionElements>
+    <bpmn:task id="Questionnaire" name="Questionnaire" studyflow:exchange="true">
+      <bpmn:extensionElements>
+        <cognitive:questionnaire instrument="phq-9"/>
+      </bpmn:extensionElements>
+    </bpmn:task>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Element">
+      <bpmndi:BPMNShape id="Questionnaire_di" bpmnElement="Questionnaire">
+        <dc:Bounds x="0" y="0" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions></metadata><defs><marker id="sf-arrow-sequence" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="context-stroke" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-arrow-message" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="none" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-arrow-open" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="none" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-marker-default" markerWidth="10" markerHeight="10" refX="0" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M3,2 L7,8" fill="none" stroke="context-stroke" stroke-width="1.5"/></marker><marker id="sf-marker-message-start" markerWidth="10" markerHeight="10" refX="1.5" refY="5" orient="auto" markerUnits="userSpaceOnUse"><circle cx="5" cy="5" r="3" fill="#ffffff" stroke="context-stroke" stroke-width="1"/></marker></defs><g data-layer="elements"><g class="sf-shape" data-element-id="Questionnaire" data-element-type="bpmn:ChoreographyTask"><rect x="0" y="0" width="120" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><svg x="3" y="3" width="24" height="24" class="sf-icon" viewBox="0 0 256 256" stroke="none" color="#78716c" data-icon-key="ChoreographyTask"><path fill="#78716c" d="M168 152a8 8 0 0 1-8 8H96a8 8 0 0 1 0-16h64a8 8 0 0 1 8 8m-8-40H96a8 8 0 0 0 0 16h64a8 8 0 0 0 0-16m56-64v168a16 16 0 0 1-16 16H56a16 16 0 0 1-16-16V48a16 16 0 0 1 16-16h36.26a47.92 47.92 0 0 1 71.48 0H200a16 16 0 0 1 16 16M96 64h64a32 32 0 0 0-64 0m104-16h-26.75A47.9 47.9 0 0 1 176 64v8a8 8 0 0 1-8 8H88a8 8 0 0 1-8-8v-8a47.9 47.9 0 0 1 2.75-16H56v168h144Z"/></svg><text class="sf-label" x="60" y="40" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Questionnaire</text></g></g></svg>

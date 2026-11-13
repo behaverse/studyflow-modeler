@@ -31,9 +31,11 @@ Element colors are serialized using the BPMN in Color (BIOC) extension attribute
 ## Icons
 
 Copyright (c) 2020-PRESENT Iconify - https://iconify.design
-Copyright (c) The Bootstrap Authors - https://github.com/twbs/icons
+Copyright (c) Phosphor Icons - https://github.com/phosphor-icons/core
+Copyright (c) Camunda Services GmbH - https://github.com/bpmn-io/bpmn-font
+Copyright (c) Paweł Kuna - https://github.com/tabler/tabler-icons
 
-The icons used in the apps are derived from the Bootstrap Icons and Iconify projects. Some of the icons are licensed under the MIT license, and some are licensed under the Apache License 2.0.
+The icons used in the apps come from three sets, read through the Iconify project: Phosphor and Tabler Icons, under the MIT license, and the BPMN font, under the SIL Open Font License 1.1.
 
 ## BIDS logo
 

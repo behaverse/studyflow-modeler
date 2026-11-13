@@ -32,7 +32,7 @@ import { field as s } from '@modeler/inspector/styles';
 
 type Props = { attrDef: AttributeSpec };
 
-/** An expression field: every Studyflow expression is FEEL, and one that is not says why beside it. */
+/** An expression field. Every Studyflow expression is FEEL; text that is not valid FEEL shows why beside the field. */
 export function ExpressionRow({ name, placeholder, value, onCommit }: {
   name: string;
   placeholder?: string;
@@ -188,7 +188,7 @@ export function ArrayInput({ attrDef }: Props) {
               onClick={() => handleRemoveAt(i)}
               className={s.arrayRemoveBtn}
             >
-              <i className={`${ICONS.closeSmall} text-lg`} />
+              <i className={`${ICONS.close} text-lg`} />
             </button>
           </div>
         ))}
@@ -280,7 +280,7 @@ export function ChecklistInput({ attrDef }: { attrDef: AttributeSpec }) {
                 onClick={() => update(lines.filter((_, i) => i !== index))}
                 className={s.stateRemoveBtn}
               >
-                <i className={`${ICONS.closeSmall} text-sm`} />
+                <i className={`${ICONS.close} text-sm`} />
               </button>
             </div>
           ))}

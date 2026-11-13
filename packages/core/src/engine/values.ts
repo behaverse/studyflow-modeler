@@ -9,13 +9,13 @@ import type { Happening } from '@core/engine/record';
 type Own = { pool: string; study: Values; state: StateTree; held: Map<string, unknown> };
 
 /**
- * What a run holds: the `state` tree (`state.<scope>.<property>`, `state.<data store>`, and `state._meta`, the walk's
+ * The values a run holds: the `state` tree (`state.<scope>.<property>`, `state.<data store>`, and `state._meta`, the walk's
  * own), what each element produced this run, and the order the walk reached them in. Every expression reads from here.
  */
 export class Values {
   readonly state: StateTree;
   readonly trace: string[];
-  /** What each element produced this run, by id. */
+  /** The value each element produced this run, by id. */
   readonly held: Map<string, unknown>;
   private readonly graph: Graph;
   /** Every change to the state is an event of the run's record, which the state can be recovered from. */
@@ -42,7 +42,7 @@ export class Values {
    * The values one instance of a pool of several reads and writes: the properties of its pool's process and of every
    * element inside it, its passes (`state._meta.instance`), and what its elements produced are its own; the rest is
    * the study's, shared with every instance (the counts, the data stores and data objects, the other pools). So
-   * instances that run at once do not read each other's arm or properties. What an instance writes of its own reaches
+   * instances that run at once do not read each other's arm or properties. A value an instance writes of its own reaches
    * the study's too, as it is written, so the study's state is always what the record replays to.
    */
   forInstance(pool: string): Values {
@@ -154,7 +154,7 @@ export class Values {
     return { ...declared, ...this.scopeValues(id) };
   }
 
-  /** What an expression reads: `state`, then every element's value by its id and by its name, a data store's by its id. */
+  /** The names an expression reads: `state`, then every element's value by its id and by its name, a data store's by its id. */
   private namespace(): Record<string, unknown> {
     const space: Record<string, unknown> = { state: { ...this.state, trace: [...this.trace] } };
     for (const store of this.graph.stores.values()) if (store in this.state) space[store] = this.state[store];
@@ -231,7 +231,7 @@ export class Values {
   }
 
   /**
-   * What `{path}` cites at `scope` (docs/reference.qmd, "Placeholders"): `state` from its root; then, from the element
+   * The value `{path}` cites at `scope` (docs/reference.qmd, "Placeholders"): `state` from its root; then, from the element
    * outward, what each scope holds under the name; then the data store of that name; then an element's value, by id
    * or name; then, for a lone `{reached}`, the element's own counter, 0 when no run reached it. Undefined when nothing
    * holds it.
@@ -291,7 +291,7 @@ export class Values {
     return shadow;
   }
 
-  /** What an activity sends: its data inputs by source id; one without a value this run gives its `uri`, else null. */
+  /** The content an activity sends: its data inputs by source id; one without a value this run gives its `uri`, else null. */
   inputsOf(element: PlanElement): Record<string, unknown> | null {
     const sources = element.inputs.map((input) => input.source);
     return sources.length === 0 ? null : Object.fromEntries(sources.map((source) => [source, this.inputValue(source)]));
@@ -423,7 +423,7 @@ function put(state: StateTree, scope: string, name: string, value: [unknown?]): 
   else delete held[name];
 }
 
-/** What `fields` lead to inside `value`, undefined where one is missing. */
+/** The value `fields` lead to inside `value`, undefined where one is missing. */
 function dig(value: unknown, fields: string[]): unknown {
   let at = value;
   for (const field of fields) {

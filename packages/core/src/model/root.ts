@@ -7,7 +7,7 @@ import { foldTyped } from '@core/model/yaml';
 
 const STUDY = 'studyflow:Study';
 
-/** What a root keeps when the study passes on: its id (swapped instead), its content, and its entries but the Study. */
+/** The keys a root keeps when the study passes on: its id (swapped instead), its content, and its entries except the Study. */
 const KEPT_BY_ROOT = new Set(['id', 'artifacts', 'extensionElements']);
 
 /** Give elements other ids: each id `renames` maps, and every reference to it, and its drawing. */

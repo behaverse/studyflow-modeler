@@ -9,7 +9,7 @@ import { readTrail, resetTrailStamping, stampTrailForExport, trailTimestamp } fr
 import { freshMetamodel } from './schemas';
 import { exampleXml } from './utils';
 
-/** The study's own records, on its root, stamped once per *fact* so re-rendering stays byte-stable. */
+/** The study's own records, on its root, stamped once per fact so re-rendering stays byte-stable. */
 
 /** Shipped examples may already carry a trail (rendering stamps them); build premises from one with none. */
 async function untrailed(name: string): Promise<StudyModel> {

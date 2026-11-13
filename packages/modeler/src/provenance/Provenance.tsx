@@ -69,7 +69,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
   const repoCount = repos.size;
   const studyRuns = visible.filter((r) => r.isDocument && r.action === 'executed').length;
   const repoName = repos.size === 1 ? [...repos][0] : null;
-  // The modeler never reads the repository itself, the terminal does; this hands over the reins.
+  // The modeler never reads the repository; this is the command to run in a terminal.
   const repoRecipe = repoName ? `git -C runs/${repoName} log --graph --oneline --all` : null;
   const [copied, setCopied] = useState(false);
   const copyRecipe = async () => {
@@ -87,7 +87,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
       size="xl"
       help={<DialogHelp>
                 Who changed this studyflow and who ran it, oldest first — marked by the modeler and the runner, and stored inside the studyflow diagram itself.
-                Invalidating a run record (<i className={ICONS.closeSmall} aria-hidden="true" />)
+                Invalidating a run record (<i className={ICONS.close} aria-hidden="true" />)
                 appends a marker rather than deleting anything, so the next run re-executes only that step and what depends on it.
                 The replay button (<i className={ICONS.playFill} aria-hidden="true" />) plays this timeline back on the canvas, step by step.
               </DialogHelp>}
@@ -137,7 +137,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                     title="Clear the filter and show the whole timeline"
                     aria-label="Clear provenance filter"
                   >
-                    <i className={ICONS.closeSmall} aria-hidden="true" />
+                    <i className={ICONS.close} aria-hidden="true" />
                   </button>
                 </span>
               </p>
@@ -313,7 +313,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                             title="Invalidate this run record — kept in the timeline; the next run branches just before this step and re-executes only what depends on it"
                             aria-label={`Invalidate ${r.action} record of ${r.scopeId}`}
                           >
-                            <i className={`${ICONS.closeSmall} size-3.5 block`} aria-hidden="true"></i>
+                            <i className={`${ICONS.close} size-3.5 block`} aria-hidden="true"></i>
                           </button>
                         )}
                       </div>

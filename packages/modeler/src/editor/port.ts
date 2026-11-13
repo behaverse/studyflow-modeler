@@ -9,7 +9,6 @@ import type { EventBus } from '@modeler/editor/bus';
 
 export type { Canvas, EventBus };
 
-/** What the study is read and spelled by. */
 export interface EditorModel {
   /** The metamodel of the schemas enabled in Settings. */
   metamodel(): Metamodel;
@@ -35,13 +34,13 @@ export interface Editor {
   open(text: string, onWarning?: (message: string) => void, pastedImages?: ReadonlyMap<string, Uint8Array>): Promise<void>;
   /** The document as a BPMN XML file holds it (the study's `toXml`). */
   saveXML(): Promise<{ xml: string }>;
-  /** What the canvas shows, as a standalone SVG drawn afresh, without the editor's chrome; its pasted images when asked. */
+  /** The canvas's drawing as a standalone SVG, drawn afresh, without the editor's chrome; with its pasted images when asked. */
   toSvg(options?: { pastedImages?: boolean }): string;
   /** The document, and every write on it: one command, one `edit`, one undo step. */
   study: Study;
   /** The view: its selection, scope and camera, by id. */
   canvas: Canvas;
-  /** The app's bus: what the canvas and the study announce, forwarded, and the commands. */
+  /** The app's bus: the canvas's and the study's events, forwarded, and the commands. */
   events: EventBus;
   model: EditorModel;
   simulation: EditorSimulation;

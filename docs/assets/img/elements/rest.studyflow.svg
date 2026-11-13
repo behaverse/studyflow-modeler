@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="sf-canvas" viewBox="-4 -4 44 65" width="44" height="65"><metadata><bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:prov="https://w3id.org/studyflow/prov" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="element_rest" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Element" name="rest">
+    <bpmn:extensionElements>
+      <studyflow:study/>
+      <prov:activity action="created" when="2026-11-13T23:55:26+01:00" with="studyflow-modeler/26.11.5"/>
+    </bpmn:extensionElements>
+    <bpmn:intermediateCatchEvent id="Rest" name="Rest">
+      <bpmn:extensionElements>
+        <cognitive:rest/>
+      </bpmn:extensionElements>
+      <bpmn:timerEventDefinition id="Rest_Def">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT1M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:intermediateCatchEvent>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Element">
+      <bpmndi:BPMNShape id="Rest_di" bpmnElement="Rest">
+        <dc:Bounds x="0" y="0" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions></metadata><defs><marker id="sf-arrow-sequence" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="context-stroke" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-arrow-message" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="none" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-arrow-open" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="none" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-marker-default" markerWidth="10" markerHeight="10" refX="0" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M3,2 L7,8" fill="none" stroke="context-stroke" stroke-width="1.5"/></marker><marker id="sf-marker-message-start" markerWidth="10" markerHeight="10" refX="1.5" refY="5" orient="auto" markerUnits="userSpaceOnUse"><circle cx="5" cy="5" r="3" fill="#ffffff" stroke="context-stroke" stroke-width="1"/></marker></defs><g data-layer="elements"><g class="sf-shape" data-element-id="Rest" data-element-type="bpmn:IntermediateCatchEvent"><circle cx="18" cy="18" r="18" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><circle cx="18" cy="18" r="14" fill="none" stroke="#44403c" stroke-width="1.5"/><svg x="8" y="8" width="20" height="20" class="sf-icon" viewBox="0 0 256 256" stroke="none" color="#44403c" data-icon-key="IntermediateCatchEvent"><path fill="#44403c" d="M216 88.8V72a40 40 0 0 0-40-40H80a40 40 0 0 0-40 40v16.8a40 40 0 0 0 0 78.4V200a16 16 0 0 0 16 16h144a16 16 0 0 0 16-16v-32.8a40 40 0 0 0 0-78.4M80 48h96a24 24 0 0 1 24 24v16.8a40.07 40.07 0 0 0-32 39.2H88a40.07 40.07 0 0 0-32-39.2V72a24 24 0 0 1 24-24m128.39 104H208a8 8 0 0 0-8 8v40H56v-40a8 8 0 0 0-8-8h-.39A24 24 0 1 1 72 128v40a8 8 0 0 0 16 0v-24h80v24a8 8 0 0 0 16 0v-40a24 24 0 1 1 24.39 24"/></svg></g><g class="sf-external-label" data-element-id="Rest_label" data-element-type="bpmn:IntermediateCatchEvent" data-label-owner="Rest" transform="translate(4.24, 42)"><text class="sf-label" x="13.76" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Rest</text></g></g></svg>

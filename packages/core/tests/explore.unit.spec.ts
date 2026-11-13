@@ -61,7 +61,7 @@ test('every way a study can go is walked, and a wait no message will end, or a m
 /** A process of these flow elements. */
 const inProcess = (elements: string): string => `S:\n  type: Process\n  flowElements:\n${elements}`;
 
-// What the walk would decide by data, besides an exclusive gateway's flow, and the runs its choices make.
+// The choices the walk would decide by data, besides an exclusive gateway's flow, and the runs they make.
 const CHOICES: [label: string, study: string, runs: number][] = [
   ['each set of flows an inclusive split may take', inProcess(`    Start: { type: StartEvent }
     Split: { type: InclusiveGateway }

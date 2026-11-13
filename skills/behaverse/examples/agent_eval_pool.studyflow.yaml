@@ -7,7 +7,7 @@ schemas:
 
 Agent_Eval_Pool_Actors:
   type: Collaboration
-  name: LLM evaluation — agent actor pool
+  name: LLM evaluation, agent actor pool
   extensions:
     studyflow:Study: {}
     prov:Activity:

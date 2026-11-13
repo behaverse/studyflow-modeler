@@ -1,7 +1,7 @@
 import type { Element, StudyModel } from '@core/model/index';
 import { toLocalName } from '@core/naming';
 
-/** How the inspected element names itself: its schema type when it has one, else its BPMN type. */
+/** The inspected element's type name: its schema type when it has one, else its BPMN type. */
 export function getTypeName(model: StudyModel, element: Element): string {
   return model.extensionType(element) || model.host(element) || '';
 }

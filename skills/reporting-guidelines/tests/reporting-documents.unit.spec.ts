@@ -9,7 +9,8 @@ import { studyModel } from '@tests/schemas';
 import { exampleNames, exampleText } from '@tests/utils';
 import { loadYaml } from '../../../packages/canvas/tests/canvasHarness';
 
-/** What the skill reads off a study and hands the modeler: the participant flow, CONSORT's wording of it, SPIRIT's schedule. */
+/** The documents the skill reads off a study and hands the modeler: the participant flow, CONSORT's wording of it,
+ * SPIRIT's schedule. */
 
 /**
  * A small trial with every way a participant flow is read: an exit before allocation through a boundary event and
@@ -162,7 +163,7 @@ Trial:
       target: $Left
 `;
 
-/** What a run of twelve left: one withdrew, one was screened out, ten were allocated, six completed. */
+/** The record a run of twelve left: one withdrew, one was screened out, ten were allocated, six completed. */
 const RUN = `
 state:
   _meta:
@@ -291,7 +292,7 @@ test('SPIRIT tables the schedule: a visit a column, a lane a study period, a wai
           { label: 'Allocation', marks: [1], bars: [] },
         ],
       },
-      // What one arm alone does is its intervention; a task is an assessment, marked at the visit that holds it.
+      // A step only one arm does is its intervention; a task is an assessment, marked at the visit that holds it.
       { title: 'Interventions', items: [{ label: 'Training', marks: [2], bars: [] }] },
       { title: 'Assessments', items: [{ label: 'Stroop task', marks: [3], bars: [] }] },
       // The rest sits under its lane: the wait from the visit before it to the one it ends at, the window to its end.

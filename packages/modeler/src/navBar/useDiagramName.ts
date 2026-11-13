@@ -3,7 +3,7 @@ import { executeCommand } from '@modeler/commandBus';
 import { getDiagramName } from '@modeler/diagram/name';
 import type { Editor } from '@modeler/editor/port';
 
-const DEFAULT_DIAGRAM_NAME = 'Untitled Diagram';
+const DEFAULT_DIAGRAM_NAME = 'Untitled Study';
 
 export function useDiagramName(modeler: Editor): {
   diagramName: string;

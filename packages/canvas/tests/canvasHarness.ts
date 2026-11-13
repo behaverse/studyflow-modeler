@@ -1,19 +1,20 @@
 /**
- * The preamble every canvas unit spec used to re-declare.
+ * The preamble of every canvas unit spec.
  *
  * A canvas spec needs the same three things before it can assert anything: the
  * metamodel of the shipped schemas, with their catalog installed (`@tests/schemas`), a
  * DOM to mint SVG into (jsdom: a canvas draws in its container's document, and a
- * picture drawn without one in the document {@link installDocument} sets), and a pointer shim, because a `Canvas` listens for real
- * `pointerdown`/`pointermove`/`pointerup` events in *screen* coordinates while a
- * test only knows *diagram* coordinates. Then it reads what it did: a scene element
- * by id, a drawing in the layout the study writes, the document as XML.
+ * picture drawn without one in the document {@link installDocument} sets), and a
+ * pointer shim, because a `Canvas` listens for real `pointerdown`/`pointermove`/`pointerup`
+ * events in screen coordinates while a test only knows diagram coordinates. Then it
+ * reads what it did: a scene element by id, a drawing in the layout the study writes,
+ * the document as XML.
  *
  * All of it lives here once. A spec that drives the editor calls {@link loadCanvas}
  * or {@link loadYaml}, which install the document for it.
  *
  * Keep this file free of assertions and fixtures: a fixture belongs to the spec that
- * reads it, so a fixture change can never silently move another suite.
+ * reads it, so a fixture change never moves another suite.
  */
 
 import { JSDOM } from 'jsdom';
@@ -45,7 +46,7 @@ export function installDocument(): Document {
   return doc;
 }
 
-/** A fixture's canvas — the shape every spec used. */
+/** A fixture's canvas, in the shape every spec uses. */
 export interface Loaded {
   canvas: Canvas;
 }
@@ -70,7 +71,7 @@ export function loadYaml(yaml: string, options: LoadOptions = {}): Loaded {
   return { canvas: canvasOn(studyModel(yaml, options.onWarning), options) };
 }
 
-/** A point in DIAGRAM coordinates — what a spec reads off the scene or the DI. */
+/** A point in diagram coordinates, as a spec reads it off the scene or the DI. */
 export interface Pt {
   x: number;
   y: number;
@@ -112,7 +113,7 @@ export function hover(canvas: Canvas, at: Pt): void {
   firePointer(canvas, svgOf(canvas), 'pointermove', at);
 }
 
-/** Move, on the DOCUMENT — a drag keeps tracking once the pointer leaves the SVG. */
+/** Move, on the document: a drag keeps tracking once the pointer leaves the SVG. */
 export function pointerMove(canvas: Canvas, at: Pt, init: MouseEventInit = {}): void {
   firePointer(canvas, svgOf(canvas).ownerDocument!, 'pointermove', at, init);
 }
@@ -141,14 +142,14 @@ export function keyEvent(type: string, init: KeyboardEventInit = {}): KeyboardEv
   return new view.KeyboardEvent(type, { bubbles: true, cancelable: true, ...init });
 }
 
-/** A full press–move–release gesture between two diagram points. */
+/** A full press, move and release gesture between two diagram points. */
 export function dragBy(canvas: Canvas, from: Pt, to: Pt): void {
   pointerDown(canvas, from);
   pointerMove(canvas, to);
   pointerUp(canvas, to);
 }
 
-/** A press with no movement — selects whatever is under the point. */
+/** A press with no movement, which selects whatever is under the point. */
 export function click(canvas: Canvas, at: Pt): void {
   pointerDown(canvas, at);
   pointerUp(canvas, at);
@@ -176,7 +177,7 @@ export function labelEditingOf(canvas: Canvas): LabelEditing {
   return canvasInternals(canvas).labelEditing;
 }
 
-/** What the view shows at a diagram point. */
+/** The element the view shows at a diagram point. */
 export function hitAt(canvas: Canvas, point: Pt): SceneElement | undefined {
   return canvasInternals(canvas).hitTest(point);
 }

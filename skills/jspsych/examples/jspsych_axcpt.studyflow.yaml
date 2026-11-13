@@ -1,0 +1,202 @@
+id: jspsych_axcpt
+schemas:
+  agentic: https://w3id.org/studyflow/agentic
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+JsPsych_AXCPT:
+  type: Collaboration
+  name: AX-CPT in jsPsych
+  extensions:
+    studyflow:Study:
+      seed: 42
+  documentation: |
+    A short AX-CPT that jsPsych plays in a local run, every trial answered by the pool on the task's band.
+
+    The task's `implementation` names the jsPsych plugin, and the Parameters wired into it are the plugin's own: its
+    keys, the trial's window, and a timeline of letters. `ResponseOptions` says which key each answer presses, so
+    whoever takes the task answers Match or NonMatch and never sees a key. The instructions are a prompt, sent with
+    each trial. The pool on the band is `simulate://random`, which answers every trial at random: enough to see the
+    session run and its records land in `trials.jsonl` before a model or a person takes it.
+
+    The counts a task hands back are data, and what a study does about them is drawn. The task's data edge writes
+    the share of test trials left unanswered into `unanswered`, and the conditional boundary event leaves the task
+    when that share passes `max_unanswered`. A task that cannot be played fails, and the error boundary event
+    catches it.
+  participants:
+    Pool_Session:
+      name: Session
+      process: $Session
+
+    Pool_Participant:
+      name: Simulated participant
+      extensions:
+        studyflow:Actor:
+          implementation: simulate://random
+
+Session:
+  type: Process
+  name: Session
+  properties:
+    scored_blocks:
+      name: scored_blocks
+      value:
+        - Test
+
+    max_unanswered:
+      name: max_unanswered
+      value: 0.25
+
+    unanswered:
+      name: unanswered
+  elements:
+    Start:
+      type: StartEvent
+      name: Start
+
+    AXCPT:
+      type: ChoreographyTask
+      name: AX-CPT
+      participant: $Pool_Participant
+      extensions:
+        cognitive:CognitiveTask:
+          platform: jspsych
+          implementation: jspsych://html-keyboard-response@8
+      inputs:
+        In_Instructions:
+          source: $Instructions
+
+        In_Protocol:
+          source: $Protocol
+      outputs:
+        Out_Trials:
+          target: $Trials
+
+        Out_Unanswered:
+          target: $unanswered
+          transformation: >-
+            sum(result.blocks[block in scored_blocks].unanswered) / sum(result.blocks[block in scored_blocks].trials)
+
+    Instructions:
+      type: DataObjectReference
+      name: Instructions
+      extensions:
+        agentic:Prompt:
+          template: Answer Match to an X that comes right after an A, and NonMatch to every other letter.
+
+    Protocol:
+      type: DataObjectReference
+      name: Parameters
+      extensions:
+        studyflow:Parameters:
+          values:
+            choices:
+              - f
+              - j
+            trial_duration: 1000
+            data:
+              task: AXCPT
+            timeline_variables:
+              - block: Practice
+                stimulus: <h1>A</h1>
+                condition: Cue
+                correct_response: j
+              - block: Practice
+                stimulus: <h1>X</h1>
+                condition: AX
+                correct_response: f
+              - block: Test
+                stimulus: <h1>A</h1>
+                condition: Cue
+                correct_response: j
+              - block: Test
+                stimulus: <h1>X</h1>
+                condition: AX
+                correct_response: f
+              - block: Test
+                stimulus: <h1>B</h1>
+                condition: Cue
+                correct_response: j
+              - block: Test
+                stimulus: <h1>X</h1>
+                condition: BX
+                correct_response: j
+              - block: Test
+                stimulus: <h1>A</h1>
+                condition: Cue
+                correct_response: j
+              - block: Test
+                stimulus: <h1>Y</h1>
+                condition: AY
+                correct_response: j
+            ResponseOptions:
+              Match: f
+              NonMatch: j
+
+    Trials:
+      type: DataStoreReference
+      name: Trials
+      uri: trials.jsonl
+      extensions:
+        studyflow:Dataset: {}
+
+    Too_Many_Missed:
+      type: BoundaryEvent
+      name: Too many unanswered
+      condition: unanswered > max_unanswered
+      attachedTo: $AXCPT
+
+    Not_Played:
+      type: BoundaryEvent
+      name: Could not play
+      error: true
+      attachedTo: $AXCPT
+
+    Done:
+      type: EndEvent
+      name: Done
+
+    Excluded:
+      type: EndEvent
+      name: Excluded
+
+    Stopped:
+      type: EndEvent
+      name: Stopped
+
+    Flow_Start_AXCPT:
+      source: $Start
+      target: $AXCPT
+
+    Flow_AXCPT_Done:
+      source: $AXCPT
+      target: $Done
+
+    Flow_Missed_Excluded:
+      source: $Too_Many_Missed
+      target: $Excluded
+
+    Flow_Not_Played_Stopped:
+      source: $Not_Played
+      target: $Stopped
+
+layout:
+  Pool_Session: 120 80 660 420
+  Pool_Participant: {bounds: 120 540 660 60, expanded: false}
+  Start: 180 262 36 36
+  AXCPT: 290 220 200 120
+  In_Instructions: 330,160 330,220
+  In_Protocol: 430,160 430,220
+  Out_Trials: 490,250 560,250 560,135 640,135
+  Instructions: {bounds: 312 110 36 50, label: 236 128 70 15}
+  Protocol: {bounds: 412 110 36 50, label: 454 128 68 15}
+  Trials: 640 110 50 50
+  Too_Many_Missed: {bounds: 292 322 36 36, label: 168 362 134 15}
+  Not_Played: {bounds: 452 322 36 36, label: 478 362 96 15}
+  Done: 610 262 36 36
+  Excluded: 292 412 36 36
+  Stopped: 452 412 36 36
+  Flow_Start_AXCPT: 216,280 290,280
+  Flow_AXCPT_Done: 490,280 610,280
+  Flow_Missed_Excluded: 310,358 310,412
+  Flow_Not_Played_Stopped: 470,358 470,412

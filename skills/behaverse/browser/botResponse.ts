@@ -7,8 +7,8 @@ import type { LogFn } from '@runner/nodes/types';
 
 export type BotDecision = { response: string; agentId: string };
 
-/** The model on the task's band answers the trial. A failed call, or a reply naming no option, answers nothing: the
- * trial's own response window then ends it, a miss. */
+/** The model on the task's band answers the trial. A reply naming no option answers nothing: the trial's own response
+ * window then ends it, a miss. A call that fails is no miss: it throws, and the task fails with it. */
 export async function decideResponse(
   payload: BehaverseTaskPayload,
   detail: AwaitingResponseDetail,
@@ -30,7 +30,9 @@ export async function decideResponse(
     ...(typeof detail.Screenshot === 'string' && detail.Screenshot.length > 0
       ? { screenshot: detail.Screenshot }
       : {}),
-  }, llmConfig);
+  }, llmConfig).catch((error: unknown) => {
+    throw new Error(`${agentId} could not answer trial ${detail.TrialIndex}: ${error instanceof Error ? error.message : String(error)}`);
+  });
   if (result.response === undefined) {
     log?.('error', `[${agentId}] trial ${detail.TrialIndex}: no answer, so a miss (${result.error})`);
     return undefined;

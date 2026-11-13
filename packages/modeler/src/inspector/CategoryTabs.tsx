@@ -13,7 +13,7 @@ import { inspector as s, field as fld } from '@modeler/inspector/styles';
 function AttributeFields({ attrDefs }: { attrDefs: any[] }) {
   const element = useInspectedElement();
   const model = useInspectedModel();
-  // What the Parameters wired into the element set on it.
+  // The attributes that the Parameters wired into the element set on it.
   const overrides = element ? attributeOverridesIn(model, element) : new Map<string, AttributeOverride>();
   return (
     <>

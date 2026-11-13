@@ -6,7 +6,7 @@ import { addPaletteElement, exportDiagram, gotoModeler, pressOnCanvas, readDownl
  * The inspector's Execution tab: run state as `bpmn:Property` declarations and the data associations
  * that bind them, repetition, and the language of an expression.
  *
- * A repetition marker's identity is its icon KEY, not its geometry: the canvas resolves glyphs to
+ * A repetition marker's identity is its icon key, not its geometry: the canvas resolves glyphs to
  * inline `<svg class="sf-icon">` bodies, and `parallel` and `sequential` share their `<path d>`,
  * differing only by a `rotate(90 …)` wrapper, so a path-based selector would match both.
  */

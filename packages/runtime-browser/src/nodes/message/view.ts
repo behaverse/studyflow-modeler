@@ -1,4 +1,4 @@
-/** What a message's content shows a person: its text, the fields of what it carries, and the options to answer by. */
+/** A message's content as shown to a person: its text, the fields it carries, and the options to answer with. */
 export type MessageView = { texts: string[]; fields: [label: string, value: string][]; options: string[] };
 
 const OPTIONS = ['ResponseOptions', 'options'];

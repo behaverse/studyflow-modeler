@@ -124,7 +124,7 @@ test('plays an AX-CPT timeline in jsPsych, every trial answered along the pool\'
   }
   expect(page?.status, stderr).toBe(200);
   const html = await page!.text();
-  // What jsPsych plays is the protocol: the task settings never reach it, and its trials keep their 1 s window.
+  // jsPsych plays the protocol: the task settings never reach it, and its trials keep their 1 s window.
   const played = JSON.parse(html.match(/const STAGE = (.*);/)![1]).timeline;
   expect(JSON.stringify(played)).not.toMatch(/Bot|MaxExternalResponseTime|ResponseOptions/);
   expect(played.timeline[0].trial_duration).toBe(1000);
@@ -179,7 +179,7 @@ test('plays an AX-CPT timeline in jsPsych, every trial answered along the pool\'
   expect(records[5].result.responseTime).toBeGreaterThanOrEqual(0);
   expect(records[3].result).toMatchObject({ isAnswered: true, isCorrect: false, response: 'Match' });  // the practice BY, wrong
   // The AX probe answered after 1.6 s, later than its 1 s window but within the settings' 3 s: answered. jsPsych holds the
-  // answer at the end of its window, which its own check keeps; the record holds the time it really took.
+  // answer at the end of its window, which its own check keeps; the record holds the time it took.
   expect(records[11]).toMatchObject({ trialContext: { condition: 'AX' }, result: { isAnswered: true, isCorrect: true, response: 'Match' },
     data: { response: 'f', rt: 1000 } });
   expect(records[11].result.responseTime).toBeGreaterThanOrEqual(1.6);

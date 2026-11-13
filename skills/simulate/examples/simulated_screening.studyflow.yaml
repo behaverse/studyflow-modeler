@@ -1,0 +1,186 @@
+id: simulated_screening
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+Simulated_Screening:
+  type: Collaboration
+  name: Screening, dry run
+  extensions:
+    studyflow:Study:
+      seed: 42
+  documentation: |
+    A screening session answered by a simulated participant, so the study runs on this machine before anyone takes it.
+
+    Each question is a property of the session: its text, and the options an answer may be. A step sends the question
+    wired into it along the pool's message flow and keeps the answer that comes back in the property its data edge
+    targets. The pool that answers is `simulate://random`, which picks one of the options, drawn by the study's seed,
+    so a run repeats. The gateway then reads `age_band`, as it would a person's answer.
+
+    Someone who does not answer is not an error of the study but a way a session can go, so it is drawn: the timer
+    boundary event ends the questions after two minutes. The simulated participant always answers, and the path is
+    there for the person or the model that takes its place (`ollama://<model>` as the pool's `implementation`).
+  participants:
+    Pool_Session:
+      name: Session
+      process: $Session
+
+    Pool_Participant:
+      name: Simulated participant
+      extensions:
+        studyflow:Actor:
+          implementation: simulate://random
+  messageFlows:
+    Msg_Question:
+      name: a question
+      source: $Pool_Session
+      target: $Pool_Participant
+
+    Msg_Answer:
+      name: the answer
+      source: $Pool_Participant
+      target: $Pool_Session
+
+Session:
+  type: Process
+  name: Session
+  properties:
+    age_question:
+      name: age_question
+      value:
+        Question: How old are you?
+        ResponseOptions:
+          - Under 18
+          - 18 to 29
+          - 30 to 49
+          - 50 or older
+
+    hand_question:
+      name: hand_question
+      value:
+        Question: Which hand do you write with?
+        ResponseOptions:
+          - Left
+          - Right
+
+    age_band:
+      name: age_band
+
+    hand:
+      name: hand
+  elements:
+    Arrived:
+      type: StartEvent
+      name: Arrived
+
+    Questions:
+      type: SubProcess
+      name: Screening questions
+      elements:
+        Q_Start:
+          type: StartEvent
+
+        Ask_Age:
+          type: Task
+          name: Ask the age band
+          inputs:
+            In_Age_Question:
+              source: $age_question
+          outputs:
+            Out_Age_Band:
+              target: $age_band
+
+        Ask_Hand:
+          type: Task
+          name: Ask the writing hand
+          inputs:
+            In_Hand_Question:
+              source: $hand_question
+          outputs:
+            Out_Hand:
+              target: $hand
+
+        Q_End:
+          type: EndEvent
+
+        Flow_Q_Start_Age:
+          source: $Q_Start
+          target: $Ask_Age
+
+        Flow_Age_Hand:
+          source: $Ask_Age
+          target: $Ask_Hand
+
+        Flow_Hand_Q_End:
+          source: $Ask_Hand
+          target: $Q_End
+
+    No_Answer:
+      type: BoundaryEvent
+      name: No answer in 2 min
+      timer: PT2M
+      attachedTo: $Questions
+
+    Eligible:
+      type: ExclusiveGateway
+      name: Adult?
+      default: $Flow_Not_Eligible
+
+    Enrolled:
+      type: EndEvent
+      name: Enrolled
+
+    Not_Eligible:
+      type: EndEvent
+      name: Not eligible
+
+    Left:
+      type: EndEvent
+      name: Left unanswered
+
+    Flow_Arrived_Questions:
+      source: $Arrived
+      target: $Questions
+
+    Flow_Questions_Eligible:
+      source: $Questions
+      target: $Eligible
+
+    Flow_Eligible:
+      name: "yes"
+      condition: age_band != "Under 18"
+      source: $Eligible
+      target: $Enrolled
+
+    Flow_Not_Eligible:
+      name: "no"
+      source: $Eligible
+      target: $Not_Eligible
+
+    Flow_No_Answer_Left:
+      source: $No_Answer
+      target: $Left
+
+layout:
+  Pool_Session: 120 80 880 330
+  Pool_Participant: 120 450 880 100
+  Msg_Question: 440,410 440,450
+  Msg_Answer: 560,450 560,410
+  Arrived: 180 182 36 36
+  Questions: {bounds: 270 120 460 160, expanded: true}
+  Q_Start: 300 182 36 36
+  Ask_Age: 376 160 100 80
+  Ask_Hand: 536 160 100 80
+  Q_End: 676 182 36 36
+  Flow_Q_Start_Age: 336,200 376,200
+  Flow_Age_Hand: 476,200 536,200
+  Flow_Hand_Q_End: 636,200 676,200
+  No_Answer: {bounds: 642 262 36 36, label: 536 302 116 15}
+  Eligible: {bounds: 790 175 50 50, label: 786 152 58 15}
+  Enrolled: 900 182 36 36
+  Not_Eligible: 900 292 36 36
+  Left: 642 342 36 36
+  Flow_Arrived_Questions: 216,200 270,200
+  Flow_Questions_Eligible: 730,200 790,200
+  Flow_Eligible: 840,200 900,200
+  Flow_Not_Eligible: 815,225 815,310 900,310
+  Flow_No_Answer_Left: 660,298 660,342

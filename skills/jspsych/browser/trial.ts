@@ -17,7 +17,7 @@ export type JsPsychTrial = {
   global: string;
 };
 
-/** What a `jspsych://<plugin>@<version>` reference plays, the version being jsPsych's; an error says what is wrong. */
+/** The trial a `jspsych://<plugin>@<version>` reference plays, the version being jsPsych's; an error says what is wrong. */
 export function trialOf(implementation: string | undefined): JsPsychTrial | { error: string } {
   const parsed = parseImplementationRef(implementation);
   if (!parsed.ok) return { error: parsed.error };

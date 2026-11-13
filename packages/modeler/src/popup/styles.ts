@@ -33,12 +33,12 @@ export const popupMenu = {
   /** The style menu's stack of rows; each row's heading names what it styles. */
   swatchSections: 'p-1.5 flex flex-col gap-0.5',
 
-  /** One row of chips — the swatch names live in each chip's tooltip. */
+  /** One row of chips; each chip's tooltip names its swatch. */
   swatchGrid: 'flex gap-1',
   swatchItem: `flex items-center justify-center p-1 ${radius.button}
                hover:bg-black/[0.05] active:bg-black/[0.08] transition-colors cursor-pointer`,
   swatchItemActive: 'bg-black/[0.08]',
-  /** What is SET, as opposed to what the pointer is over: a ring the hover tint has not got. */
+  /** The value that is set, as opposed to the one under the pointer: it has a ring, which the hover tint lacks. */
   swatchItemPressed: 'bg-black/[0.08] ring-2 ring-inset ring-stone-500/70',
   swatchChip: 'w-6 h-6 rounded-md border-2',
   /** A toggle's glyph, sized to sit in the same 24px square a chip fills. */

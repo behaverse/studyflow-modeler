@@ -35,7 +35,7 @@ function structureOf(model: StudyModel, ref: unknown): string {
   return typeof item?.structureRef === 'string' ? item.structureRef : '';
 }
 
-/** What a message flow carries: the `structureRef` of its message's item definition, '' when it names none. */
+/** The structure a message flow carries: the `structureRef` of its message's item definition, '' when it names none. */
 export function messageStructureOf(model: StudyModel, flow: Element): string {
   return structureOf(model, model.get(idOf(flow.messageRef) ?? undefined)?.itemRef);
 }

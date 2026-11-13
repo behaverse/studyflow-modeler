@@ -1,5 +1,5 @@
 import type { Graph } from '@core/engine/graph';
-import { Cancelled, Interrupted, keepRecord, logAt, type Asker, type Conversation, type Host, type Message, type Talk, type Thread } from '@core/engine/host';
+import { Cancelled, HandoffError, Interrupted, keepRecord, logAt, type Asker, type Conversation, type Host, type Message, type Talk, type Thread } from '@core/engine/host';
 import type { PlanElement } from '@core/engine/plan';
 import type { Happening } from '@core/engine/record';
 import type { Steps } from '@core/engine/steps';
@@ -8,14 +8,33 @@ import type { Values } from '@core/engine/values';
 /** The exchanges a pool under `memory: window` remembers when its actor names no `memoryWindow` (the schema's default). */
 const WINDOW = 20;
 
-/** What a pool's turn comes to when its runner left the message unanswered. */
+/** The result of a pool's turn when its runner left the message unanswered. */
 const WITHHELD = Symbol('withheld');
+
+/** The result of a pool's turn when its runner failed: the failure the step that asked fails with. */
+class Unanswerable {
+  readonly failure: HandoffError;
+
+  constructor(failure: HandoffError) {
+    this.failure = failure;
+  }
+}
+
+/** The exchange of a claimed element, as the walk holds it while the element's runner runs. */
+export type Exchange = Talk & {
+  /** Resolves once every message the element sent is delivered or answered, and rejects when a pool it asked failed. */
+  delivered(): Promise<unknown>;
+  /** The failure of a pool the element asked, when one failed. */
+  failed(): unknown;
+  /** Calls `then` when a pool the element asked fails, or at once when one already has. */
+  onFailure(then: () => void): void;
+};
 
 /** A branch of an event-based gateway: its flow, and the event it starts at (`at`), which the messages along `into`
  * reach, whose timer runs out after `ms`, or whose condition `holds`. */
 export type Branch = { flow: PlanElement; at: string; into?: PlanElement[]; ms?: number; holds?: () => boolean };
 
-/** What a path waits at, and, for a wait a change of the run's values may end, whether it would end now. */
+/** The thing a path waits at, and, for a wait a change of the run's values may end, whether it would end now. */
 type Waiting = { what: string; ready?: () => boolean };
 
 /**
@@ -44,7 +63,7 @@ export class Post {
   /** Timers running: a wait none of them ends is stuck only once they have all run out or stopped. */
   private timers = 0;
   private sent = 0;
-  /** Why the run is ending, once a pool failed or the run was stopped: every wait fails with it. */
+  /** The reason the run is ending, once a pool failed or the run was stopped: every wait fails with it. */
   failed: unknown;
   private readonly graph: Graph;
   private readonly host: Host;
@@ -123,7 +142,8 @@ export class Post {
   }
 
   /** A message along a flow: into the flow's mailbox, or, when a runner plays the pool it ends at, to that runner,
-   * whose answer goes back along the pool's flow to the sender. `step` is the element whose exchange sends it. */
+   * whose answer goes back along the pool's flow to the sender. When that runner fails, the send rejects with its
+   * failure. `step` is the element whose exchange sends it. */
   async send(flow: PlanElement, content: unknown, thread: Thread, options: { id?: string; inReplyTo?: string; step?: string } = {}): Promise<void> {
     const { graph, host } = this;
     const target = flow.attributes.targetRef ?? '';
@@ -143,9 +163,9 @@ export class Post {
 
   /** One message to a pool a runner plays, recorded as a step of its own, one at a time to each pool (a robot does one
    * thing at a time); the instances of a pool of several asking it are each answered on a line of their own, in the
-   * order each asked, so instances walking at once are answered side by side. A pool that fails answers null, so the
-   * sender goes on and the record keeps the error. A pool whose runner leaves it unanswered (`noReply`) sends nothing
-   * back: the sender waits on. */
+   * order each asked, so instances walking at once are answered side by side. A pool that fails answers nothing: its
+   * record keeps the error, and the send rejects with it, carrying the `errorCode` its runner gave, so the step that
+   * asked fails. A pool whose runner leaves it unanswered (`noReply`) sends nothing back: the sender waits on. */
   private async serve(pool: PlanElement, flow: PlanElement, message: Message, thread: Thread, step?: string): Promise<void> {
     const { graph, host } = this;
     const name = pool.name || pool.id;
@@ -176,14 +196,17 @@ export class Post {
       } catch (error) {
         entry.status = 'error';
         entry.error = { type: (error as Error)?.name ?? 'Error', message: String((error as Error)?.message ?? error).slice(0, 400) };
-        logAt(this.host, thread, 'message.unanswered', `    ✉ ${name} could not answer ${message.id}: ${(error as Error)?.message ?? error}`, { level: 'error' });
-        return null;
+        const failure = `${name} could not answer ${message.id}: ${(error as Error)?.message ?? error}`;
+        logAt(this.host, thread, 'message.unanswered', `    ✉ ${failure}`, { level: 'error' });
+        const errorCode = error instanceof HandoffError ? error.partial?.errorCode : undefined;
+        return new Unanswerable(new HandoffError(failure, errorCode ? { errorCode } : undefined));
       }
     });
     this.serving.set(line, turn);
     const reply = await turn;
     this.steps.end(entry);
     this.record({ event: 'answered', id: pool.id, entry }, thread);
+    if (reply instanceof Unanswerable) throw reply.failure;
     const flows = graph.flowsOut.get(pool.id) ?? [];
     const sender = flow.attributes.sourceRef ?? '';
     const back = flows.find((candidate) => candidate.attributes.targetRef === sender)
@@ -301,7 +324,7 @@ export class Post {
     return this.graph.instancesOf(thread.pool).instances > 1 ? [`${flow}@${thread.participant}`, flow] : [flow];
   }
 
-  /** What `pick` takes from the first of a thread's mailboxes along a flow that holds a message. */
+  /** The message `pick` takes from the first of a thread's mailboxes along a flow that holds one. */
   private next(flow: string, thread: Thread, pick: (messages: Message[]) => Message | undefined): Message | undefined {
     const box = this.boxes(flow, thread).find((candidate) => this.mail.get(candidate)?.length);
     return box === undefined ? undefined : pick(this.mail.get(box)!);
@@ -443,10 +466,12 @@ export class Post {
     }
   }
 
-  /** What a claimed element exchanges while its runner runs, along `talking`'s flows: the element's own, or an
+  /** The exchange a claimed element has while its runner runs, along `talking`'s flows: the element's own, or an
    * enclosing sub-process's or pool's. */
-  talk(id: string, talking: string, thread: Thread): Talk & { delivered(): Promise<unknown> } {
+  talk(id: string, talking: string, thread: Thread): Exchange {
     const sending: Promise<void>[] = [];
+    let failure: unknown;
+    let stop = (): void => undefined;
     const out = new Map((this.graph.flowsOut.get(talking) ?? []).map((flow) => [flow.id, flow]));
     const into = (this.graph.flowsIn.get(talking) ?? []).map((flow) => flow.id);
     return {
@@ -457,12 +482,21 @@ export class Post {
           return;
         }
         const delivery = this.send(flow, line.content ?? null, thread, { id: line.id, inReplyTo: line.inReplyTo, step: id });
-        delivery.catch(() => undefined); // heard in `delivered`, when the runner's own failure does not come first
+        // A pool that could not answer stops the hand-off that asked it, which then fails with the pool's failure.
+        delivery.catch((error) => {
+          failure ??= error;
+          stop();
+        });
         sending.push(delivery);
       },
       take: () => into.flatMap((flow) => this.boxes(flow, thread).flatMap((box) => this.mail.get(box)?.splice(0) ?? [])),
       arrived: () => this.changed(),
       delivered: () => Promise.all(sending),
+      failed: () => failure,
+      onFailure: (then) => {
+        stop = then;
+        if (failure !== undefined) then();
+      },
     };
   }
 }

@@ -30,7 +30,7 @@ test('a run is a PROV activity under its study as plan, and each step one of its
   expect(turtle).toMatch(new RegExp(`a prov:Activity ;\\n  rdfs:label "Screening" ;\\n  dcterms:isPartOf ${run.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} ;\\n  prov:qualifiedAssociation \\[ a prov:Association ; prov:hadPlan <urn:studyflow:plan:sha256:abc#Screen> \\] ;`));
   expect(turtle).toContain(`prov:startedAtTime "${at(1)}"^^xsd:dateTime ;`);
   expect(turtle).toContain('sf:took <urn:studyflow:plan:sha256:abc#F_Yes> .');
-  // What the run wrote, sent and made: entities it generated.
+  // Everything the run wrote, sent and made is an entity it generated.
   expect(turtle).toContain('rdfs:label "arm" ;\n  sf:property <urn:studyflow:plan:sha256:abc#S> ;\n  prov:value "fast" ;');
   expect(turtle).toContain('prov:value "{\\"q\\":\\"ready?\\"}" ;');
   expect(turtle).toContain(`${run.slice(0, -1)}/file/results/figure.png> prov:wasGeneratedBy ${run} ;`);

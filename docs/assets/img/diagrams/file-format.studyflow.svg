@@ -5,7 +5,7 @@
       <studyflow:study>
         <studyflow:state>{"_meta":{"prov":[{"action":"created","when":"2026-09-29T21:42:54+02:00","with":"studyflow-modeler/26.9.29"}]}}</studyflow:state>
       </studyflow:study>
-      <prov:activity action="created" when="2026-11-03T12:56:14+01:00" with="studyflow-modeler/26.11.1"/>
+      <prov:activity action="created" when="2026-11-13T23:51:19+01:00" with="studyflow-modeler/26.11.5"/>
     </bpmn:extensionElements>
     <bpmn:dataObjectReference id="Yaml" name=".studyflow.yaml, the canonical file"/>
     <bpmn:task id="Expand" name="Expand to BPMN XML">

@@ -20,11 +20,13 @@ enumerations:
         value: psych-ds
         icon: iconify ph--flask
   - extends: studyflow:MessageStructureEnum
-    description: Adds a task's trial and its response to the message structures, whichever software plays the task.
+    description: Adds a task's trial and its response to the message structures, whatever plays the task.
     literalValues:
       - name: One Trial
         value: cognitive:Trial
-        description: One awaiting trial, from the task to whoever takes it (its stimulus, the response options, the time to answer, and a screenshot when the task takes one).
+        # It carries the trial's stimulus, the response options, the time to answer, and a screenshot when the task
+        # takes one.
+        description: One awaiting trial, from the task to whoever takes it.
       - name: One Response
         value: cognitive:Response
         description: The response to a trial, from whoever takes the task back to it.
@@ -36,15 +38,15 @@ enumerations:
         description: Each participant is drawn independently.
       - name: Block randomization
         value: block
-        description: Permuted blocks, dealt in the order participants reach the gateway, keep arm sizes balanced over time; with stratifyBy, within each stratum.
+        # Dealt in the order participants reach the gateway; with stratifyBy, within each stratum.
+        description: Permuted blocks, which keep arm sizes balanced over time.
       - name: Minimization
         value: minimization
-        description: >-
-          Pocock–Simon, range method: each participant takes the arm that least unbalances the factors stratifyBy
-          names with probability 0.8, else another arm. Equal arms only.
+        # Pocock and Simon's range method: each participant takes that arm with probability 0.8, else another arm.
+        description: The arm that least unbalances the factors stratifyBy names. Equal arms only.
       - name: Alternation
         value: alternation
-        description: Arms taken in turn, in the order participants reach the gateway; predictable, so rarely acceptable.
+        description: Arms taken in turn as participants reach the gateway; predictable, so rarely acceptable.
   - name: ExperimentSoftwareEnum
     description: Software that delivers a task.
     literalValues:
@@ -147,7 +149,7 @@ types:
   # apply (`studyflow:ChoreographyData`): its settings (trials, timing, blocks) are the `studyflow:Parameters`
   # wired into it.
   - name: CognitiveTask
-    description: A cognitive test an actor takes (working memory, attention, ...), presented by the study's software.
+    description: A cognitive test (working memory, attention, ...) an actor takes on the study's software.
     superClass:
       - bpmn:ChoreographyTask
     meta:
@@ -158,7 +160,8 @@ types:
       presenter: "<platform>"
     properties:
       - name: platform
-        description: Software that delivers the task and reads the Parameters wired into it (PsychoPy, jsPsych, Behaverse).
+        # PsychoPy, jsPsych, Behaverse.
+        description: The software that delivers the task and reads the Parameters wired into it.
         isAttr: true
         type: ExperimentSoftwareEnum
         meta:
@@ -181,8 +184,8 @@ types:
           categories:
             - Execution
 
-  # A rest is a wait, so a timer event: its timer is how long it lasts. What records during it (an EEG's resting
-  # state) claims it, and what that records goes out along its data output associations.
+  # A rest is a wait, so a timer event: its timer is how long it lasts. A runner that records during it (an EEG's
+  # resting state) claims it, and what it records goes out along the rest's data output associations.
   - name: Rest
     description: A break, or a resting-state period (eyes open or closed), as long as its timer says.
     superClass:
@@ -266,17 +269,17 @@ types:
           condition:
             algorithm: block
       - name: stratifyBy
-        description: >-
-          The values to balance arms on, by name, comma-separated (`age_band`, `age_band, sex`), as each participant
-          has them on reaching the gateway: blocks and alternation are dealt within each stratum, minimization
-          balances each factor. A browser session, one participant, cannot apply them.
+        # As each participant has them on reaching the gateway: blocks and alternation are dealt within each stratum,
+        # minimization balances each factor. A browser session, one participant, cannot apply them.
+        description: The values to balance arms on, by name, comma-separated (`age_band`, `age_band, sex`).
         isAttr: true
         type: String
         meta:
           order: 4
           optional: true
       - name: strata
-        description: 'The strata, one per entry (`age_band: 18-29`), for the reader: the walk deals within whatever values participants bring.'
+        # The walk deals within whatever values participants bring.
+        description: 'The strata, one per entry (`age_band: 18-29`), for the reader.'
         isAttr: false
         type: studyflow:MarkdownString
         isMany: true
@@ -285,10 +288,9 @@ types:
           condition:
             stratifyBy: $set
       - name: seedDigest
-        description: >-
-          Conceals the allocation: the `sha256:` digest of a seed this gateway draws from instead of the study's,
-          so the file commits to the allocation sequence without showing it. The run is given the seed, and its
-          executed copy reveals it.
+        # The gateway draws from that seed instead of the study's, so the file commits to the allocation sequence
+        # without showing it. The run is given the seed, and its executed copy reveals it.
+        description: 'Conceals the allocation: the `sha256:` digest of the seed this gateway draws from.'
         isAttr: true
         type: String
         meta:
@@ -301,7 +303,7 @@ types:
       - bpmn:ExclusiveGateway
     meta:
       icon: iconify ph--funnel
-      # What a participant flow reads: whoever takes no flow onward from here was assessed and excluded.
+      # A participant flow reads this role: whoever takes no flow onward from here was assessed and excluded.
       roles:
         - screening
     properties:

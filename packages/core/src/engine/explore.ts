@@ -13,7 +13,7 @@ import { Walk } from '@core/engine/walk';
  * event passes. The runs are walked dry, one instance of each pool, depth first over the choices, so what a study's
  * data decides is not what is checked: a path its conditions never take may still be reported.
  *
- * What it finds: a run in which a pool waits for a message none will send (the pools wait for each other, or the
+ * It finds three things: a run in which a pool waits for a message none will send (the pools wait for each other, or the
  * sender has ended), a parallel join one of whose tokens can never come, and a message sent that nothing takes. Each
  * comes with the choices that lead to it.
  */
@@ -74,7 +74,9 @@ export async function explore(plan: Plan, { maxRuns = 2000, maxPasses = 2 }: Exp
       ...dry,
       choose,
       perform: async (id, values, step) => {
-        if (graph.walked.has(id) && fails(id)) throw new Error(`${id} failed`);
+        // A step fails itself, or because the pool it asked could not answer: either way the step is what fails.
+        const failing = graph.walked.has(id) ? id : step.asker?.step;
+        if (failing && graph.walked.has(failing) && fails(failing)) throw new Error(`${failing} failed`);
         return dry.perform(id, values, step);
       },
       // A timer event passes at once; one at a boundary event runs out or not.

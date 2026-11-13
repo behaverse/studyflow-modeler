@@ -1,6 +1,6 @@
 /**
- * Polyline sampling — pure geometry over an edge's waypoints, shared by anything
- * that animates along a routed path (the token simulator, provenance replay).
+ * Polyline sampling: pure geometry over an edge's waypoints, shared by anything that animates along a routed path
+ * (the token simulator, provenance replay).
  */
 
 import type { ElementRecord, Point } from '@canvas/index.ts';

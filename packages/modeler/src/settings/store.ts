@@ -109,7 +109,7 @@ export function clearAllLocalData(): void {
   emit();
 }
 
-/** Who works here, as a sign-in found out: the provenance this app writes names them. */
+/** The user's email, learned from a sign-in. The provenance this app writes names them. */
 const userEmailStore = persisted<string>(STORAGE_KEYS.userEmail, stringCodec, '');
 
 export function getStoredUserEmail(): string | undefined {
@@ -138,9 +138,9 @@ export function saveAutosavedDiagram(xml: string): WriteResult {
 export function reportAutosaveFailure(err: unknown): void {
   if (warnedFor.has('failed')) return;
   warnedFor.add('failed');
-  console.warn('Auto-save failed: the diagram could not be serialized.', err);
+  console.warn('Auto-save failed: the study could not be serialized.', err);
   notify('warning',
-    'Auto-save failed: the diagram could not be written, so no copy was stored. '
+    'Auto-save failed: the study could not be written, so no copy was stored. '
     + 'Save it now if you need to keep it.');
 }
 
@@ -149,10 +149,10 @@ function reportOnce(kind: 'quota' | 'unavailable'): void {
   warnedFor.add(kind);
   notify('warning',
     kind === 'quota'
-      ? 'Auto-save could not store the diagram: browser storage is full. The stale entry was '
-        + 'cleared so a truncated diagram is never restored. Export the diagram to keep it.'
-      : 'Auto-save could not store the diagram: this browser does not provide local storage. '
-        + 'Save the diagram to keep it.');
+      ? 'Auto-save could not store the study: browser storage is full. The stale entry was '
+        + 'cleared so a truncated study is never restored. Save the study to keep it.'
+      : 'Auto-save could not store the study: this browser does not provide local storage. '
+        + 'Save the study to keep it.');
 }
 
 export function clearAutosavedDiagram(): void {

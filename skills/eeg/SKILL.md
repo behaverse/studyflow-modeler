@@ -7,8 +7,35 @@ metadata:
   modeler: "modeler.ts"
 ---
 
-Vocabulary, and the one to copy when starting a new skill: inheritance from core types,
-wrappers, enums, roles, and implementation-bound templates. Its `modeler.ts` adds the ARTEM-IS
-export (`.artemis.json`), an EEG methods report drawn from the diagram's acquisition, signal, and
-instrument elements, and NIDM-Results (`.nidm.ttl`), the neuroimaging data model's provenance of the
-diagram's data operations. Nothing executes these elements yet.
+A vocabulary-only skill: nothing executes its elements yet. `eeg.moddle.yaml` is also the schema to copy when
+starting a new skill, since it shows inheritance from core types, wrappers, enums, roles, and implementation-bound
+templates.
+
+## In a study
+
+A session is a pool that names its device, montage and reference:
+
+```yaml
+Pool_Session:
+  name: EEG session
+  process: $Session
+  extensions:
+    eeg:Session:
+      device: brainproducts_actichamp
+      modalities:
+        - eeg
+      montage: 10-20
+      reference: cz
+      lineFrequency: "50"
+```
+
+The palette's "EEG session" drops such a pool with its flow: fit the cap, record a baseline, run a task, export.
+
+## Exports
+
+`modeler.ts` adds two exports to the modeler.
+
+| Export | File | Drawn from |
+| --- | --- | --- |
+| ARTEM-IS, an EEG methods report | `.artemis.json` | the diagram's acquisition, signal, and instrument elements |
+| NIDM-Results, the neuroimaging data model's provenance | `.nidm.ttl` | the diagram's data operations |

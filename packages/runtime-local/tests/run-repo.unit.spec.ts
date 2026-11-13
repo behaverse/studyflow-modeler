@@ -56,7 +56,7 @@ test('a repository that keeps its data out commits the study and the digests of 
   };
   const sha = (text: string): string => createHash('sha256').update(text).digest('hex');
   const git = (...args: string[]): string => execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8' }).trim();
-  // What HEAD holds, and `.gitattributes` too where git-lfs is installed.
+  // The files HEAD holds, and `.gitattributes` too where git-lfs is installed.
   const committed = (): string[] => git('ls-tree', '-r', '--name-only', 'HEAD').split('\n').filter((name) => name !== '.gitattributes');
   write('s.studyflow.yaml', 'id: s\n');
   write('events.jsonl', 'a\n');

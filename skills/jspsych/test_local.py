@@ -75,7 +75,7 @@ with tempfile.TemporaryDirectory() as profile:
     (Path(profile) / local.STDERR).unlink()
     assert local.exited_why(gone) == "the headless browser exited (code 3) before the timeline ended"
 
-# What a timeline cannot play as written it refuses before it starts: an actor answers along message flows only,
+# A timeline refuses before it starts what it cannot play as written: an actor answers along message flows only,
 # ResponseOptions names keys its choices list, and the actor's deadline is a task setting, under Bot:.
 ROWS = [{"block": "Practice", "stimulus": "A"}, {"block": "Test", "stimulus": "X"}]
 
@@ -141,7 +141,7 @@ with tempfile.TemporaryDirectory() as folder:
     assert [line["result"]["isCorrect"] for line in lines] == [False, False, False]
     assert lines[0]["object"]["name"] == "AXCPT.TrialEnd" and lines[0]["context"] == {"subject": 2, "state": {"arm": "standard"}}
 
-    # What the trials came to: those answered, and each block's counts, in the shape a Behaverse task's result has.
+    # The trials counted: those answered, and each block's counts, in the shape a Behaverse task's result has.
     assert local.counts(session.records) == {"trials": 2, "blocks": [
         {"block": "Practice", "trials": 1, "answered": 1, "unanswered": 0, "correct": 0},
         {"block": "Test", "trials": 2, "answered": 1, "unanswered": 1, "correct": 0}]}

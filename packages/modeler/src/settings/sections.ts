@@ -4,7 +4,7 @@ import type { ComponentType } from 'react';
 export type SettingsSection = {
   id: string;
   label: string;
-  /** An iconify class (`bi--person-circle`), drawn beside the label. */
+  /** An iconify class (`ph--user-circle`), drawn beside the label. */
   icon: string;
   Component: ComponentType;
 };

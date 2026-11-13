@@ -76,8 +76,8 @@ export function stampTrailForExport(
   const edited = revision !== (lastStampedAt.get(modeler) ?? 0);
   if (trail.length > 0 && !edited) return undefined;
 
-  // Part of the step the study holds, so a save is no step of its own: an undo after it takes the stamp back with the
-  // edit it follows, and a redo brings both back.
+  // The stamp amends the study's last undo step, so a save adds no step of its own: an undo takes the stamp back
+  // with the edit it follows, and a redo brings both back.
   let entry: TrailRecord | undefined;
   modeler.study.amend(modeler.study.root.id, (_root, model) => {
     entry = appendTrailEntry(model, {

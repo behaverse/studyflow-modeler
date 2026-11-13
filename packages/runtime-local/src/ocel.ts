@@ -32,7 +32,7 @@ export type OcelEvent = { id: string; type: string; time: string; attributes: At
 export type OcelObject = { id: string; type: string; attributes: (Attribute & { time: string })[] };
 export type Ocel = { objectTypes: Declared[]; eventTypes: Declared[]; objects: OcelObject[]; events: OcelEvent[] };
 
-/** When an attribute that never changes took its value, as OCEL writes it. */
+/** The time an attribute that never changes took its value, as OCEL writes it. */
 const ALWAYS = '1970-01-01T00:00:00Z';
 
 /** A value as OCEL holds one: a string, number or boolean as itself, anything else as its JSON text. */
@@ -62,7 +62,7 @@ export function ocelOf(record: readonly RunEvent[]): Ocel {
     if (!objects.has(id)) objects.set(id, { id, type, attributes: attributesOf(fields).map((attribute) => ({ ...attribute, time: ALWAYS })) });
     return id;
   };
-  // What the record says of an element once: its name, and its type when it is a task (no event, no gateway).
+  // The facts the record states about an element once: its name, and its type when it is a task (no event, no gateway).
   const names = new Map<string, string>();
   const tasks = new Map<string, string>();
   let run = '';

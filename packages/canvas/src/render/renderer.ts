@@ -108,7 +108,7 @@ function iconGlyph(model: StudyModel, element: Element): string | undefined {
   const name = getCatalog().getType(model.extensionType(element))?.meta?.glyph;
   if (typeof name !== 'string') return undefined;
   if (model.attribute(element, 'icon')) return undefined;
-  // What a run reads: the value the Parameters wired into the task set, else its own.
+  // The value a run reads: the one the Parameters wired into the task set, else its own.
   const override = attributeOverridesIn(model, element).get(name);
   const value = override ? override.value : model.attributeOrDefault(element, name);
   if (typeof value !== 'string' || !value) return undefined;
@@ -282,7 +282,7 @@ export class Renderer {
     if (!g) return false;
     dispose(g);
     this.graphicsById.delete(id);
-    // What jumped over an erased edge no longer crosses anything there.
+    // An edge that jumped over an erased edge no longer crosses anything there.
     const box = this.jumpBoxes.get(id);
     if (box) this.vacated.push(box);
     this.jumpBoxes.delete(id);
@@ -303,7 +303,7 @@ export class Renderer {
     switch (categoryOf(node.type)) {
       case 'event': {
         const kind = eventKind(node);
-        drawEvent(g, node.width, node.height, style, kind);
+        drawEvent(g, node.width, node.height, style, kind, this.runsBeside(node));
         this.drawEventIcons(g, node, style.stroke, kind);
         break;
       }
@@ -486,6 +486,14 @@ export class Renderer {
     return { left: typed ? TYPE_ICON_REACH : 0, right, row };
   }
 
+  /** Whether a boundary event leaves its activity running when it happens (`cancelActivity: false`). An error
+   * boundary event always ends its activity, whatever it says. */
+  private runsBeside(node: SceneNode): boolean {
+    const { cancelActivity } = node.element;
+    if (node.type !== BPMN.BoundaryEvent || (cancelActivity !== false && cancelActivity !== 'false')) return false;
+    return !listOf(node.element, 'eventDefinitions').some((definition) => this.model.isA(definition, 'bpmn:ErrorEventDefinition'));
+  }
+
   private drawEventIcons(g: SVGGElement, node: SceneNode, color: string, kind?: string): void {
     const resolver = this.iconResolver;
     if (!resolver) return;
@@ -496,8 +504,8 @@ export class Renderer {
     // BPMN draws a throwing (end) event's symbol filled: the host may name that variant under `<definition>:end`.
     if (defKey && kind === 'end' && resolver(`${defKey}:end`, def)) defKey = `${defKey}:end`;
     let centreTaken = false;
-    // A glyph the host names for the element itself — a schema event type's icon (`meta.icon` on an
-    // `IntermediateCatchEvent` wrapper, such as a rest's) — says more than its definition's, so it wins:
+    // A glyph the host names for the element itself, a schema event type's icon (`meta.icon` on an
+    // `IntermediateCatchEvent` wrapper, such as a rest's), says more than its definition's, so it wins:
     // a rest is drawn as a rest, not as the timer that says how long it lasts.
     const typeKey = toLocalName(node.type);
     if (typeKey && resolver(typeKey, node.element)) {
@@ -590,11 +598,11 @@ export class Renderer {
   }
 
   /**
-   * A pool of several participant instances marks them at the foot of its own title band — the strip the
+   * A pool of several participant instances marks them at the foot of its own title band, the strip the
    * rotated name runs up, which no lane reaches. BPMN puts participant multiplicity at the pool's bottom
    * centre, where it sits under the bottom lane and reads as that lane's, and lanes carry no markers of
    * their own to tell it apart. The bars stay upright, so it is the parallel marker a step carries,
-   * and `×N` under them — `participantMultiplicity/@maximum` — says how many instances that is.
+   * and `×N` under them (`participantMultiplicity/@maximum`) says how many instances that is.
    * Returns the band length it takes, which the name gives up.
    */
   private drawBandMarker(g: SVGGElement, node: SceneNode, color: string): number {

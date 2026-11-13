@@ -22,7 +22,7 @@ enumerations:
     literalValues:
       - name: BDM (Behaverse Data Model)
         value: bdm
-        icon: iconify bi--hexagon
+        icon: iconify ph--hexagon
   - name: InstrumentEnum
     description: A task of the Behaverse battery, by its id (BDM `instrument_id`).
     literalValues:
@@ -71,8 +71,8 @@ enumerations:
       - name: Which One (WO)
         value: WO
   - name: DataLevelEnum
-    description: |
-        Level of the BDM hierarchy the data is formatted in. The BDM is a three-level hierarchy: events, trials, and models. Each level is derived from the one below it.
+    # The BDM is a three-level hierarchy: events, trials, and models. Each level is derived from the one below it.
+    description: Level of the BDM hierarchy the data is formatted in.
     literalValues:
       - name: Events
         value: events
@@ -95,14 +95,15 @@ enumerations:
 
 types:
   - name: Task
-    description: 'A task from the Behaverse assessment battery. Its `instrument` says which, its `timeline` what runs, and the "Parameters" wired into it configure it.'
+    # The Parameters wired into it configure it.
+    description: A Behaverse battery task; its `instrument` says which, its `timeline` what runs.
     superClass:
       - cognitive:CognitiveTask
     meta:
-      icon: iconify bi--hexagon
+      icon: iconify ph--hexagon
       presenter: "Behaverse - <instrument>"
       glyph: instrument
-      # What a played task hands back, which a data edge's `transformation` reads as `result`.
+      # The result a played task hands back, which a data edge's `transformation` reads as `result`.
       result: TaskResult
     properties:
       - name: platform
@@ -114,14 +115,17 @@ types:
           order: 0
           pinned: true
       - name: implementation
-        description: 'The build a release of the battery is (`behaverse://assessment-unity@26.10.1`), for the record: the instrument and the timeline say what runs, and `runtime` which build plays it. One naming another skill''s scheme hands the task to that skill.'
+        # For the record only: the instrument and the timeline say what runs, and `runtime` which build plays it. One
+        # naming another skill's scheme hands the task to that skill.
+        description: The build a release of the battery is (`behaverse://assessment-unity@26.10.1`).
         isAttr: true
         type: String
         redefines: cognitive:CognitiveTask#implementation
         meta:
           pinned: true
       - name: instrument
-        description: Which task of the battery runs (`NB`, `UFOV`, `DS`), the wire's `scene` and BDM's `instrument_id`.
+        # The wire's `scene` and BDM's `instrument_id`.
+        description: Which task of the battery runs (`NB`, `UFOV`, `DS`).
         isAttr: true
         type: InstrumentEnum
         meta:
@@ -129,7 +133,9 @@ types:
           categories:
             - Execution
       - name: timeline
-        description: 'The one timeline that runs: one the build ships for the instrument (`XCIT_NB_01`), or one the Parameters wired into the task define under `Timelines`.'
+        # One the build ships for the instrument (`XCIT_NB_01`), or one the Parameters wired into the task define under
+        # `Timelines`.
+        description: The one timeline that runs, shipped with the build or defined under `Timelines`.
         isAttr: true
         type: String
         meta:
@@ -137,7 +143,9 @@ types:
           categories:
             - Execution
       - name: runtime
-        description: 'Which build plays the task: the Unity build, or the Godot one (task_builder). A task whose trials go to a simulated actor plays on the simulated build whatever this says. No runner plays the Godot build yet, so a study with a task set to it stops before its first step.'
+        # A task whose trials go to a simulated actor plays on the simulated build whatever this says. No runner plays
+        # the Godot build yet, so a study with a task set to it stops before its first step.
+        description: 'Which build plays the task: the Unity build, or the Godot one (task_builder).'
         isAttr: true
         type: BehaverseRuntimeEnum
         default: unity
@@ -169,7 +177,10 @@ types:
         description: The file the task's records went to.
         type: String
   - name: BlockCounts
-    description: 'One block''s trials, as the build recorded them: how many it presented, recorded a valid response for, recorded none for, and scored correct (null when its records say nothing of correctness). A trial the build presents only so the responder sees every stimulus (an N-back burn-in digit) is not counted.'
+    # How many it presented, recorded a valid response for, recorded none for, and scored correct (null when its
+    # records say nothing of correctness). A trial the build presents only so the responder sees every stimulus (an
+    # N-back burn-in digit) is not counted.
+    description: One block's trials, as the build recorded them.
     properties:
       - name: block
         description: The block's name (`XCIT_NB_02_Test_A`).
@@ -184,11 +195,15 @@ types:
         type: Integer
 
   - name: SimulatedActor
-    description: 'A simulated actor for the battery''s tasks: a pool that answers each trial it is sent as a person would read it, right with the probability the study plants, so a pipeline check knows the truth its analysis should recover. A task whose trials go to it plays on the simulated build, a stand-in for the Unity build that plays the battery''s AX-CPT (RE), Which One (WO) and N-back (NB) from the timelines the Parameters wired into the task define, without Unity.'
+    # It answers right with the probability the study plants, so a pipeline check knows the truth its analysis
+    # should recover. A task whose trials go to it plays on the simulated build, a stand-in for the Unity build that
+    # plays the battery's AX-CPT (RE), Which One (WO) and N-back (NB) from the timelines the Parameters wired into
+    # the task define, without Unity.
+    description: A simulated actor, a pool that answers each trial it is sent as a person would read it.
     superClass:
       - studyflow:Actor
     meta:
-      icon: iconify bi--hexagon
+      icon: iconify ph--hexagon
     properties:
       - name: actorType
         default: software
@@ -201,15 +216,21 @@ types:
         isAttr: true
         redefines: studyflow:Actor#implementation
       - name: accuracy
-        description: 'The planted probability of a right answer, by instrument and condition (`RE: {BX: 0.70}`), with `default` for any other; a condition is the one the actor reads from the trial (AX-CPT `Cue`, `AX`, `AY`, `BX`, `BY`, `Distractor`; Which One `Congruent`, `Incongruent`, `Neutral`; N-back `1-back`, `2-back`, `BurnIn`).'
+        # `default` holds for any other. A condition is the one the actor reads from the trial (AX-CPT `Cue`, `AX`,
+        # `AY`, `BX`, `BY`, `Distractor`; Which One `Congruent`, `Incongruent`, `Neutral`; N-back `1-back`, `2-back`,
+        # `BurnIn`).
+        description: 'The planted probability of a right answer, by instrument and condition (`RE: {BX: 0.70}`).'
         isAttr: false
         type: studyflow:YAMLString
       - name: prompted
-        description: 'Accuracies that hold instead when a text sent with the trial has a line beginning with the key (`"Reminder:": {RE: {BX: 0.88}}`): how the actor plants an effect of what the study tells it.'
+        # `"Reminder:": {RE: {BX: 0.88}}`: how the actor plants an effect of what the study tells it.
+        description: Accuracies that hold when a text sent with the trial has a line beginning with the key.
         isAttr: false
         type: studyflow:YAMLString
       - name: remembering
-        description: 'Accuracies that hold instead when it keeps the conversation the trial belongs to (`RE: {BX: 0.88}`), the actor''s `memory` or that of the sub-process the asking step is in: how the actor plants an effect of what it remembers.'
+        # `RE: {BX: 0.88}`. The conversation is kept by the actor's `memory` or that of the sub-process the asking step
+        # is in: how the actor plants an effect of what it remembers.
+        description: Accuracies that hold when it keeps the conversation the trial belongs to.
         isAttr: false
         type: studyflow:YAMLString
       - name: missRate
@@ -218,7 +239,10 @@ types:
         type: Real
         default: 0
       - name: absent
-        description: 'The share of subjects who never answer what a step asks, by step id (`Return: 0.25`): drawn once per subject and step from the run''s seed, so a re-run draws the same subjects. Every message that step sends such a subject goes unanswered, and the step waits until a boundary event ends it (a timer: the subject who never came back); what other steps ask is answered as usual.'
+        # Drawn once per subject and step from the run's seed, so a re-run draws the same subjects. Every message that
+        # step sends such a subject goes unanswered, and the step waits until a boundary event ends it (a timer: the
+        # subject who never came back); what other steps ask is answered as usual.
+        description: 'The share of subjects who never answer what a step asks, by step id (`Return: 0.25`).'
         isAttr: false
         type: studyflow:YAMLString
 
@@ -227,7 +251,7 @@ types:
     superClass:
       - studyflow:Dataset
     meta:
-      icon: iconify bi--hexagon
+      icon: iconify ph--hexagon
     properties:
       - name: format
         default: bdm
@@ -247,7 +271,7 @@ types:
             - Data
 
 templates:
-  - description: The parameters of an N-Back task running a timeline that ships with the Behaverse build; wire it into the task.
+  - description: Parameters for an N-Back task on a timeline the build ships; wire it into the task.
     elements:
       NBack_XCIT_NB_01:
         type: DataObjectReference

@@ -26,8 +26,8 @@ export type UpdateAttributesCommand = {
   values: Record<string, unknown>;
 };
 
-/** Several attributes of one element, each written as `UpdateAttribute` writes one, as one edit and one undo step: what a
- * modal saves together (a schema's body and its format, a script and its language). */
+/** Writes several attributes of one element as `UpdateAttribute` writes one, in one edit and one undo step. A modal
+ * uses it to save two together (a schema's body and its format, a script and its language). */
 export function runUpdateAttributes(modeler: Editor, command: UpdateAttributesCommand): void {
   const id = String(command.element.id);
   const steps = Object.entries(command.values).map(([attribute, value]) => ({ tool: 'set', args: { id, attribute, value: value === '' || value === undefined ? null : value } }));
@@ -54,7 +54,7 @@ export type UpdateChoreographyParticipantsCommand = {
   | { field: 'initiator'; value: 'top' | 'bottom' }
 );
 
-/** Who takes a band, by the study's `bands`, as an AI says it with the tool of that name. */
+/** Sets who takes a band, through the study's `bands`, the verb an AI calls as the tool of that name. */
 export function runUpdateChoreographyParticipants(
   modeler: Editor,
   command: UpdateChoreographyParticipantsCommand,
@@ -182,7 +182,7 @@ export type UpdateDataStoresCommand = {
   | { action: 'retype'; storeId: string; itemType: string }
 );
 
-/** The study's data stores, root elements of the file. A store removed leaves the references that showed it naming none. */
+/** The study's data stores, root elements of the file. Removing a store leaves the references that showed it naming none. */
 export function runUpdateDataStores(modeler: Editor, command: UpdateDataStoresCommand): void {
   modeler.study.revise(String(command.element.id), (_root, model, ids) => {
     if (command.action === 'add') {
@@ -235,11 +235,11 @@ export type UpdateMessageCommand = {
   type: 'UpdateMessage';
   /** The message flow. */
   element: Element;
-  /** What the flow carries, as an item definition's `structureRef`; '' names no message. */
+  /** The structure the flow carries, as an item definition's `structureRef`; '' names no message. */
   structureRef: string;
 };
 
-/** What a message flow carries (core's `setMessageItemIn`). */
+/** Sets what a message flow carries (core's `setMessageItemIn`). */
 export function runUpdateMessage(modeler: Editor, command: UpdateMessageCommand): void {
   modeler.study.revise(String(command.element.id), (flow, model, ids) => setMessageItemIn(model, ids, flow, command.structureRef.trim()));
 }

@@ -48,7 +48,7 @@ export class StudyModel {
     this.indexUnder(element, { parent, key });
   }
 
-  /** Take `element`, and all it holds, out of the list that holds it; where it was. */
+  /** Take `element`, and all it holds, out of the list that holds it. Returns where it was. */
   unfile(element: Element): Holder | undefined {
     const holder = this.holders.get(element);
     if (!holder) return undefined;
@@ -71,7 +71,7 @@ export class StudyModel {
     return holder;
   }
 
-  /** Index `element`, and all it holds, as held at `holder`: what a write that sets a property to an element calls. */
+  /** Index `element`, and all it holds, as held at `holder`. A write that sets a property to an element calls this. */
   indexUnder(element: Element, holder: Holder): void {
     const visit = (value: Value | undefined, at: Holder): void => {
       if (Array.isArray(value)) value.forEach((item) => visit(item, at));
@@ -98,7 +98,7 @@ export class StudyModel {
     return this.holders.keys();
   }
 
-  /** The id of `element`, else of the nearest element holding it that has one: whose an issue is. */
+  /** The id of `element`, else of the nearest element holding it that has one; an issue is reported against it. */
   ownerOf(element: Element): string | undefined {
     for (let at: Element | undefined = element; at; at = this.parentOf(at)) if (typeof at.id === 'string') return at.id;
     return undefined;
@@ -156,7 +156,7 @@ export class StudyModel {
     return entry;
   }
 
-  /** What `element` holds under `name`: its own value, else its schema entry's (an entry its BPMN element keeps in
+  /** The value `element` holds under `name`: its own, else its schema entry's (an entry its BPMN element keeps in
    * `extensionElements`, when no schema types it). */
   attribute(element: Element, name: string): Value | undefined {
     if (name in element) return element[name];
@@ -164,7 +164,7 @@ export class StudyModel {
     return type && type !== element.type ? this.entries(element).find((entry) => entry.type === type)?.[name] : undefined;
   }
 
-  /** What `element` holds under `name`, as {@link attribute} reads it, else the default its schema declares. */
+  /** The value `element` holds under `name`, as {@link attribute} reads it, else the default its schema declares. */
   attributeOrDefault(element: Element, name: string): Value | undefined {
     const value = this.attribute(element, name);
     if (value !== undefined) return value;
@@ -223,7 +223,7 @@ export function extensionTypeOf(element: Element | undefined): string | undefine
   return entries.find((entry) => isExtensionPrefix(entry.type.split(':')[0]))?.type;
 }
 
-/** What `element` holds under `name`, read off the element alone: its own value, else its schema entry's. */
+/** The value `element` holds under `name`, read off the element alone: its own, else its schema entry's. */
 export function heldAttribute(element: Element | undefined, name: string): Value | undefined {
   if (!element) return undefined;
   if (name in element) return element[name];
@@ -243,7 +243,7 @@ export function yamlText(value: Value | undefined): string | undefined {
 }
 
 /**
- * What `element` holds under the attribute `name` (`bpmn:name`, `studyflow:checklist`), as a field shows it: its value
+ * The value `element` holds under the attribute `name` (`bpmn:name`, `studyflow:checklist`), as a field shows it: its value
  * or its schema's default, documentation as one text, a YAML-typed value as its text.
  */
 export function readAttribute(model: StudyModel, element: Element | undefined, name: string): Value | undefined {

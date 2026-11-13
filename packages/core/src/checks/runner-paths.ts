@@ -12,7 +12,7 @@ const READ_EVENTS = ['bpmn:MessageEventDefinition', 'bpmn:TimerEventDefinition',
 const KINDS: Record<string, string> = { Escalation: 'an escalation', Compensate: 'a compensation' };
 
 /**
- * What the walk reads otherwise than BPMN (packages/core/src/engine/walk.ts, packages/runtime-local/WALK.md): a complex
+ * Where the walk departs from BPMN (packages/core/src/engine/walk.ts, packages/runtime-local/WALK.md): a complex
  * gateway, whose activation rule it does not read, stops a run where it splits and passes each token where it joins;
  * a scope's second start event never starts it; and an event of a kind it does not read (a signal, an escalation, a
  * compensation, a link, a cancel), each reaching beyond where it is drawn, would pass as a plain event, so it is

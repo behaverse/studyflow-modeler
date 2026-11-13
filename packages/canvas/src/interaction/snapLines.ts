@@ -9,7 +9,7 @@ import type { Bounds, Point, Scene, SceneNode } from '@canvas/study/scene.ts';
 import { collectSnapTargets, snapMove, snapPoint, type SnapTargets } from '@canvas/interaction/snapping.ts';
 import type { Viewport } from '@canvas/view/viewport.ts';
 
-/** What a drag snaps: a shape it moves (by its centre), or one point it moves (a resize corner, a bendpoint). */
+/** The thing a drag snaps: a shape it moves (by its centre), or one point it moves (a resize corner, a bendpoint). */
 interface SnapContext {
   targets: SnapTargets;
   bounds?: Bounds;

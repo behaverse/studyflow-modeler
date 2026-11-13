@@ -1,14 +1,9 @@
 /**
- * The context pad's look.
+ * The context pad's look: 28px entries with 18px glyphs on a small chrome chip, with the material, hairline and
+ * shadow of the palette, so the two read as one family of floating controls. Entries wrap three to a row, and the
+ * delete entry turns red on hover.
  *
- * 28px entries with 18px
- * glyphs on a small chrome chip — the same material, hairline and shadow the
- * palette wears, so the two read as one family of floating controls instead of
- * bare glyphs lost over the diagram. Entries wrap three to a row; the delete
- * entry tints red on hover so the destructive action reads before the click.
- *
- * z-order: palette 210 < context pad 215 < palette flyouts 300 < popover 320 — the
- * slot the selection toolbar it replaces used to occupy.
+ * z-order: palette 210 < context pad 215 < palette flyouts 300 < popover 320.
  */
 
 import { border, radius, shadow, surface, tooltip as tooltipMaterial } from '@modeler/ui/styles';
@@ -26,11 +21,11 @@ export const contextPad = {
           disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-stone-600
           transition-colors duration-[120ms] ease-linear`,
 
-  /** The trash: destructive, so it wears red at rest and deepens on hover.
-      The `!` outranks the base entry's stone colours, which share specificity. */
-  entryDanger: 'text-red-500! hover:bg-red-500/10 hover:text-red-600! active:bg-red-500/15',
+  /** The trash: destructive, so it turns red under the pointer.
+      The `!` outranks the base entry's hover colour, which shares specificity. */
+  entryDanger: 'hover:bg-red-500/10 hover:text-red-600! active:bg-red-500/15',
 
-  /** The connect entry is dragged out of the pad, so it says so. */
+  /** The connect entry is dragged out of the pad, so its cursor is a crosshair. */
   entryDraggable: 'cursor-crosshair',
 
   entryIcon: 'text-lg',

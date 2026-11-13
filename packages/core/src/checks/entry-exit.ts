@@ -4,7 +4,7 @@ import { quoted } from '@core/checks/graph';
 import type { Element, StudyModel } from '@core/model/index';
 
 /**
- * What a participant meets on the way in and is handed on the way out: the consent form a start event links, a link
+ * Checks what a participant meets on the way in and is handed on the way out: the consent form a start event links, a link
  * a page can fetch (an address, or a path from the site's root); and the completion code an end event promises, which
  * a static code must hold and a redirect carrying `{COMPLETION_CODE}` must be given. A `{placeholder}` is read at run
  * time.

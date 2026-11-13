@@ -18,6 +18,10 @@ folder (`reachy/frames/` when it names none), and its path is the step's result.
 state as the modeler does, `{name}` from the element outward, `{state.scope.name}`, or `{Play.trials}` for an
 earlier element's result.
 
+A robot action that fails (a move, a line, a sound, a pose, a look, a camera that gives no frame) fails its step,
+and the seat hands such a failure back to the step that asked. A robot with no camera, a simulated one or a dry
+run, takes no picture and looks for no screen.
+
 A partial runner (packages/runtime-local/CONTRACT.md): the local runtime walks the diagram and hands this script one
 `reachy:*` element at a time, with the run's values; its result, and what its data edges bind, go back. It never
 opens the diagram itself: `plan.json` is the digest the local runtime writes. It holds the robot from the first
@@ -182,10 +186,6 @@ class TerminalRobot:
 # The SDK's official recorded-move library, played through `play_move`.
 EMOTIONS_LIBRARY = "pollen-robotics/reachy-mini-emotions-library"
 
-# Names the schema used before it adopted the library's own, kept working here.
-MOVE_ALIASES = {"happy": "cheerful1", "sad": "sad1", "curious": "curious1", "surprised": "surprised1",
-                "nod": "yes1", "shake": "no1", "look_around": "attentive1", "dance": "dance1", "rest": "sleep1"}
-
 
 class SimRobot:
     """Drives a Reachy Mini through the `reachy_mini` SDK: a MuJoCo sim, or in
@@ -272,8 +272,8 @@ class SimRobot:
 
         try:
             state = status().get("state")
-        except Exception:
-            return  # not a daemon that reports; the SDK will say what is wrong
+        except Exception:  # noqa: BLE001 - not a daemon that reports; the SDK will say what is wrong
+            return
         if state == "running":
             return
         print(f"    the robot's backend is {state or 'stopped'}: starting it…")
@@ -300,21 +300,14 @@ class SimRobot:
         )
 
     def _act(self, steps: list[tuple[dict | None, list[float] | None, float, float | None]]) -> None:
-        try:
-            for head, antennas, duration, body_yaw in steps:
-                self._go(head, antennas, duration, body_yaw)
-        except Exception as error:
-            print(f"    (sim motion failed: {error})")
+        for head, antennas, duration, body_yaw in steps:
+            self._go(head, antennas, duration, body_yaw)
 
     def speak(self, text: str, renderer: list[str] | None = None) -> None:
         # The antennas tap while the line prints; a real unit also says it, through its own speaker.
         self._act([(None, [0.25, -0.25], 0.15, None), (None, [0.0, 0.0], 0.15, None)])
-        if self.sim:
-            return
-        try:
+        if not self.sim:
             self._say(text, renderer)
-        except Exception as error:
-            print(f"    (speech failed: {error})")
 
     def _say(self, text: str, renderer: list[str] | None = None) -> float:
         """Render the line on this machine with `say` (or the step's own `shell://` command and flags, one that
@@ -325,8 +318,8 @@ class SimRobot:
 
         command, *flags = renderer or ["say"]
         if shutil.which(command) is None:
-            print(f"    (no `{command}` on this machine to render the line)")
-            return 0.0  # ponytail: macOS TTS only; a robot-side TTS app would replace this
+            # ponytail: macOS TTS only; a robot-side TTS app would replace this
+            raise RuntimeError(f"no `{command}` on this machine to render the line")
         if self.voice and "-v" not in flags:
             flags += ["-v", self.voice]
         name = f"studyflow-{hashlib.sha1(json.dumps([command, flags, text]).encode()).hexdigest()[:12]}.wav"
@@ -363,32 +356,25 @@ class SimRobot:
         try:
             with wave.open(str(path)) as audio:
                 return audio.getnframes() / audio.getframerate()
-        except Exception:
-            return 0.0
+        except (wave.Error, EOFError):
+            return 0.0  # no WAV header to read a length from
 
     def gesture(self, move: str, dataset: str | None = None) -> None:
-        try:
-            move = MOVE_ALIASES.get(move, move)
-            if move in ("wake_up", "goto_sleep"):
-                # Built-in moves live behind their own daemon endpoints, not a dataset.
-                self._post(f"/api/move/play/{move}")
-                return
-            dataset = dataset or EMOTIONS_LIBRARY
-            if self._moves is None:
-                self._moves = {}
-            if dataset not in self._moves:
-                from reachy_mini.motion.recorded_move import RecordedMoves
-                self._moves[dataset] = RecordedMoves(dataset)
-            recorded = self._moves[dataset].get(move)
-            if not self.sim and recorded.sound_path is not None:
-                # The library's sidecar sound, through the unit's own speaker (the client's player is host-side).
-                try:
-                    self._play_file(Path(recorded.sound_path))
-                except Exception as error:
-                    print(f"    (move sound failed: {error})")
-            self.mini.play_move(recorded, initial_goto_duration=1.0, sound=False)
-        except Exception as error:
-            print(f"    (sim move failed: {error})")
+        if move in ("wake_up", "goto_sleep"):
+            # Built-in moves live behind their own daemon endpoints, not a dataset.
+            self._post(f"/api/move/play/{move}")
+            return
+        dataset = dataset or EMOTIONS_LIBRARY
+        if self._moves is None:
+            self._moves = {}
+        if dataset not in self._moves:
+            from reachy_mini.motion.recorded_move import RecordedMoves
+            self._moves[dataset] = RecordedMoves(dataset)
+        recorded = self._moves[dataset].get(move)
+        if not self.sim and recorded.sound_path is not None:
+            # The library's sidecar sound, through the unit's own speaker (the client's player is host-side).
+            self._play_file(Path(recorded.sound_path))
+        self.mini.play_move(recorded, initial_goto_duration=1.0, sound=False)
         restore_gaze(self)  # a recorded move starts and ends at rest: back to the screen
 
     def _set_volume(self, volume: int) -> None:
@@ -401,7 +387,7 @@ class SimRobot:
             if current != volume:
                 self._post("/api/volume/set", {"volume": volume})
                 print(f"    the unit's volume goes from {current} to {volume}")
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001 - a setting, not a step: the unit stays as loud as it was
             print(f"    (could not set the volume: {error})")
 
     def _post(self, path: str, body: dict[str, Any] | None = None) -> None:
@@ -416,41 +402,32 @@ class SimRobot:
         )
 
     def goto(self, spec: dict[str, Any]) -> None:
-        # The daemon's goto speaks radians and meters, exactly as the schema does.
-        try:
-            duration = float(spec["motionDuration"])
-            self._post("/api/move/goto", {
-                "head_pose": {k: float(spec[k]) for k in ("x", "y", "z", "roll", "pitch", "yaw")},
-                "antennas": [float(spec["leftAntenna"]), float(spec["rightAntenna"])],
-                "body_yaw": float(spec["bodyYaw"]),
-                "duration": duration,
-                "interpolation": spec["interpolation"],
-            })
-            time.sleep(duration)  # goto returns a move uuid immediately; wait it out
-        except Exception as error:
-            print(f"    (goto failed: {error})")
+        # The daemon's goto speaks radians and meters, as the schema does.
+        duration = float(spec["motionDuration"])
+        self._post("/api/move/goto", {
+            "head_pose": {k: float(spec[k]) for k in ("x", "y", "z", "roll", "pitch", "yaw")},
+            "antennas": [float(spec["leftAntenna"]), float(spec["rightAntenna"])],
+            "body_yaw": float(spec["bodyYaw"]),
+            "duration": duration,
+            "interpolation": spec["interpolation"],
+        })
+        time.sleep(duration)  # goto returns a move uuid immediately; wait it out
         restore_gaze(self)
 
     def play_sound(self, file: str) -> None:
-        try:
-            self._post("/api/media/play_sound", {"file": file})
-        except Exception as error:
-            print(f"    (sound failed: {error})")
+        self._post("/api/media/play_sound", {"file": file})
 
     def look_at(self, target: str) -> None:
         """Turn toward the target. The screen is where a search last found it (`find_screen` does the searching,
         asking a model), else straight ahead and a little up."""
-        try:
-            if target == "screen":
-                self.aim(LAST_GAZE or recall_gaze(self) or {"yaw": 0.0, "pitch": SEARCH_PITCH_DEG})
-            elif target == "face":
-                self.mini.look_at_world(0.4, 0.0, 0.15, duration=0.7)
-            elif target == "sound":
-                self._act([({"yaw": 20}, None, 0.5, None), ({"yaw": -20}, None, 0.7, None), ({}, None, 0.5, None)])
-            else:
-                self._act([({}, [0.0, 0.0], 0.6, None)])
-        except Exception as error:
-            print(f"    (sim motion failed: {error})")
+        if target == "screen":
+            self.aim(LAST_GAZE or recall_gaze(self) or {"yaw": 0.0, "pitch": SEARCH_PITCH_DEG})
+        elif target == "face":
+            self.mini.look_at_world(0.4, 0.0, 0.15, duration=0.7)
+        elif target == "sound":
+            self._act([({"yaw": 20}, None, 0.5, None), ({"yaw": -20}, None, 0.7, None), ({}, None, 0.5, None)])
+        else:
+            self._act([({}, [0.0, 0.0], 0.6, None)])
 
     def aim(self, gaze: dict[str, float], remember: bool = False) -> None:
         """Head and base toward a gaze (degrees). The head pose is in the world frame and the daemon keeps it there
@@ -463,7 +440,7 @@ class SimRobot:
 
     def snapshot(self, path: Path, width: int | None = None, fresh: bool = False) -> bool:
         """Save what the camera sees as a JPEG at `path`, `width` pixels wide at most; `fresh` waits for a frame the
-        stream shows after the head has settled. False without a camera or a frame."""
+        stream shows after the head has settled. False without a camera; a camera that gives no frame is an error."""
         frame = camera_frame(self, after=time.monotonic() + STREAM_LAG_S if fresh else 0.0)
         if frame is None:
             return False
@@ -485,11 +462,14 @@ class SimRobot:
 
     def close(self) -> None:
         if self.mini is not None:
-            self._act([({}, [0.0, 0.0], 0.5, None)])
+            try:
+                self._act([({}, [0.0, 0.0], 0.5, None)])
+            except Exception:  # noqa: BLE001 - a robot that is already gone has no pose to rest in
+                pass
             mini, self.mini = self.mini, None  # the stream reader stops before the camera goes
             try:
                 mini.__exit__(None, None, None)  # the SDK's only public teardown path
-            except Exception:
+            except Exception:  # noqa: BLE001 - leaving must not fail
                 pass
         # Only the daemon this run spawned; one that was already serving stays.
         if self._daemon is not None:
@@ -730,7 +710,7 @@ def read_stream(robot: Any) -> None:
     while getattr(robot, "mini", None) is not None:
         try:
             frame = robot.mini.media.get_frame()
-        except Exception:
+        except Exception:  # noqa: BLE001 - a stream that stalls is read again
             frame = None
         now = time.monotonic()
         if frame is not None:
@@ -748,7 +728,7 @@ def read_stream(robot: Any) -> None:
 
 def camera_frame(robot: Any, wait: float = 4.0, after: float = 0.0) -> Any:
     """The camera's newest BGR frame, under a second old and seen after the moment `after`, waiting up to `wait`
-    seconds for one; None without."""
+    seconds for one. None without a camera; a camera that gives no frame in that time is an error."""
     if not has_camera(robot):
         return None
     deadline = time.monotonic() + wait  # ponytail: covers the stream's warm-up after connecting; shorten if trials feel slow
@@ -757,8 +737,7 @@ def camera_frame(robot: Any, wait: float = 4.0, after: float = 0.0) -> Any:
         if frame is not None and seen >= after and time.monotonic() - seen < 1.0:
             return frame
         if time.monotonic() >= deadline:
-            print("    (camera gave no frame)")
-            return None
+            raise RuntimeError("the camera gave no frame")
         time.sleep(0.05)
 
 
@@ -790,7 +769,7 @@ def screen_is_centred(where: tuple[int, int]) -> bool:
     return where == (0, 0)
 
 
-# What a `screen` look asks the model about each view: the look parses the reply, so the question is the step's own.
+# The question a `screen` look asks the model about each view: the look parses the reply, so the question is the step's own.
 SCREEN_QUESTION = (
     "Is a computer monitor, laptop screen, or TV visible in this image? If so, which third of the image "
     "contains the centre of the monitor, horizontally (left, middle, or right) and vertically (top, middle, "
@@ -831,9 +810,14 @@ def restore_gaze(robot: Any) -> None:
         robot.aim(LAST_GAZE)
 
 
+class NoCamera(Exception):
+    """A robot with no camera to search with: a simulated one, a dry run."""
+
+
 def find_screen(robot: Any, ask: Callable[[Any], Any], run_dir: Path, looks: str) -> bool:
     """Turn the body in steps until the camera sees the task screen, then centre on it with head and base. Each view
-    goes to the model the step asks (`ask`, along its message flow), saved under `looks` in the run."""
+    goes to the model the step asks (`ask`, along its message flow), saved under `looks` in the run. A robot with no
+    camera, or a search that finds no screen, turns to where the screen was last found, else straight ahead."""
     known = recall_gaze(robot)
     if known and time.time() - float(known.get("at") or 0) < RELOOK_S:
         robot.aim(known, remember=True)  # just found: a look right after another only turns back to it
@@ -847,7 +831,7 @@ def find_screen(robot: Any, ask: Callable[[Any], Any], run_dir: Path, looks: str
         views += 1
         view = f"{looks}/view-{views}.jpg"
         if not robot.snapshot(run_dir / view, width=640, fresh=True):  # which third holds the screen needs no more
-            raise RuntimeError("no camera frame")
+            raise NoCamera
         return parse_screen_reply(str(ask({"Question": SCREEN_QUESTION, "View": view}) or ""))
 
     try:
@@ -868,13 +852,9 @@ def find_screen(robot: Any, ask: Callable[[Any], Any], run_dir: Path, looks: str
             remember_gaze(robot, gaze)
             return True
         print("    no screen in sight after a full turn")
-    except Exception as error:
-        print(f"    (could not look for the screen: {error})")
-    # The camera or the model failed us, not the memory: the screen is where it was last found, else straight ahead.
-    try:
-        robot.aim(known or {"yaw": 0.0, "pitch": SEARCH_PITCH_DEG}, remember=bool(known))
-    except Exception:
-        pass
+    except NoCamera:
+        print("    (no camera to look for the screen with)")
+    robot.aim(known or {"yaw": 0.0, "pitch": SEARCH_PITCH_DEG}, remember=bool(known))
     return bool(known)
 
 
@@ -905,10 +885,12 @@ class SeatedRobot:
                 return json.loads(await asyncio.wait_for(socket.recv(), timeout=180))
 
         try:
-            return asyncio.run(send())
-        except Exception as error:
-            print(f"    (the seated participant could not {kind}: {error})")
-            return {}
+            reply = asyncio.run(send())
+        except Exception as error:  # noqa: BLE001 - whatever kept the seat from answering fails the step
+            raise RuntimeError(f"the seated robot could not {kind}: {error}") from error
+        if reply.get("type") == "failed":
+            raise RuntimeError(f"the seated robot could not {kind}: {reply.get('error')}")
+        return reply
 
     def speak(self, text: str, renderer: list[str] | None = None) -> None:
         self.act("speak", text=text, renderer=renderer)
@@ -985,7 +967,7 @@ def seated_participant(port: int) -> bool:
     try:
         asyncio.run(probe())
         return True
-    except Exception:
+    except Exception:  # noqa: BLE001 - whatever answers there, it is no seat
         return False
 
 
@@ -1001,7 +983,7 @@ def end_study(port: int) -> str:
 
     try:
         asyncio.run(send())
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001 - a study that seated no one has no one to dismiss
         print(f"    (no seat on port {port} to dismiss: {error})")
         return "no participant seated"
     print("    the seat was told the study is over")
@@ -1054,7 +1036,12 @@ def participant_loop(robot: Any, port: int, watch_pid: int | None = None) -> int
                 continue
             if message.get("type") == "act" and message.get("kind") in ACTIONS:
                 async with seat:
-                    await socket.send(json.dumps(await act(message)))
+                    try:
+                        reply = await act(message)
+                    except Exception as error:  # noqa: BLE001 - handed back, so the step that asked fails with it
+                        print(f"    ({message['kind']} failed: {error})")
+                        reply = {"type": "failed", "error": f"{type(error).__name__}: {error}"}
+                    await socket.send(json.dumps(reply))
             elif message.get("type") == "end":
                 print("● the study is over — leaving the seat")
                 if over is not None and not over.done():
@@ -1122,7 +1109,7 @@ def connect(studyflow: Plan, args: argparse.Namespace, sim: bool, run_dir: Path 
                      volume=int(config["volume"]) if str(config["volume"]).isdigit() else None)
     try:
         robot.connect()
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001 - no robot answers: the seat is not taken, and a run goes on as a dry run
         robot.close()
         if run_dir is None:
             # A seat with no robot in it would act for nothing; the walk must know.

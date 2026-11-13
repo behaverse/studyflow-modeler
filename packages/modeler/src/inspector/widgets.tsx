@@ -24,7 +24,7 @@ export function HelpTooltip({
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<CSSProperties>();
 
-  // Portaled to <body>: the panel's backdrop-filter would otherwise re-anchor `position: fixed` to it.
+  // Portaled to <body> and placed by its anchor's rectangle.
   useLayoutEffect(() => {
     if (!open) return;
     const anchor = anchorRef.current?.getBoundingClientRect();

@@ -1,30 +1,29 @@
 export const surface = {
   canvas: 'bg-cream-50',
-  chrome: 'bg-cream-100/72 backdrop-blur-2xl backdrop-saturate-150',
+  chrome: 'bg-cream-100',
   sheet: 'bg-cream-100',
-  menu: 'bg-cream-300/85 backdrop-blur-2xl backdrop-saturate-150',
+  menu: 'bg-cream-300',
   card: 'bg-cream-200',
 } as const;
 
 export const shadow = {
-  panel: 'shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.6)]',
-  panelFlat: 'shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.06)]',
-  menu: 'shadow-[0_1px_3px_rgba(0,0,0,0.04),0_12px_36px_rgba(0,0,0,0.10),inset_0_1px_0_rgba(255,255,255,0.6)]',
+  panel: 'shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.06)]',
+  menu: 'shadow-[0_1px_3px_rgba(0,0,0,0.04),0_12px_36px_rgba(0,0,0,0.10)]',
   sheet: 'shadow-[0_1px_3px_rgba(0,0,0,0.04),0_24px_72px_rgba(0,0,0,0.16)]',
 } as const;
 
 export const border = {
   hairline: 'border border-black/[0.08]',
   /** Controls (inputs, selects, checkboxes) need >=3:1 against their surface
-      (WCAG 1.4.11) -- the hairline is for panels and dividers, which are exempt. */
+      (WCAG 1.4.11); the hairline is for panels and dividers, which are exempt. */
   control: 'border border-black/[0.45]',
 } as const;
 
 /** One tooltip material everywhere; callers add size, padding and positioning. */
-export const tooltip = 'bg-stone-900/90 backdrop-blur-md text-cream-50 rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.18)]';
+export const tooltip = 'bg-stone-900 text-cream-50 rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.18)]';
 
 /* Type scale, small end: 11 (micro-labels, hints, badges), 12 (tooltips, help),
-   14 (body, items, inputs), 16 (titles). No fractional sizes -- adjacent steps
+   14 (body, items, inputs), 16 (titles). No fractional sizes: adjacent steps
    closer than ~25% stop reading as different sizes. Icon glyphs are exempt.
    Tints: hover bg-black/[0.05], active/selected bg-black/[0.08]. */
 
@@ -46,7 +45,7 @@ export const radius = {
 
 export const button = {
   /** Layout and type of the app's primary actions, as on the nav bar's Simulate and Run. */
-  action: `inline-flex items-center justify-center gap-1.5 h-7 px-3.5 text-[13px] font-semibold
+  action: `inline-flex items-center justify-center gap-1.5 h-7 px-3.5 text-sm font-semibold
            text-white transition-colors cursor-pointer disabled:opacity-50`,
   /** The accent fill those actions carry. Kept apart from `action` so a state can swap just this. */
   accentFill: 'bg-[#C028B0] hover:bg-[#A32295]',
@@ -54,7 +53,7 @@ export const button = {
 
 export const dialog = {
   root: 'relative z-[240] focus:outline-none',
-  backdrop: 'fixed backdrop-blur inset-0 z-10 w-screen overflow-y-auto',
+  backdrop: 'fixed inset-0 z-10 w-screen overflow-y-auto bg-black/[0.20]',
   centerLayout: 'flex min-h-full items-center justify-center p-2 sm:p-4',
 
   panel: `${radius.capsule} ${surface.sheet} border border-black/[0.06] p-5 sm:p-6 md:p-7 ${shadow.sheet} duration-300 ease-out closed:transform-[scale(95%)] closed:opacity-0 z-[102]

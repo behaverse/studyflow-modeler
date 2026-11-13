@@ -9,15 +9,15 @@ import { radius, text } from '@modeler/ui/styles';
 
 const s = {
   chip: `inline-flex items-center gap-1.5 max-w-[40vw] md:max-w-[220px] px-2 py-1 ${radius.field}
-         text-[12px] ${text.muted} hover:bg-black/[0.05] transition-colors cursor-pointer`,
+         text-xs ${text.muted} hover:bg-black/[0.05] transition-colors cursor-pointer`,
   name: 'font-mono truncate',
-  icon: 'shrink-0 text-[11px]',
-  spinner: 'shrink-0 text-[11px] animate-spin',
+  icon: 'shrink-0 text-[0.6875rem]',
+  spinner: 'shrink-0 text-[0.6875rem] animate-spin',
   dot: 'shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500',
   attention: 'text-amber-600',
 } as const;
 
-/** What the chip says about a file, per state. `@` is the linked filename. */
+/** The chip's explanation of a file, per state. `@` is the linked filename. */
 const EXPLANATION: Record<LinkState, string> = {
   clean: 'Saved to @. Edits are written straight back into it.',
   dirty: `Unsaved edits. ${MOD_LABEL}S writes them into @.`,
@@ -55,7 +55,7 @@ export function FileStatus() {
       className={`${s.chip} ${needsAttention ? s.attention : ''}`}
     >
       <span className={s.name}>{file.name}</span>
-      {link.state === 'saving' && <i className={`${ICONS.arrowRepeat} ${s.spinner}`} aria-hidden="true" />}
+      {link.state === 'saving' && <i className={`${ICONS.spinner} ${s.spinner}`} aria-hidden="true" />}
       {link.state === 'clean' && <i className={`${ICONS.check} ${s.icon}`} aria-hidden="true" />}
       {link.state === 'dirty' && <span className={s.dot} aria-hidden="true" />}
       {link.state === 'blocked' && <i className={`${ICONS.unlock} ${s.icon}`} aria-hidden="true" />}

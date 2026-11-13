@@ -43,7 +43,7 @@ export class Viewport {
   private landed?: (arrived: boolean) => void;
   /** Told after every move of the camera, once constructed. */
   private onChange?: () => void;
-  /** What the host's UI covers now, asked at each fit and reveal. */
+  /** The insets the host's UI covers now, asked at each fit and reveal. */
   private readonly insets?: () => Insets;
 
   constructor(root: SVGSVGElement, container: HTMLElement, onChange?: () => void, insets?: () => Insets) {

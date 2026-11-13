@@ -17,8 +17,8 @@ import { SKILL_SAVE_DESTINATIONS } from '@modeler/skillModules';
 import { ICONS } from '@modeler/icons';
 
 /**
- * Where the diagram is going: this machine, or a place a skill sends it (a server it publishes to). How it lands
- * locally — a file the user places, or a download — is the browser's business, not a question worth asking.
+ * Where the diagram goes: this machine, or a place a skill sends it (a server it publishes to). Whether it lands
+ * locally as a file the user places or as a download depends on the browser, so the dialog does not ask.
  */
 const DESTINATIONS = [
   { id: 'local', label: 'Local', icon: ICONS.save, hint: '' },
@@ -50,7 +50,7 @@ export function SaveDialog({ isOpen, onClose }: Props) {
   const format = getExportFormat(formatId);
   const filename = saveFilename(diagramName, format);
 
-  // A TIFF is asked its size on paper.
+  // A TIFF needs its size on paper.
   const size = usePrintSize(modeler, isOpen && formatId === 'tif');
   // A skill's destination asks what it needs and sends the study itself.
   const Panel = SKILL_SAVE_DESTINATIONS.find((option) => option.id === destination)?.Panel;

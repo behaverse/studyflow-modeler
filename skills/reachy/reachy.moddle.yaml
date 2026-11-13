@@ -91,7 +91,8 @@ enumerations:
         value: home
       - name: Task screen
         value: screen
-        description: The robot turns until its camera finds a screen, asking the model its message flow reaches about each view, and settles on it.
+        # It asks the model its message flow reaches about each view.
+        description: The robot turns until its camera finds a screen, and settles on it.
 
   - name: TriggerEnum
     description: What the robot senses to fire the event.
@@ -202,11 +203,11 @@ types:
   # from its library (`POST /api/media/play_sound`), and a line. The daemon has no TTS endpoint: the runner
   # synthesizes the line and plays it through the speaker.
   - name: Interact
-    description: The robot plays a move, raises an antenna, plays a sound, and says a line, each when set, in that order.
+    description: The robot moves, raises an antenna, plays a sound and says a line, each if set, in order.
     superClass:
       - bpmn:ServiceTask
     meta:
-      icon: iconify hugeicons--bot-message-square
+      icon: iconify ph--robot
     properties:
       - name: text
         description: What the robot says; `{name}` placeholders are filled in at run time.
@@ -232,7 +233,8 @@ types:
           condition:
             move: $set
       - name: side
-        description: Which antenna goes up, to show a choice; `{name}` placeholders are filled in at run time (`{Choice}`), and a value naming neither side raises both.
+        # `{name}` placeholders are filled in at run time (`{Choice}`), and a value naming neither side raises both.
+        description: Which antenna goes up, to show a choice.
         isAttr: true
         type: SideEnum
         meta:
@@ -362,7 +364,9 @@ types:
       icon: iconify ph--eye
     properties:
       - name: target
-        description: What to orient toward; tracking holds until another step moves the head. A `screen` look searches only with a message flow to a model's pool, and remembers where it found the screen; without one it turns to where the screen was found.
+        # A `screen` look searches only with a message flow to a model's pool, and remembers where it found the screen;
+        # without one it turns to where the screen was found.
+        description: What to orient toward; tracking holds until another step moves the head.
         isAttr: true
         type: LookTargetEnum
         default: face
@@ -400,7 +404,7 @@ types:
   # step's data output's `uri`, a folder (`reachy/frames/` when it names none);
   # its path in the run is the step's result, what a model step reads as the image.
   - name: Snapshot
-    description: The robot takes a picture with its camera; the step's result is the picture, saved in the run.
+    description: The robot takes a picture; the step's result is the picture, saved in the run.
     superClass:
       - bpmn:ServiceTask
     meta:
@@ -478,7 +482,7 @@ types:
 # Palette flyout entries: the elements a drop adds, spelled as in a `.studyflow.yaml` file. A template drops as one
 # collapsed sub-process: expand it to draw the message flows its steps need.
 templates:
-  - description: Conversation with a model - listen, ask the model what to say, say it, until goodbye.
+  - description: Listen, ask a model what to say, and say it, until goodbye.
     elements:
       Conversation:
         type: SubProcess
@@ -539,7 +543,8 @@ templates:
           Flow_conversation_ask_say: conversation_ask -> conversation_say
           Flow_conversation_say_end: conversation_say -> conversation_end
 
-  - description: Take a task, trial by trial - each trial the task sends, take a picture, ask the model, answer, show it, until the task is over.
+  # The loop runs until the task is over.
+  - description: For each trial the task sends, take a picture, ask the model, answer and show it.
     elements:
       Each_trial:
         type: SubProcess

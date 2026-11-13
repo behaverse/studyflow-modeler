@@ -5,7 +5,7 @@ import { addPaletteElement, gotoModeler, pressOnCanvas } from './utils';
 
 /**
  * The per-shape context pad, driven by a real pointer. `tests/context-pad-entries.unit.spec.ts`
- * pins WHICH entries appear, the canvas specs where the pad floats and that a ghost is where
+ * pins which entries appear, the canvas specs where the pad floats and that a ghost is where
  * the click lands; what needs a browser is the pad following the selection, what a hover
  * paints, and an entry's edit reaching the canvas. `tests/modeler.popup.spec.ts` covers the
  * menus the pad opens.
@@ -15,7 +15,7 @@ const pad = (page: Page): Locator => page.getByTestId('context-pad');
 const entry = (page: Page, action: string): Locator => page.getByTestId(`context-pad-${action}`);
 
 /**
- * The page-space MIDDLE of a rendered connection, taken from the path itself.
+ * The page-space middle of a rendered connection, taken from the path itself.
  *
  * Not the centre of its bounding box: a two-point horizontal flow has a zero-height
  * box whose centre rounds onto whichever shape is nearest, and a click there lands on

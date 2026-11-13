@@ -294,7 +294,7 @@ test.describe('TIFF studyflow embedding', () => {
     for (const little of [true, false]) {
       expect(extractStudyflowFromTiff(tinyTiff(little, [{ tag: 700, type: 7, data: element }])), String(little)).toBe('id: element\nname: a & b\n');
       expect(extractStudyflowFromTiff(tinyTiff(little, [{ tag: 700, type: 1, data: attribute }])), String(little)).toBe('id: attribute\nname: "q" <>\n');
-      // What this module writes into a file of either order reads back, and the file keeps its order.
+      // A study this module writes into a file of either order reads back, and the file keeps its order.
       const tiff = embedStudyflowIntoTiff(tinyTiff(little), 'id: tiny\n', ABOUT);
       expect(tiff[0]).toBe(little ? 0x49 : 0x4d);
       expect(directoryOf(tiff).little).toBe(little);

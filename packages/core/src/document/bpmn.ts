@@ -1,5 +1,5 @@
 /**
- * BPMN XML in and out of a study model, the one place moddle reads and writes. What moddle reads is put in the form
+ * BPMN XML in and out of a study model, the one place moddle reads and writes. The tree moddle reads is put in the form
  * a study holds (an exchange, compact data inputs) and read as a study model from its long form, as a file is read;
  * a study is written by building moddle's tree from the study as its file holds it.
  */
@@ -55,7 +55,7 @@ export async function xmlToStudy(xml: string, metamodel: Metamodel, { asWritten 
   dropForeignElements(definitions, onWarning);
   tasksToExchanges(definitions);
   if (!asWritten) inlineIoSpecification(definitions);
-  // moddle's reader has said what it could not place, which the study's reader would only say again.
+  // moddle's reader has already reported what it could not place; the study's reader would only repeat it.
   const model = new StudyModel(readStudy(definitionsToYamlDoc(definitions), metamodel, () => {}), metamodel);
   choreographyToProcessIn(model);
   headlessPlaneToProcessIn(model);

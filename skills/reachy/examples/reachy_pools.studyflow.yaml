@@ -12,14 +12,17 @@ Collab_Pools:
   extensions:
     studyflow:Study: {}
   documentation: >-
-    Three actors. Behaverse presents the WhichOne task and records the trials, the Reachy Mini looks, speaks, and moves,
+    Three actors: Behaverse presents the WhichOne task and records the trials, the Reachy Mini looks, speaks, and moves,
     and a vision-language model decides. Run `studyflow run --runtime local` on this diagram: the robot finds the
     screen, asking the model about each view, greets, and tells the task it is ready. Then each trial the task sends,
     the robot takes a picture of the screen, asks the model with the instructions, passes the model's answer to the
     task, and shows it with its antennas. Then it waits for whichever comes first, the next trial or the task saying it
     is over. Every exchange is a message flow, and no step or pool names a model but the model's own pool. The robot's
     lines name their renderer, this machine's `say`, as `shell://say` with the sentence as its argument; the sound plays
-    on the unit.
+    on the unit. What fails leaves by an error boundary event. A trial the robot cannot see or the model cannot answer
+    is passed on: the task counts it as unanswered, and the robot waits for the next. A line or a move that fails on
+    arriving does not keep the task waiting, since the robot still says it is ready. One that fails after an answer
+    leaves the answer as sent, and one that fails while wrapping up ends the robot's part.
   participants:
     Pool_Behaverse:
       name: Behaverse (WhichOne on the screen)
@@ -88,6 +91,11 @@ Collab_Pools:
       target: $Ask
       message: $Reply
 
+    Msg_Pass:
+      name: no response
+      source: $Pass
+      target: $Play
+
 Trial:
   type: Message
   item: $Trial_Item
@@ -127,40 +135,6 @@ Reachy_Participant:
     Seated:
       type: StartEvent
       name: Seated at the screen
-
-    Look:
-      type: ServiceTask
-      name: Find the screen
-      extensions:
-        reachy:LookAt:
-          target: screen
-
-    Greet:
-      type: ServiceTask
-      name: Greet
-      additionalArguments:
-        args:
-          - Hello! I am Reachy. I will be your participant today.
-      implementation: shell://say
-      extensions:
-        reachy:Interact: {}
-
-    Wave:
-      type: ServiceTask
-      name: Welcome
-      extensions:
-        reachy:Interact:
-          move: welcoming1
-
-    Announce:
-      type: ServiceTask
-      name: Announce readiness
-      additionalArguments:
-        args:
-          - Ready when you are — I'll play this one.
-      implementation: shell://say
-      extensions:
-        reachy:Interact: {}
 
     Ready_Sent:
       type: IntermediateThrowEvent
@@ -277,83 +251,211 @@ Reachy_Participant:
       source: $Next_Trial
       target: $Over
 
-    Proud:
-      type: ServiceTask
-      name: Proud of it
-      extensions:
-        reachy:Interact:
-          move: proud1
-
-    Thanks:
-      type: ServiceTask
-      name: Ask for feedback
-      additionalArguments:
-        args:
-          - That was fun. How did I do?
-      implementation: shell://say
-      extensions:
-        reachy:Interact: {}
-
-    Celebrate:
-      type: ServiceTask
-      name: Celebrate
-      extensions:
-        reachy:Interact:
-          move: cheerful1
-
-    LookBack:
-      type: ServiceTask
-      name: Back to the screen
-      extensions:
-        reachy:LookAt:
-          target: screen
-
     Done:
       type: EndEvent
       name: Done
-
-    Flow_Seated_Look:
-      source: $Seated
-      target: $Look
-
-    Flow_Look_Greet:
-      source: $Look
-      target: $Greet
-
-    Flow_Greet_Wave:
-      source: $Greet
-      target: $Wave
-
-    Flow_Wave_Announce:
-      source: $Wave
-      target: $Announce
-
-    Flow_Announce_Sent:
-      source: $Announce
-      target: $Ready_Sent
 
     Flow_Sent_Trials:
       source: $Ready_Sent
       target: $Next_Trial
 
-    Flow_Over_Proud:
+    No_Picture:
+      type: BoundaryEvent
+      name: No picture
+      error: true
+      attachedTo: $Take
+
+    No_Reply:
+      type: BoundaryEvent
+      name: No reply
+      error: true
+      attachedTo: $Ask
+
+    Pass:
+      type: SendTask
+      name: Pass on the trial
+
+    Flow_NoPicture_Pass:
+      source: $No_Picture
+      target: $Pass
+
+    Flow_NoReply_Pass:
+      source: $No_Reply
+      target: $Pass
+
+    Flow_Pass_Next:
+      source: $Pass
+      target: $Next_Trial
+
+    Arrive:
+      type: SubProcess
+      name: Arrive
+      elements:
+        Look:
+          type: ServiceTask
+          name: Find the screen
+          extensions:
+            reachy:LookAt:
+              target: screen
+
+        Greet:
+          type: ServiceTask
+          name: Greet
+          additionalArguments:
+            args:
+              - Hello! I am Reachy. I will be your participant today.
+          implementation: shell://say
+          extensions:
+            reachy:Interact: {}
+
+        Wave:
+          type: ServiceTask
+          name: Welcome
+          extensions:
+            reachy:Interact:
+              move: welcoming1
+
+        Announce:
+          type: ServiceTask
+          name: Announce readiness
+          additionalArguments:
+            args:
+              - Ready when you are — I'll play this one.
+          implementation: shell://say
+          extensions:
+            reachy:Interact: {}
+
+        Flow_Look_Greet:
+          source: $Look
+          target: $Greet
+
+        Flow_Greet_Wave:
+          source: $Greet
+          target: $Wave
+
+        Flow_Wave_Announce:
+          source: $Wave
+          target: $Announce
+
+        Arrive_Start:
+          type: StartEvent
+
+        Arrive_End:
+          type: EndEvent
+
+        Flow_Arrive_Look:
+          source: $Arrive_Start
+          target: $Look
+
+        Flow_Announce_Arrived:
+          source: $Announce
+          target: $Arrive_End
+
+    Flow_Seated_Arrive:
+      source: $Seated
+      target: $Arrive
+
+    Flow_Arrive_Sent:
+      source: $Arrive
+      target: $Ready_Sent
+
+    Arrival_Failed:
+      type: BoundaryEvent
+      name: Arrival failed
+      error: true
+      attachedTo: $Arrive
+
+    Flow_ArrivalFailed_Sent:
+      source: $Arrival_Failed
+      target: $Ready_Sent
+
+    No_Move:
+      type: BoundaryEvent
+      name: No move
+      error: true
+      attachedTo: $Show
+
+    Flow_NoMove_Next:
+      source: $No_Move
+      target: $Next_Trial
+
+    Wrap_Up:
+      type: SubProcess
+      name: Wrap up
+      elements:
+        Proud:
+          type: ServiceTask
+          name: Proud of it
+          extensions:
+            reachy:Interact:
+              move: proud1
+
+        Thanks:
+          type: ServiceTask
+          name: Ask for feedback
+          additionalArguments:
+            args:
+              - That was fun. How did I do?
+          implementation: shell://say
+          extensions:
+            reachy:Interact: {}
+
+        Celebrate:
+          type: ServiceTask
+          name: Celebrate
+          extensions:
+            reachy:Interact:
+              move: cheerful1
+
+        LookBack:
+          type: ServiceTask
+          name: Back to the screen
+          extensions:
+            reachy:LookAt:
+              target: screen
+
+        Flow_Proud_Thanks:
+          source: $Proud
+          target: $Thanks
+
+        Flow_Thanks_Celebrate:
+          source: $Thanks
+          target: $Celebrate
+
+        Flow_Celebrate_LookBack:
+          source: $Celebrate
+          target: $LookBack
+
+        Wrap_Up_Start:
+          type: StartEvent
+
+        Wrap_Up_End:
+          type: EndEvent
+
+        Flow_WrapUp_Proud:
+          source: $Wrap_Up_Start
+          target: $Proud
+
+        Flow_LookBack_Wrapped:
+          source: $LookBack
+          target: $Wrap_Up_End
+
+    Flow_Over_WrapUp:
       source: $Over
-      target: $Proud
+      target: $Wrap_Up
 
-    Flow_Proud_Thanks:
-      source: $Proud
-      target: $Thanks
+    Flow_WrapUp_Done:
+      source: $Wrap_Up
+      target: $Done
 
-    Flow_Thanks_Celebrate:
-      source: $Thanks
-      target: $Celebrate
+    Wrap_Up_Failed:
+      type: BoundaryEvent
+      name: Wrap-up failed
+      error: true
+      attachedTo: $Wrap_Up
 
-    Flow_Celebrate_LookBack:
-      source: $Celebrate
-      target: $LookBack
-
-    Flow_LookBack_Done:
-      source: $LookBack
+    Flow_WrapUpFailed_Done:
+      source: $Wrap_Up_Failed
       target: $Done
 
 WhichOne_Task:
@@ -427,69 +529,92 @@ WhichOne_Task:
       target: $Task_Done
 
 layout:
-  Pool_Behaverse: 156 40 2724 210
-  Pool_Reachy: 156 290 2724 360
-  Pool_Model: 156 690 2724 170
-  Msg_Ready: {waypoint: "998,452 998,138", label: 1006 262 40 15}
-  Msg_Trial: {waypoint: "1201,160 1201,430", label: 1136 262 60 15}
-  Msg_Answer: {waypoint: "1681,430 1681,160", label: 1688 262 70 15}
-  Msg_Over: {waypoint: "2010,138 2010,297", label: 2018 262 60 15}
-  Msg_Look_Frame: {waypoint: "350,510 350,690", label: 300 662 44 15}
-  Msg_Look_Where: {waypoint: "390,690 390,510", label: 398 662 110 15}
-  Msg_Ask: {waypoint: "1500,510 1500,690", label: 1360 662 134 15}
-  Msg_Reply: {waypoint: "1540,690 1540,510", label: 1548 662 110 15}
+  Pool_Behaverse: 156 40 2854 210
+  Pool_Reachy: 156 290 2854 430
+  Pool_Model: 156 760 2854 170
+  Msg_Ready: {waypoint: "1068,452 1068,138", label: 1076 262 40 15}
+  Msg_Trial: {waypoint: "1271,160 1271,430", label: 1206 262 60 15}
+  Msg_Answer: {waypoint: "1751,430 1751,160", label: 1758 262 70 15}
+  Msg_Over: {waypoint: "2080,138 2080,297", label: 2088 262 60 15}
+  Msg_Look_Frame: {waypoint: "410,510 410,760", label: 360 732 44 15}
+  Msg_Look_Where: {waypoint: "450,760 450,510", label: 458 732 110 15}
+  Msg_Ask: {waypoint: "1582,510 1582,760", label: 1442 732 134 15}
+  Msg_Reply: {waypoint: "1618,760 1618,510", label: 1626 732 110 15}
+  Msg_Pass: {waypoint: "1351,600 1351,160", label: 1358 262 70 15}
   Seated: {bounds: 222 452 36 36, label: 204 495 72 30}
-  Look: 310 430 120 80
-  Greet: 480 430 120 80
-  Wave: 650 430 120 80
+  Ready_Sent: {bounds: 1050 452 36 36, label: 1090 492 36 15}
+  Next_Trial: {bounds: 1140 445 50 50, label: 1078 404 84 30}
+  Receive: 1216 430 110 80
+  Take: 1376 430 110 80
+  Out_Frame: 1466,430 1496,394
+  Frame: {bounds: 1485 344 36 50, label: 1475 327 56 15}
+  Ask: 1536 430 110 80
+  In_Frame: 1512,394 1550,430
+  In_Instructions: 1591,394 1591,430
+  Out_Choice: 1632,430 1672,394
+  Instructions: {bounds: 1573 344 36 50, label: 1551 327 80 15}
+  Choice: {bounds: 1665 344 36 50, label: 1658 327 50 15}
+  Answer: 1696 430 110 80
+  In_Choice: 1688,394 1722,430
+  Show: 1856 430 110 80
+  Over: {bounds: 2062 297 36 36, label: 2102 307 60 15}
+  Flow_Next_Receive: 1190,470 1216,470
+  Flow_Receive_Take: 1326,470 1376,470
+  Flow_Take_Ask: 1486,470 1536,470
+  Flow_Ask_Answer: 1646,470 1696,470
+  Flow_Answer_Show: 1806,470 1856,470
+  Flow_Show_Next: 1911,510 1911,570 1165,570 1165,495
+  Flow_Next_Over: 1165,445 1165,315 2062,315
+  Done: {bounds: 2930 452 36 36, label: 2934 430 28 15}
+  Flow_Sent_Trials: 1086,470 1140,470
+  No_Picture: {bounds: 1413 492 36 36, label: 1358 532 66 15}
+  No_Reply: {bounds: 1536 492 36 36, label: 1470 532 60 15}
+  Pass: 1301 600 100 80
+  Flow_NoPicture_Pass: 1431,528 1431,625 1401,625
+  Flow_NoReply_Pass: 1554,528 1554,655 1401,655
+  Flow_Pass_Next: 1301,640 1165,640 1165,495
+  Arrive: {bounds: 290 395 728 150, expanded: true}
+  Look: 370 430 120 80
+  Greet: 520 430 120 80
+  Wave: 670 430 120 80
   Announce: 820 430 120 80
-  Ready_Sent: {bounds: 980 452 36 36, label: 980 495 36 15}
-  Next_Trial: {bounds: 1070 445 50 50, label: 1008 404 84 30}
-  Receive: 1146 430 110 80
-  Take: 1306 430 110 80
-  Out_Frame: 1396,430 1426,394
-  Frame: {bounds: 1415 344 36 50, label: 1405 327 56 15}
-  Ask: 1466 430 110 80
-  In_Frame: 1442,394 1480,430
-  In_Instructions: 1521,394 1521,430
-  Out_Choice: 1562,430 1602,394
-  Instructions: {bounds: 1503 344 36 50, label: 1481 327 80 15}
-  Choice: {bounds: 1595 344 36 50, label: 1588 327 50 15}
-  Answer: 1626 430 110 80
-  In_Choice: 1618,394 1652,430
-  Show: 1786 430 110 80
-  Over: {bounds: 1992 297 36 36, label: 2032 307 60 15}
-  Flow_Next_Receive: 1120,470 1146,470
-  Flow_Receive_Take: 1256,470 1306,470
-  Flow_Take_Ask: 1416,470 1466,470
-  Flow_Ask_Answer: 1576,470 1626,470
-  Flow_Answer_Show: 1736,470 1786,470
-  Flow_Show_Next: 1841,510 1841,570 1095,570 1095,495
-  Flow_Next_Over: 1095,445 1095,315 1992,315
-  Proud: 2110 430 120 80
-  Thanks: 2280 430 120 80
-  Celebrate: 2450 430 120 80
-  LookBack: 2620 430 120 80
-  Done: {bounds: 2792 452 36 36, label: 2796 495 28 15}
-  Flow_Seated_Look: 258,470 310,470
-  Flow_Look_Greet: 430,470 480,470
-  Flow_Greet_Wave: 600,470 650,470
-  Flow_Wave_Announce: 770,470 820,470
-  Flow_Announce_Sent: 940,470 980,470
-  Flow_Sent_Trials: 1016,470 1070,470
-  Flow_Over_Proud: 2010,333 2010,470 2110,470
-  Flow_Proud_Thanks: 2230,470 2280,470
-  Flow_Thanks_Celebrate: 2400,470 2450,470
-  Flow_Celebrate_LookBack: 2570,470 2620,470
-  Flow_LookBack_Done: 2740,470 2792,470
-  Task_Start: {bounds: 900 102 36 36, label: 878 145 80 15}
-  Participant_Ready: {bounds: 980 102 36 36, label: 958 60 80 30}
-  Play: 1060 80 700 80
-  In_Play_Parameters: 1410,176 1410,160
-  Out_Trials: 1470,160 1470,180
-  Play_Parameters: 1392 176 36 50
-  Trials: {bounds: 1445 180 50 50, label: 1505 198 80 15}
-  Task_Done: {bounds: 1992 102 36 36, label: 2036 112 56 15}
-  Flow_Start_Ready: 936,120 980,120
-  Flow_Ready_Play: 1016,120 1060,120
-  Flow_Play_Done: 1760,120 1992,120
+  Flow_Look_Greet: 490,470 520,470
+  Flow_Greet_Wave: 640,470 670,470
+  Flow_Wave_Announce: 790,470 820,470
+  Arrive_Start: 308 452 36 36
+  Arrive_End: 964 452 36 36
+  Flow_Arrive_Look: 344,470 370,470
+  Flow_Announce_Arrived: 940,470 964,470
+  Flow_Seated_Arrive: 258,470 290,470
+  Flow_Arrive_Sent: 1018,470 1050,470
+  Arrival_Failed: {bounds: 1000 504 36 36, label: 1004 548 100 15}
+  Flow_ArrivalFailed_Sent: 1036,522 1068,522 1068,488
+  No_Move: {bounds: 1928 492 36 36, label: 1970 516 50 15}
+  Flow_NoMove_Next: 1946,528 1946,585 1165,585 1165,495
+  Wrap_Up: {bounds: 2150 395 740 150, expanded: true}
+  Proud: 2236 430 120 80
+  Thanks: 2386 430 120 80
+  Celebrate: 2536 430 120 80
+  LookBack: 2690 430 120 80
+  Flow_Proud_Thanks: 2356,470 2386,470
+  Flow_Thanks_Celebrate: 2506,470 2536,470
+  Flow_Celebrate_LookBack: 2656,470 2690,470
+  Wrap_Up_Start: 2170 452 36 36
+  Wrap_Up_End: 2834 452 36 36
+  Flow_WrapUp_Proud: 2206,470 2236,470
+  Flow_LookBack_Wrapped: 2810,470 2834,470
+  Flow_Over_WrapUp: 2080,333 2080,470 2150,470
+  Flow_WrapUp_Done: 2890,470 2930,470
+  Wrap_Up_Failed: {bounds: 2872 504 36 36, label: 2876 548 100 15}
+  Flow_WrapUpFailed_Done: 2908,522 2948,522 2948,488
+  Task_Start: {bounds: 970 102 36 36, label: 948 145 80 15}
+  Participant_Ready: {bounds: 1050 102 36 36, label: 1028 60 80 30}
+  Play: 1130 80 700 80
+  In_Play_Parameters: 1480,176 1480,160
+  Out_Trials: 1540,160 1540,180
+  Play_Parameters: 1462 176 36 50
+  Trials: {bounds: 1515 180 50 50, label: 1575 198 80 15}
+  Task_Done: {bounds: 2062 102 36 36, label: 2106 112 56 15}
+  Flow_Start_Ready: 1006,120 1050,120
+  Flow_Ready_Play: 1086,120 1130,120
+  Flow_Play_Done: 1830,120 2062,120

@@ -7,7 +7,7 @@ type Mapping = Record<string, unknown>;
 
 const isMapping = (value: unknown): value is Mapping => !!value && typeof value === 'object' && !Array.isArray(value);
 
-/** What the palette shows of each template, read off its first element; the modeler builds the elements on drop. */
+/** The palette's view of each template, read off its first element; the modeler builds the elements on drop. */
 export function compileTemplates(prefix: string, model: SchemaModel, catalog: TypeCatalog): Template[] {
   const templates: Template[] = [];
 

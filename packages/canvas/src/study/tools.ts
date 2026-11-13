@@ -47,10 +47,10 @@ export const ASKABLE_TOOLS = ['append', 'connect', 'replace'] as const;
 
 export type AskableTool = (typeof ASKABLE_TOOLS)[number];
 
-/** What an element of a type takes beside its schema's attributes: a property BPMN gives it, set as the file spells it. */
+/** A property an element of a type takes beside its schema's attributes: one BPMN gives it, set as the file spells it. */
 export interface StructureRecord {
   readonly name: string;
-  /** What it holds: a BPMN type, or a built-in (`String`, `Boolean`). */
+  /** Its type: a BPMN type, or a built-in (`String`, `Boolean`). */
   readonly type: string;
   readonly many?: boolean;
   /** It names another element by id, rather than holding one. */
@@ -59,7 +59,7 @@ export interface StructureRecord {
   readonly of?: readonly string[];
 }
 
-/** What `call` answers: a write's result, or what a read found; `ok` false, and why, when the tool did nothing. */
+/** The answer of `call`: a write's result, or what a read found; `ok` false, and why, when the tool did nothing. */
 export type ToolResult =
   | StudyResult
   | { readonly ok: true; readonly yaml: string }
@@ -107,7 +107,7 @@ const BAND = {
   additionalProperties: false,
 } as const;
 
-/** What a new shape is: `add`, `append` and `replace` take it. */
+/** The schema of a new shape, which `add`, `append` and `replace` take. */
 const SHAPE = {
   type: { type: 'string', enum: SHAPE_TYPES, description: 'Its BPMN type.' },
   extension: { type: 'string', description: 'A schema type extending `type`, paired with it as the catalog lists them.' },
@@ -250,7 +250,7 @@ type Admits<S> =
   : S extends { type: infer Type extends JsonType } ? Plain[Type]
   : unknown;
 
-/** What a tool's schema admits as its argument. `call` hands a verb what passed its schema, so a verb that takes
+/** The argument type a tool's schema admits. `call` hands a verb what passed its schema, so a verb that takes
  * anything else no longer compiles: the schema and the verb's signature cannot drift apart. */
 export type ArgsOf<Name extends ToolName> = Admits<Extract<(typeof TOOLS)[number], { name: Name }>['inputSchema']>;
 

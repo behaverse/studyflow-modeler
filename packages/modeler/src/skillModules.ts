@@ -8,7 +8,7 @@ import type { SaveDestination } from '@modeler/export/destinations';
 import type { InspectorSection } from '@modeler/inspector/sections';
 import type { SettingsSection } from '@modeler/settings/sections';
 
-/** What "Open" hands a skill converting a foreign file. */
+/** The context "Open" passes to a skill that converts a foreign file. */
 export type OpenContext = {
   /** The file's name without its extension, for naming what it becomes. */
   name: string;
@@ -18,7 +18,7 @@ export type OpenContext = {
   warn(message: string): void;
 };
 
-/** A foreign format a skill opens: not an export format (nothing writes one), but "Open" converts it to BPMN XML on the way in. */
+/** A foreign format a skill opens. Nothing writes one: "Open" converts it to BPMN XML on the way in. */
 export type Opener = {
   label: string;
   extension: string;
@@ -28,15 +28,15 @@ export type Opener = {
 };
 
 /**
- * A document a reporting guideline asks of a study, which a skill draws from the diagram (a participant flow, a
- * schedule of visits): the Reporting Diagram view lists it and shows what it draws. Nothing of it is kept in the study.
+ * A document a reporting guideline asks for, such as a participant flow or a schedule of visits. A skill draws it
+ * from the diagram, and the Reporting Diagram view lists it and shows the drawing. The study stores none of it.
  */
 export type ReportingDocument = {
   /** Unique among the skills: it names the file a download writes (`consort-2025-flow`). */
   id: string;
   /** The guideline that asks for it: `CONSORT 2025`. */
   guideline: string;
-  /** What the guideline calls it: `Participant flow`. */
+  /** The guideline's name for it: `Participant flow`. */
   label: string;
   /** One sentence on what it shows and what it reads off the diagram. */
   description: string;
@@ -44,7 +44,7 @@ export type ReportingDocument = {
   draw(modeler: Pick<Editor, 'study'>): { svg: string } | { unavailable: string };
 };
 
-/** What a skill's `modeler.ts` exports by default: the projections the modeler writes, the foreign formats it opens,
+/** The default export of a skill's `modeler.ts`: the projections the modeler writes, the foreign formats it opens,
  * the inspector sections it adds, its pages of Settings, the places "Save" can send a study besides this machine, and
  * the reporting documents it draws. */
 export type ModelerModule = {
@@ -56,8 +56,8 @@ export type ModelerModule = {
   documents?: ReportingDocument[];
 };
 
-// Every skill's `modeler.ts`, eagerly: the format lists are built once, at load, from what is here. The module is
-// always that file; `metadata.modeler` in `SKILL.md` says the skill has one.
+// Loads every skill's `modeler.ts` eagerly, because the format lists are built once, at load. The module is
+// always that file; `metadata.modeler` in `SKILL.md` says that the skill has one.
 const modules = import.meta.glob('@skills/*/modeler.ts', { eager: true, import: 'default' }) as Record<string, ModelerModule>;
 
 function loadSkillModules(): { skill: SkillManifest; module: ModelerModule }[] {

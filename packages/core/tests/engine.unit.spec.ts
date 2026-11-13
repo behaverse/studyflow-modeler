@@ -221,7 +221,7 @@ test('a random gateway allocates as it says, and what it cannot apply stops the 
   expect(allocationOf(gateway(), 2)).toEqual({ algorithm: 'simple', weights: [1, 1], size: 4, factors: [] });
   expect(allocationOf(gateway({ algorithm: 'block', allocationRatio: '2:1', blockSize: '6' }), 2)).toMatchObject({ algorithm: 'block', weights: [2, 1], size: 6 });
   expect(allocationOf(gateway({ algorithm: 'minimization', stratifyBy: 'age_band, sex' }), 2)).toMatchObject({ algorithm: 'minimization', factors: ['age_band', 'sex'] });
-  // What the walk cannot apply as written stops it before it starts.
+  // An allocation the walk cannot apply as written stops it before it starts.
   const REFUSED: [Record<string, string>, number, RegExp][] = [
     [{ algorithm: 'block', allocationRatio: '2:1' }, 2, /blocks of 4/], [{ algorithm: 'block' }, 3, /blocks of 4/],
     [{ allocationRatio: '1:1' }, 3, /allocationRatio '1:1'/], [{ allocationRatio: '1:x' }, 2, /allocationRatio '1:x'/],
@@ -545,7 +545,7 @@ for (const [label, rate, expected] of RATES) {
   });
 }
 
-// What a study reuses is a property. The walk writes a claimed step's result into the properties its data edges
+// A value a study reuses is a property. The walk writes a claimed step's result into the properties its data edges
 // target, narrowed by FEEL over `result` and the properties in scope, whichever runner ran it (this one binds nothing);
 // a condition reads them by name. The scored blocks are named once, and the practice block's misses never count.
 const UNANSWERED: [label: string, missed: number, reached: Record<string, number>][] = [
@@ -1087,6 +1087,77 @@ ${boundaries}    Done: { type: EndEvent }
   const named = await walked(study(fails, on('Other', 'Err_Other') + on('Also', 'Err_Quit_Too')), { Play: () => { throw new HandoffError('no time left', { errorCode: 'quit' }); } });
   expect([named.error, named.reached.Also, named.reached.Other]).toEqual([undefined, 1, undefined]);
   expect((await walked(study(fails, on('Other', 'Err_Other')), { Play: () => { throw new Error('missed'); } })).error?.message).toBe('missed');
+  // An event that fails goes the same way: a catch event its runner fails, two scopes in, is caught by Visit's
+  // boundary event, and with none to catch it the run fails.
+  const senses = '            Sense: { type: IntermediateCatchEvent }\n            I9: { type: EndEvent }\n            IF1: I0 -> Sense\n            IF2: Sense -> I9\n';
+  const deaf: Record<string, Runner> = { Sense: () => { throw new Error('nothing sensed'); } };
+  const sensed = await walked(study(senses, on('Any')), deaf);
+  expect([sensed.error, sensed.reached.Any, sensed.reached.Caught, sensed.walk.steps.status]).toEqual([undefined, 1, 1, 'ok']);
+  expect(sensed.walk.steps.entries.find((entry) => entry.node === 'Sense')).toMatchObject({ status: 'error', interruptedBy: 'Any' });
+  expect((await walked(study(senses, on('Other', 'Err_Other')), deaf)).error?.message).toBe('nothing sensed');
+  // A gateway that fails goes the same way: one its runner cannot sample for, and one none of whose conditions holds,
+  // which with nothing to catch it stays where the run got stuck.
+  const gate = `            Gate: { type: ExclusiveGateway }
+            IA: { type: EndEvent }
+            IB: { type: EndEvent }
+            IF1: I0 -> Gate
+            IF2: { sourceRef: Gate, targetRef: IA, conditionExpression: seen > 0 }
+            IF3: { sourceRef: Gate, targetRef: IB, conditionExpression: seen < 0 }
+`;
+  const blind: Record<string, Runner> = { Gate: () => { throw new Error('nothing seen'); } };
+  const unseen = await walked(study(gate, on('Any')), blind);
+  expect([unseen.error, unseen.reached.Any, unseen.reached.Caught, unseen.walk.steps.status]).toEqual([undefined, 1, 1, 'ok']);
+  expect(unseen.walk.steps.entries.find((entry) => entry.node === 'Gate')).toMatchObject({ status: 'error', interruptedBy: 'Any' });
+  expect((await walked(study(gate, on('Other', 'Err_Other')), blind)).error?.message).toBe('nothing seen');
+  const neither: Record<string, Runner> = { Gate: () => ({ result: { seen: 0 } }) };
+  const undecided = await walked(study(gate, on('Any')), neither);
+  expect([undecided.error, undecided.reached.Any, undecided.walk.steps.status]).toEqual([undefined, 1, 'ok']);
+  const stuck = await walked(study(gate, on('Other', 'Err_Other')), neither);
+  expect(stuck.error?.message).toMatch(/Gate: no condition held/);
+  expect(stuck.walk.steps.entries.find((entry) => entry.node === 'Gate')).toMatchObject({ status: 'stuck' });
+  // Once the run is ending, because another pool failed, a wait that fails for it is no error of its step: nothing
+  // catches it, and the path does not go on from the boundary event.
+  const resting = `C:
+  type: Collaboration
+  participants:
+    Lab: { name: Lab, processRef: L }
+    Home: { name: Home, processRef: H }
+L:
+  type: Process
+  flowElements:
+    L0: { type: StartEvent }
+    Break: { type: Task }
+    L9: { type: EndEvent }
+    LF1: L0 -> Break
+    LF2: Break -> L9
+H:
+  type: Process
+  flowElements:
+    H0: { type: StartEvent }
+    Stay:
+      type: SubProcess
+      flowElements:
+        S0: { type: StartEvent }
+        Rest:
+          type: IntermediateCatchEvent
+          eventDefinitions:
+            - { type: TimerEventDefinition, timeDuration: PT1H }
+        S9: { type: EndEvent }
+        SF1: S0 -> Rest
+        SF2: Rest -> S9
+    Woken:
+      type: BoundaryEvent
+      attachedToRef: Stay
+      eventDefinitions:
+        - type: ErrorEventDefinition
+    H9: { type: EndEvent }
+    HF1: H0 -> Stay
+    HF2: Stay -> H9
+    HF3: Woken -> H9
+`;
+  const never = (_ms: number, signal: AbortSignal): Promise<void> => new Promise((resolve) => signal.addEventListener('abort', () => resolve()));
+  const ended = await walked(resting, { Break: () => { throw new Error('the lab closed'); } }, {}, { wait: never });
+  expect([ended.error?.message, ended.reached.Rest, ended.reached.Woken, ended.reached.H9]).toEqual(['the lab closed', 1, undefined, undefined]);
   // Exploring, the step's failure is one way the study can go: the boundary event's path is walked too.
   expect(await explore(planOf(studyModel(`id: study\n${HEAD}${study(fails, on('Any'))}`)))).toMatchObject({ complete: true, runs: 2, findings: [] });
 });
@@ -1492,7 +1563,7 @@ S:
 });
 
 test('each instance of a pool holds its own values over the study\'s, and the run ends with the last instance\'s', async () => {
-  // What a step of one instance produced is that instance's: the next instance finds none before its own step runs.
+  // The result of one instance's step is that instance's: the next instance finds none before its own step runs.
   // A data object and the counts stay the study's, shared by every instance.
   const seen: unknown[] = [];
   const { state, walk } = await walked(`C:
@@ -1882,6 +1953,73 @@ test('a message a pool\'s runner leaves unanswered is waited for, until a timer 
   // With no timer to end the wait, nothing else can happen: the run fails as stuck rather than wait forever.
   const stuck = await walked(BANDED('actorType: software'), { Model: model });
   expect(stuck.error?.message).toBe('the pools wait for each other: Screen waits along Model_to_Screen');
+});
+
+const BROKE = `    Broke:
+      type: BoundaryEvent
+      attachedToRef: Screen
+      eventDefinitions:
+        - type: ErrorEventDefinition
+    Gone: { type: EndEvent }
+    SF3: Broke -> Gone
+`;
+
+test('a pool whose runner fails a message fails the step that asked, which an error boundary event on it catches', async () => {
+  // The model cannot answer the second subject: that subject's questionnaire fails with the model's failure and leaves
+  // by the boundary event; the first, answered, goes on. The run is not failed, and the model's record keeps the error.
+  const model: Runner = (values) => {
+    if (values.asker.id.endsWith('#2')) throw new Error('no such model');
+    return { result: 'READY' };
+  };
+  const { reached, error, walk } = await walked(BANDED('actorType: software', BROKE), { Model: model });
+  expect([error, reached.Back, reached.Broke, reached.Gone, walk.steps.status]).toEqual([undefined, 1, 1, 1, 'ok']);
+  expect(walk.steps.entries.filter((entry) => entry.node === 'Screen').map((entry) => entry.interruptedBy ?? entry.status)).toEqual(['ok', 'Broke']);
+  expect(walk.steps.entries.filter((entry) => entry.node === 'Model').map((entry) => entry.status)).toEqual(['ok', 'error']);
+  // Exploring, the failed answer is one way the study can go: the boundary event's path is walked too.
+  expect(await explore(planOf(studyModel(`id: study\n${HEAD}${BANDED('actorType: software', BROKE)}`)))).toMatchObject({ complete: true, runs: 2, findings: [] });
+  // With no event to catch it, the run fails with the model's failure.
+  expect((await walked(BANDED('actorType: software'), { Model: model })).error?.message).toMatch(/^Model could not answer Screen_to_Model\.\d+: no such model$/);
+  // A step a runner is running is stopped when the pool it asked fails, and fails the same way, keeping what it had bound.
+  const stopped: string[] = [];
+  const perform: Host['perform'] = (id, _values, { talk, signal }) => (id === 'Model' ? Promise.reject(new Error('no such model')) : new Promise((_resolve, reject) => {
+    talk!.send({ flow: 'Screen_to_Model', id: 't1', content: null });
+    signal!.addEventListener('abort', () => { stopped.push(id); reject(new HandoffError('Screen was stopped', { values: { Check: 'seen' } })); });
+  }));
+  const run = await walked(BANDED('actorType: software'), { Model: () => ({}), Screen: () => ({}) }, {}, { perform });
+  expect([run.error?.message, stopped, run.walk.values.get('Check')]).toEqual(['Model could not answer t1: no such model', ['Screen'], 'seen']);
+  // An event that asks is no different: a throw event whose message the model cannot take fails, and the error
+  // boundary event of the sub-process around it catches that.
+  const told = await walked(`C:
+  type: Collaboration
+  participants:
+    Subjects: { name: Subjects, processRef: S }
+    Model: { type: studyflow:Actor, name: Model, actorType: software }
+  messageFlows:
+    M_Tell: { sourceRef: Tell, targetRef: Model }
+S:
+  type: Process
+  flowElements:
+    S0: { type: StartEvent }
+    Visit:
+      type: SubProcess
+      flowElements:
+        V0: { type: StartEvent }
+        Tell: { type: IntermediateThrowEvent }
+        V9: { type: EndEvent }
+        VF1: V0 -> Tell
+        VF2: Tell -> V9
+    Broke:
+      type: BoundaryEvent
+      attachedToRef: Visit
+      eventDefinitions:
+        - type: ErrorEventDefinition
+    Back: { type: EndEvent }
+    Gone: { type: EndEvent }
+    SF1: S0 -> Visit
+    SF2: Visit -> Back
+    SF3: Broke -> Gone
+`, { Model: () => { throw new Error('no such model'); } });
+  expect([told.error, told.reached.Broke, told.reached.Gone, told.reached.Back]).toEqual([undefined, 1, 1, undefined]);
 });
 
 test('a pool of many instances sends its outgoing message once, after the last instance', async () => {

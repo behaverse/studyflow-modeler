@@ -11,7 +11,7 @@ export function toOptions(literals: EnumLiteral[] | undefined): Option[] {
   }));
 }
 
-/** The options typed text suggests: those whose label, value or description holds it, in any case; all, for none. */
+/** The options that match typed text: those whose label, value or description contains it, ignoring case. Empty text matches all. */
 export function filterOptions(options: Option[], query: string): Option[] {
   const q = query.trim().toLowerCase();
   if (!q) return options;
@@ -30,8 +30,8 @@ export function toggleLiteral(options: Option[], values: string[], literal: stri
   return [...named.filter((value) => selected.has(value)), ...values.filter((value) => !named.includes(value))];
 }
 
-/** What typed text stores. The field shows a literal's label, so a label or a value, in any case, is that literal's
- * value ("N-Back (NB)" -> "NB"); other text is kept as typed. */
+/** The value stored for typed text. The field shows a literal's label, so text equal to a label or a value, ignoring
+ * case, stores that literal's value ("N-Back (NB)" -> "NB"); other text is kept as typed. */
 export function resolveTyped(options: Option[], text: string): string {
   const typed = text.trim().toLowerCase();
   if (!typed) return '';

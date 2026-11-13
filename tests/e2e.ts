@@ -15,7 +15,7 @@ export { expect } from '@playwright/test';
 
 const DIR = process.env.NODE_V8_COVERAGE;
 const ROOT = process.cwd();
-/** What the dev server serves from where: the modeler at its root, the browser runner under /run/. */
+/** The folders the dev server serves: the modeler at its root, the browser runner under /run/. */
 const MODELER = path.join(ROOT, 'packages/modeler');
 const RUNNER = path.join(ROOT, 'packages/runtime-browser');
 const INLINE_MAP = /\n\/\/# sourceMappingURL=data:application\/json;(?:charset=utf-8;)?base64,([A-Za-z0-9+/=]+)\s*$/;

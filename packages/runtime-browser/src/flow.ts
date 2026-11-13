@@ -10,7 +10,7 @@ export type FlowNode = {
   element: Element;
   /** The study the step is in, for what the element refers to by id (`model.get`) and where it sits. */
   model: StudyModel;
-  /** What the step reads: the `studyflow:Parameters` wired into it, merged; empty when none is. */
+  /** The parameters the step reads: the `studyflow:Parameters` wired into it, merged; empty when none is. */
   parameters: Record<string, unknown>;
   outgoing: string[];
   incoming: string[];
@@ -23,7 +23,7 @@ export type SequenceFlow = {
   element: Element;
 };
 
-/** What the step holds under `name`: its own value, else its schema entry's, else the default its schema declares. */
+/** The step's value for `name`: its own, else its schema entry's, else the default its schema declares. */
 export function attributeOf(node: FlowNode, name: string): Value | undefined {
   return node.model.attributeOrDefault(node.element, name);
 }

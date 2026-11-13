@@ -18,7 +18,7 @@ for (const rel of globSync('*/examples/*.studyflow.yaml', { cwd: SKILLS_DIR })) 
   examplePaths.set(name, path.join(SKILLS_DIR, rel));
 }
 
-/** Example names, sorted — the corpus every example-wide suite iterates. */
+/** Example names, sorted: the corpus every example-wide suite iterates. */
 export const exampleNames: string[] = [...examplePaths.keys()].sort();
 
 /** The example's file; `setInputFiles` opens it as the app would. */
@@ -72,7 +72,7 @@ export async function gotoModeler(page: Page, { pickers = false, url = '/app' } 
 
 /** The diagram's name on the nav bar: a `title`d span until clicked, so one locator serves every spec that reads it. */
 export function diagramTitle(page: Page): Locator {
-  return page.getByTitle(/diagram name/i);
+  return page.getByTitle(/rename the study/i);
 }
 
 /** The in-place label editor: the `<textarea>` the canvas overlays on the label being edited (`canvas/interaction/labelEditing.ts`). */

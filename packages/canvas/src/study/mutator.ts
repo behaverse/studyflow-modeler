@@ -253,11 +253,11 @@ export interface ReconnectEnds {
   target?: SceneNode;
 }
 
-/** What one commit did to the scene: what a view draws, and what a listener hears. */
+/** The result of one commit on the scene: what a view draws, and what a listener hears. */
 export interface Commit {
   /** Nodes and edges new to the scene. */
   added: Drawable[];
-  /** What else the commit wrote, or changed the drawing of; the root element when the diagram's own properties changed. */
+  /** The other elements the commit wrote, or changed the drawing of; the root element when the diagram's own properties changed. */
   changed: (SceneElement | RootElement)[];
   /** Nodes and edges gone from the scene. */
   removed: Drawable[];
@@ -360,7 +360,7 @@ export class Mutator {
   // --- expand / collapse ------------------------------------------------------
 
   /**
-   * Collapse to the plain activity box, or expand around the contents it then shows — moving
+   * Collapse to the plain activity box, or expand around the contents it then shows, moving
    * them into the frame first when they sit elsewhere (placed while it was collapsed).
    * Incident and crossing edges re-dock to the new outline.
    */

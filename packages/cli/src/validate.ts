@@ -16,7 +16,7 @@ export type ValidateReport = {
   ok: boolean;
   errors: string[];
   warnings: string[];
-  /** What the OK line adds: that the protocol is still the one a run recorded. */
+  /** A note added to the OK line: that the protocol is still the one a run recorded. */
   note?: string;
 };
 
@@ -51,7 +51,7 @@ export async function validate(input: string): Promise<ValidateReport> {
     // Every way the study can go, explored, once the plan checks pass.
     const soundness = errors.length === 0 ? await checkSoundness(model) : { issues: [] };
     for (const { message } of soundness.issues) warnings.push(message);
-    // What the study registers by its content (a trial list, a consent form), read beside it or at its address.
+    // The materials the study registers by their content (a trial list, a consent form), read beside it or at their address.
     const materials = await checkMaterials(model, materialReader(input));
     for (const { severity, message } of materials.issues) (severity === 'error' ? errors : warnings).push(message);
     const recordNote = record.note && events.length > 0 && recorded.length === 0 ? `${record.note}; its state is its record's` : record.note;

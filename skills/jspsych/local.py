@@ -161,7 +161,7 @@ class Session:
 
 
 def counts(records: list[dict[str, Any]]) -> dict[str, Any]:
-    """What the task's trials came to: `trials`, those answered, and `blocks`, block by block in the order played,
+    """The outcome of the task's trials: `trials`, those answered, and `blocks`, block by block in the order played,
     `{block, trials, answered, unanswered, correct}`, the block's name and how many of its trials the actor was sent,
     answered, left unanswered and got right (null once a trial of it has no right answer). A Behaverse task's result
     has the same shape, so a study reads both alike. Data, not policy: which blocks count, and what a study does about
@@ -343,7 +343,7 @@ def perform(step: Step, args: argparse.Namespace) -> dict[str, Any]:
     chromium.close(server, browser)
     if server.failure:
         raise RuntimeError(f"jsPsych stopped: {server.failure}")
-    # What played: jsPsych's and the plugin's versions as the builds report them (unpkg serves the latest of a major), where
+    # The builds that played: jsPsych's and the plugin's versions as the builds report them (unpkg serves the latest of a major), where
     # they came from, and the seed of jsPsych's draws.
     step.note(jspsych={"version": server.versions.get("jspsych"), "plugin": f"{builds['plugin']}@{server.versions.get('plugin')}",
                        "builds": sources, "seed": seed})

@@ -36,7 +36,7 @@ function laneNodes(scene: Scene): SceneNode[] {
   return lanes;
 }
 
-/** Edges referencing a CONNECTION as an end (an association off a sequence flow), by that connection's id. */
+/** Edges referencing a connection as an end (an association off a sequence flow), by that connection's id. */
 function danglingRefIndex(scene: Scene): Map<string, SceneEdge[]> {
   const index = new Map<string, SceneEdge[]>();
   for (const element of scene.elementsById.values()) {
@@ -188,7 +188,7 @@ function detachNode(
   }
   if (node.type === 'bpmn:Participant') releaseProcessRef(node, scene, removedSet);
   const owner = model.unfile(element)?.parent;
-  // An emptied lane set is meaningless on its own.
+  // A lane set left empty goes.
   if (owner && model.host(owner) === 'bpmn:LaneSet' && listOf(owner, 'lanes').length === 0) model.unfile(owner);
 }
 

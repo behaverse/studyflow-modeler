@@ -36,7 +36,7 @@ ${trials}
     F2: Play -> Out
 `;
 
-/** What the reader gives for each address or path: a file's bytes, a missing file, an address that did not answer. */
+/** The reader's answer for each address or path: a file's bytes, a missing file, an address that did not answer. */
 const READS: Record<string, MaterialContent> = {
   'trials.csv': bytes(TRIALS),
   'https://example.org/consent.md': bytes(CONSENT),

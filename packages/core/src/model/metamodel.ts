@@ -61,7 +61,7 @@ export type PackageDef = {
   [key: string]: unknown;
 };
 
-/** What an element of one type holds: every property, by name and in order, from its whole type hierarchy. */
+/** The properties an element of one type holds, by name and in order, from its whole type hierarchy. */
 export type Descriptor = {
   ns: Ns;
   name: string;
@@ -118,7 +118,7 @@ export class Metamodel {
     return this.typeMap.has(name);
   }
 
-  /** What an element of type `name` holds; throws for a type no package defines. */
+  /** The descriptor of type `name`; throws for a type no package defines. */
   descriptor(name: string): Descriptor {
     const known = this.descriptors.get(name);
     if (known) return known;

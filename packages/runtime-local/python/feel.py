@@ -225,7 +225,7 @@ def _host(value: Any) -> Any:
 
 
 def _locate(node: tuple, scope: dict[str, Any]) -> Any:
-    """What a name or a path names, as the host holds it, so the next step of a path still sees a series' labels."""
+    """The value a name or a path names, as the host holds it, so the next step of a path still sees a series' labels."""
     if node[0] == "name":
         if node[1] not in scope:
             raise FeelError(f"{node[1]!r} is not declared by any scope in this run")

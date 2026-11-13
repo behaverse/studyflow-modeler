@@ -10,9 +10,20 @@ import { SCHEMAS, freshMetamodel, freshModdle, loadSchemaModels } from './schema
 const models = loadSchemaModels();
 const catalog = buildCatalog(models);
 
-/** What the schema declares by name: its types and enums (an `extends` entry adds to another's). */
+/** The names the schema declares: its types and enums (an `extends` entry adds to another's). */
 function namesOf(model: SchemaModel): string[] {
   return [...model.types.map((type) => type.name), ...model.enumerations.flatMap((entry) => entry.name ?? [])];
+}
+
+/** Every `description` below the schema's own, with where it sits: a type's, an attribute's, a literal's, a template's. */
+function descriptionsOf(node: unknown, where = ''): [where: string, description: string][] {
+  if (Array.isArray(node)) return node.flatMap((entry, index) => descriptionsOf(entry, `${where}[${entry?.name ?? index}]`));
+  if (!node || typeof node !== 'object') return [];
+  return Object.entries(node).flatMap(([key, value]): [string, string][] => {
+    if (key === 'elements') return [];
+    if (key === 'description') return where && typeof value === 'string' ? [[where, value]] : [];
+    return descriptionsOf(value, `${where}.${key}`);
+  });
 }
 
 /** The JavaScript type a default of a moddle built-in holds; anything else holds a string. */
@@ -40,7 +51,7 @@ test("no two schemas share a URI or declare the same name, and the required ones
     .toEqual(['prov', 'studyflow']);
 });
 
-test('each schema has a quoted YY.M.N version, an http(s) uri, a lowercase prefix, a lowerCase tagAlias, a one-row blurb and PascalCase names', () => {
+test('each schema has a quoted YY.M.N version, an http(s) uri, a lowercase prefix, a lowerCase tagAlias, a one-row blurb, PascalCase names and descriptions that fit a tooltip', () => {
   for (const model of models) {
     // YY.M.N, as the app's own version; quoted, or YAML reads a two-part version as a float.
     expect(model.version, `${model.prefix} version`).toMatch(/^\d{2}\.(?:[1-9]|1[0-2])\.\d+$/);
@@ -48,6 +59,10 @@ test('each schema has a quoted YY.M.N version, an http(s) uri, a lowercase prefi
     expect(model.prefix, `${model.prefix} is lowercase`).toBe(model.prefix.toLowerCase());
     expect(model.xml?.tagAlias, `${model.prefix} tagAlias`).toBe('lowerCase');
     for (const name of namesOf(model)) expect(name, `${model.prefix}:${name}`).toMatch(/^[A-Z][A-Za-z0-9]*$/);
+    // The inspector and the palette show a description in a 256px tooltip (skills/SCHEMAS.md, "Conventions").
+    for (const [where, description] of descriptionsOf(model)) {
+      expect(description.length, `${model.prefix}${where} fits a tooltip`).toBeLessThanOrEqual(90);
+    }
   }
   for (const schema of SCHEMAS) {
     expect(schema.description, `${schema.prefix} blurb`).not.toBe('');
@@ -138,7 +153,7 @@ test('the inspector tabs are General, one per other schema, Documentation, Sched
   expect(['studyflow', 'cognitive', 'bpmn'].map((prefix) => catalog.defaultCategoryOf(prefix))).toEqual(['General', 'Cognitive', 'General']);
 });
 
-// A mode the runners lack silently takes the default branch, so the declared set is pinned to the arms they have.
+// A mode the runners lack takes the default branch, so the declared set is pinned to the arms they have.
 test('gateways declare only branching modes the runners implement', () => {
   for (const type of catalog.allTypes()) {
     if (type.meta.branching !== undefined) expect(['random', 'condition'], type.name).toContain(type.meta.branching);

@@ -11,7 +11,7 @@ import { freshMetamodel, freshPackages } from '@tests/schemas';
 import { attributeOf, readString } from '@runner/flow';
 import { readCompletionCodeType, resolveCompletionCode, substituteCompletionCode } from '@runner/nodes/end/completionCode';
 
-/** What the runner's `diagram=` parameter accepts, and how the rest of the query string reaches the study. */
+/** The sources the runner's `diagram=` parameter accepts, and how the rest of the query string reaches the study. */
 
 /** One step, named from the config data object wired into it; the study declares `task` and `timeline`. */
 const DEMO = `id: demo
@@ -186,7 +186,7 @@ async function planned(xml: string): Promise<{ plan?: Plan; error?: string }> {
   }
 }
 
-/** What the plan hands a runner of `T`: its `parameters`, its rest's attributes, and the study's seed. */
+/** The plan hands a runner of `T` its `parameters`, its rest's attributes, and the study's seed. */
 async function localDigest(xml: string): Promise<{ parameters?: unknown; rest?: Record<string, unknown>; seed?: string | null; error?: string }> {
   const { plan, error } = await planned(xml);
   return plan ? { parameters: plan.elements.T.parameters, rest: plan.elements.T.extensions[0].attributes, seed: plan.study.seed } : { error };
@@ -340,7 +340,7 @@ Redirects:
       redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
 `, freshPackages(), {});
 
-  // A declared one nothing has bound is reported, not silently emptied; one the file gives a number is bound to it.
+  // A declared one nothing has bound is reported, not emptied; one the file gives a number is bound to it.
   expect(study.parameters.unbound).toEqual(['task']);
   expect(study.flowNodes.get('Trial')?.element.name).toBe('Trial {count} of 0.2');
   expect(attributeOf(study.flowNodes.get('Done')!, 'redirectTo')).toContain('cc={COMPLETION_CODE}');
@@ -364,7 +364,7 @@ Codes:
     Plain:
       type: bpmn:EndEvent
 `, freshPackages(), {});
-  // What the end event's screen shows, read as its job reads it, under the link's query string.
+  // The code the end event's screen shows, read as its job reads it, under the link's query string.
   const codeOf = (id: string, search: string) => {
     const end = study.flowNodes.get(id)!;
     return resolveCompletionCode(readCompletionCodeType(end), readString(end, 'completionCode'), search);

@@ -1,12 +1,12 @@
 /**
- * The studyflow element palette — six colours, one definition.
+ * The studyflow element palette: six colours, defined once.
  *
- * The `color-picker` popup's swatch grid and the inspector's colour fields render
- * from this one list, so the two cannot drift.
+ * The `color-picker` popup's swatch grid and the inspector's colour fields render from this one list, so the two
+ * cannot drift.
  *
- * `model/color.ts::normalizeColor` in the canvas accepts `#rgb`, `#rrggbb` and
- * `rgb(r,g,b)` and THROWS on anything else — never introduce a CSS colour name
- * here. `undefined` is the "clear it" value (the canvas's `setColor` reads falsy as "remove").
+ * `study/color.ts::normalizeColor` in the canvas accepts `#rgb`, `#rrggbb` and `rgb(r,g,b)` and throws on anything
+ * else, so never put a CSS colour name here. `undefined` clears the colour (the canvas's `setColor` reads falsy as
+ * "remove").
  */
 
 export type ElementColor = {
@@ -27,6 +27,6 @@ export const ELEMENT_COLORS: ElementColor[] = [
 /** The canvas's stock ink, for text set black on a coloured element, whose text otherwise takes its stroke. */
 export const BLACK_TEXT = '#1c1917';
 
-/** What "Default" looks like in a swatch: the stock BPMN shape colours. */
+/** The colours the "Default" swatch shows: the stock BPMN shape colours. */
 export const DEFAULT_FILL = 'white';
 export const DEFAULT_STROKE = 'rgb(34, 36, 42)';

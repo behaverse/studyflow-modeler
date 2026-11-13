@@ -74,18 +74,15 @@ export function createHtml<K extends keyof HTMLElementTagNameMap>(
   return ownerDocument().createElement(name);
 }
 
-/** Append `child` to `parent`, returning `child`. */
 export function append<E extends Node>(parent: Node, child: E): E {
   parent.appendChild(child);
   return child;
 }
 
-/** Remove `element` from its parent, if any. */
 export function remove(element: Node | null | undefined): void {
   if (element && element.parentNode) element.parentNode.removeChild(element);
 }
 
-/** Remove every child of `element`. */
 export function clear<E extends Node>(element: E): E {
   while (element.firstChild) element.removeChild(element.firstChild);
   return element;

@@ -4,15 +4,15 @@ import { pixelsAcross, type PrintSize } from '@modeler/export/printSize';
 import { saveDialog as s } from '@modeler/export/styles';
 import type { Editor } from '@modeler/editor/port';
 
-/** What a dialog asks of a TIFF: its size on paper, as typed over what the figure is offered. */
+/** The print size a dialog asks for a TIFF: the size offered for the figure, or what the user typed over it. */
 export type PrintSizeState = {
   /** The figure's size in the diagram's units. */
   figure?: { width: number; height: number };
   /** The fields as typed, strings until read. */
   fields?: { over: PrintSize; widthMm: string; dpi: string };
-  /** What the fields say, to write a TIFF at. */
+  /** The print size the fields give, for writing the TIFF. */
   print?: PrintSize;
-  /** Whether what they say can be written. */
+  /** Whether a TIFF can be written at that size. */
   printable: boolean;
   /** The pixels the TIFF would have. */
   pixels?: { width: number; height: number };
@@ -20,8 +20,8 @@ export type PrintSizeState = {
 };
 
 /**
- * A TIFF is asked its size on paper: the figure's own width at the modeler's unit, at 300 dpi, unless typed over.
- * What was typed holds for the size it was typed over, so each opening (`active` again) offers the size afresh.
+ * The print size for a TIFF: the figure's own width at the modeler's unit, at 300 dpi, unless the user types another.
+ * A typed size holds only for the offered size it replaced, so each opening (`active` again) offers the size afresh.
  */
 export function usePrintSize(modeler: Editor, active: boolean): PrintSizeState {
   const figure = useMemo(() => (active ? figureSize(modeler) : undefined), [active, modeler]);

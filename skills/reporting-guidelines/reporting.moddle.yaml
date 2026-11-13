@@ -2,7 +2,7 @@
 
 # A reporting guideline asks a study for documents its diagram already holds: CONSORT's participant flow, SPIRIT's
 # schedule of enrolment, interventions and assessments. The skill reads them off the diagram as it is drawn
-# (modeler/), so nothing here restates the study. What the vocabulary adds is the one thing a drawing cannot say:
+# (modeler/), so nothing here restates the study. The vocabulary adds the one thing a drawing cannot say:
 # what a participant who leaves at an exit counts as.
 
 name: Reporting guidelines

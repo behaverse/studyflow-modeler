@@ -33,7 +33,7 @@ export interface CreateOptions {
 }
 
 interface CreateState {
-  /** What the gesture makes, as the drop hands it on. */
+  /** The element the gesture makes, as the drop hands it on. */
   what: NewElement;
   /** Its shape before it exists, which the rules judge and the ghost draws. */
   prototype: CreatePrototype;

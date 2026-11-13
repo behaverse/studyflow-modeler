@@ -2,8 +2,8 @@ import type { PlanElement } from '@core/engine/plan';
 import type { RunEvent } from '@core/engine/record';
 import type { Entry } from '@core/engine/steps';
 
-/* What a host of the walk provides, and what the walk's parts share: a pool's thread, the interrupt that leaves an
-   activity for its boundary event, the log at a step's depth. */
+/* The interface a host of the walk provides, and the types the walk's parts share: a pool's thread, the interrupt
+   that leaves an activity for its boundary event, the log at a step's depth. */
 
 export type StateTree = Record<string, any>;
 
@@ -21,7 +21,7 @@ export type Conversation = { id: string; turn: number; window?: number };
  * participant's draws repeat on a re-run whatever ids its messages carry. */
 export type Asker = { id: string; n: number; step?: string };
 
-/** What a claimed element's runner exchanges while it runs: a message out along one of its flows, the messages in. */
+/** The messages a claimed element's runner exchanges while it runs: one out along one of its flows, and those that came in. */
 export type Talk = {
   send(line: { flow?: unknown; content?: unknown; id?: string; inReplyTo?: string }): void;
   /** The messages that have arrived along the flows into it since the last take. */
@@ -30,7 +30,7 @@ export type Talk = {
   arrived(): Promise<void>;
 };
 
-/** What a runner hands back from one hand-off: what it binds, said outright. */
+/** The values a runner hands back from one hand-off, each binding stated explicitly. */
 export type Handback = {
   /** The step's result, bound under its element's id; a pool's answer; at a gateway, what its conditions read. */
   result?: unknown;
@@ -38,14 +38,14 @@ export type Handback = {
   values?: Record<string, unknown>;
   /** Properties it wrote, scope by scope. */
   state?: Record<string, Record<string, unknown>>;
-  /** What it ran with (a package version, a model digest, the request as sent): for the record, never read as a value. */
+  /** The things it ran with (a package version, a model digest, the request as sent): kept for the record, never read as a value. */
   record?: Record<string, unknown>;
   durationMs?: number;
   /** A pool's runner leaves the message unanswered: nothing goes back, and the step that asked waits on, as it would
    * for a participant who never replies, until a boundary event of an activity around it ends the wait (its timer). */
   noReply?: boolean;
-  /** What a failed hand-off had handed back says which BPMN error it throws: an error boundary event naming an error
-   * of this `errorCode` catches it, and so does one naming none. */
+  /** The BPMN error a failed hand-off throws: an error boundary event naming an error of this `errorCode` catches it,
+   * and so does one naming none. */
   errorCode?: string;
 };
 
@@ -65,10 +65,10 @@ export type Level = 'debug' | 'info' | 'warning' | 'error';
 /** A line for the run's log, written at the depth of the step it is about. */
 export type Note = (event: string, message: string, detail?: { level?: Level }) => void;
 
-/** What a re-run may reuse of an earlier run's records; a host without one runs every step. */
+/** How a re-run reuses an earlier run's records; a host without one runs every step. */
 export type Reuse = {
   /** Before an activity runs: `skipped` when its record stands, else what to say about the record it supersedes. A
-   * `live` activity never skips. What it notes is logged under the step's own line. */
+   * `live` activity never skips. Its notes are logged under the step's own line. */
   activity(id: string, live: boolean, note: Note): { skipped: boolean; run?: string; superseded?: string };
   /** A gateway's recorded decision, when it may be replayed: the flow it took, and the run that took it. */
   decision(id: string): { flow: string; run: string } | undefined;
@@ -97,7 +97,7 @@ export type Host = {
   /** A timestamp for a record, as the host writes them. */
   now(): string;
   reuse?: Reuse;
-  /** What happened, as it happens: the run's record, which the host keeps (packages/core/src/engine/record.ts). */
+  /** Receives each event as it happens: the run's record, which the host keeps (packages/core/src/engine/record.ts). */
   record?(event: RunEvent): void;
   /** An activity's data outputs, once it is done: the host notes what it made. */
   outputs?(id: string, targets: string[], entry: Entry, note: Note): void;

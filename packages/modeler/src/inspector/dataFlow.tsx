@@ -110,7 +110,7 @@ export function DataFlowSection({ direction }: { direction: Direction }) {
           onClick={() => dispatch({ action: 'unbind', direction, associationId })}
           className={s.stateRemoveBtn}
         >
-          <i className={`${ICONS.closeSmall} text-sm`} />
+          <i className={`${ICONS.close} text-sm`} />
         </button>
       </div>
     );

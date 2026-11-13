@@ -21,8 +21,8 @@ const AUTOSAVE_DEBOUNCE_MS = 600;
 const localIsOn = () => getSettings().diagramAutoSave === 'local';
 
 /**
- * The write-through to disk. Needs a linked file, and one cheap enough to rewrite on every edit —
- * an image is rendered from scratch each time, so it waits for a save the user asked for.
+ * The write-through to disk. Needs a linked file, and one cheap enough to rewrite on every edit: an image is
+ * rendered from scratch each time, so it waits for a save the user asked for.
  */
 const fileIsOn = () => {
   const { file } = getLink();

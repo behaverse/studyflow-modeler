@@ -157,7 +157,7 @@ DESCRIBED: dict[str, dict[str, Any]] = {}
 
 
 def shown(show: dict[str, Any]) -> dict[str, Any]:
-    """What `/api/show` says that the record keeps: the default sampling parameters, the model's context length, and
+    """The parts of `/api/show`'s answer the record keeps: the default sampling parameters, the model's context length, and
     what kind of model it is: `decision` when it lists that capability (it returns a probability per option and writes
     no text), else `chat`."""
     lengths = [value for key, value in (show.get("model_info") or {}).items() if key.endswith(".context_length")]
@@ -308,7 +308,7 @@ CONVERSATIONS: dict[str, list[dict[str, Any]]] = {}
 
 
 def remembered(history: list[dict[str, Any]], window: int | None) -> list[dict[str, Any]]:
-    """What a pool is sent of its conversation: all of it, or under `memory: window` the exchanges that carried the
+    """The part of its conversation a pool is sent: all of it, or under `memory: window` the exchanges that carried the
     instructions (`instructs`, a prompt a step sends once) and the last `window` others, in the order they were had."""
     if window is None:
         return history
@@ -357,7 +357,7 @@ def execute(step: Step) -> str:
         content = message.get("content")
         instructs = isinstance(content, dict) and any(value is None and delivered_once(str(key), step.elements) for key, value in content.items())
         history += [{"role": "user", "parts": parts, **({"instructs": True} if instructs else {})}, {"role": "assistant", "parts": [{"text": reply}]}]
-    # What the actor remembered for this message: the conversation so far, the window of it, or nothing but the message.
+    # The memory the actor had for this message: the conversation so far, the window of it, or nothing but the message.
     memory = ("window" if window is not None else "conversation") if step.conversation else "none"
     step.note(**record, memory=memory, **({"window": window} if window is not None else {}), sent=sent)
     return reply

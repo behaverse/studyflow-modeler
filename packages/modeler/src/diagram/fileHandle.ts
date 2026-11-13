@@ -1,13 +1,12 @@
 /**
  * The link between the canvas and one file on disk.
  *
- * `showOpenFilePicker({ mode: 'readwrite' })` makes the pick itself the write grant: every later
- * write through the handle it returns lands in that same file, silently, for as long as the page
- * lives. Nothing here can reach a path the user did not hand over — that is the whole permission
- * model, and there is no way around it.
+ * `showOpenFilePicker({ mode: 'readwrite' })` makes the pick itself the write grant: every later write through the
+ * handle it returns lands in that same file, silently, for as long as the page lives. Nothing here can reach a path
+ * the user did not hand over.
  *
- * Chromium only. Firefox, Safari, and every mobile browser ship no picker, so each entry point
- * reports its absence and the caller falls back to `<input type=file>` and a download.
+ * Chromium only. Firefox, Safari, and every mobile browser ship no picker, so each entry point reports its absence
+ * and the caller falls back to `<input type=file>` and a download.
  */
 import { notify } from '@modeler/app/noticeStore';
 import {
@@ -20,7 +19,7 @@ import {
 } from '@modeler/diagram/formats';
 
 export type LinkState =
-  /** What is on disk is what is on screen. */
+  /** The file on disk matches the canvas. */
   | 'clean'
   /** Edited since the last write. */
   | 'dirty'
@@ -220,7 +219,7 @@ export async function pickSaveTarget(
   }
 }
 
-/** What the open picker offers, read from the format catalog so a new format cannot drift from it. */
+/** The file types the open picker offers, read from the format catalog so a new format cannot drift from it. */
 export const DIAGRAM_OPEN_ACCEPT: PickAccept = {
   accept: OPENABLE_ACCEPT,
   description: 'Studyflow diagram',

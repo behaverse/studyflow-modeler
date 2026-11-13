@@ -32,11 +32,11 @@ function studyflow(...args: string[]) {
 }
 const convert = (...args: string[]) => studyflow('convert', ...args);
 
-/** It drops what no loaded schema declares, but says so: 18b2771 silently lost five datasets. */
+/** It drops what no loaded schema declares, but says so: 18b2771 lost five datasets with no warning. */
 test('convert warns about what reading drops; with --strict it writes nothing', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'studyflow-convert-'));
 
-  // What those examples still named: `behaverse:Dataset`, since renamed `BDMDataset`.
+  // Those examples still named `behaverse:Dataset`, since renamed `BDMDataset`.
   const old = path.join(dir, 'old.bpmn');
   writeFileSync(old, `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
@@ -110,7 +110,7 @@ test('convert writes BPMN XML, embeds the study into the image --into names or t
   const study = path.join(dir, 'tiny.studyflow.yaml');
   writeFileSync(study, 'id: tiny\ndefinitions:\n  targetNamespace: http://bpmn.io/schema/bpmn\nP:\n  type: Process\n  flowElements:\n    Start: { type: StartEvent }\n    Done: { type: EndEvent }\n    F1: Start -> Done\n');
   const at = (name: string) => path.join(dir, name);
-  // What each text target holds, which an image of its kind carries: a PNG the YAML, an SVG the XML.
+  // The text each text target holds, which an image of its kind carries: a PNG the YAML, an SVG the XML.
   expect(convert(study, at('tiny.yaml')).status).toBe(0);
   const yaml = readFileSync(at('tiny.yaml'), 'utf8');
   const favicon = path.join(process.cwd(), 'assets/img/favicon.png');
@@ -159,7 +159,7 @@ test('convert re-encodes a PNG as a TIFF at its print size, the study and the pa
   expect(convert(at('in.studyflow.png'), at('fine.studyflow.tif'), '--dpi', '600').stdout).toContain('7.6 × 7.6 mm at 600 dpi)');
   expect(tiffResolution(readFileSync(at('fine.studyflow.tif')))).toEqual({ x: 600, y: 600 });
 
-  // What `info` says of the picture, and that `validate` reads the study out of it.
+  // `info` describes the picture, and `validate` reads the study out of it.
   const info = studyflow('info', at('out.studyflow.tif'));
   expect(info.stdout).toContain('source: yaml (embedded in TIFF)');
   expect(info.stdout).toContain('image: 180 × 180 px, 15.2 × 15.2 mm at 300 dpi');

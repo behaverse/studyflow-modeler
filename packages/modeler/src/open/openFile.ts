@@ -1,6 +1,6 @@
 /**
- * What "opening a file" means, independent of how the file arrived — picked, dropped, or set on
- * the hidden `<input>`. Each route validates and reads the same way, so they cannot drift apart.
+ * Opening a file, however it arrived: picked, dropped, or set on the hidden `<input>`. Every route validates and
+ * reads it the same way, so they cannot drift apart.
  */
 import { useCallback, useRef, type ChangeEvent } from 'react';
 import { notify } from '@modeler/app/noticeStore';
@@ -33,9 +33,8 @@ const isBinaryDiagram = (filename: string): boolean => {
 };
 
 /**
- * Reads one file onto the canvas. A `handle` — which a pick or a drop can carry, but the
- * `<input>` never does — links the file, so later saves write back into it. Without one, a save
- * still writes the file's name in its format.
+ * Reads one file onto the canvas. A `handle` links the file, so later saves write back into it; a pick or a drop
+ * can carry one, the `<input>` never does. Without one, a save still writes the file's name in its format.
  */
 export async function openDiagramFile(
   modeler: Editor,

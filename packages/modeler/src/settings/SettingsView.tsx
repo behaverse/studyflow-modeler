@@ -37,7 +37,7 @@ function AboutSection() {
   const version = (import.meta as any).env?.APP_VERSION ?? 'dev';
   return (
     <>
-      <SectionHeader title="About" description="Draw, simulate, and publish studyflows. Built on BPMN 2.0." />
+      <SectionHeader title="About" description="Draw, simulate, and publish studies. Built on BPMN 2.0." />
 
       <Row label="Version" control={<span className={s.valueChip}>{String(version)}</span>} />
       <Row
@@ -87,7 +87,7 @@ function EditorSection() {
 
       <Row
         label="Auto-save"
-        help="Keep the diagram you are editing in this browser, so it persists across a reload."
+        help="Keep the study you are editing in this browser, so it persists across a reload."
         control={
           <SelectControl
             label="Auto-save"
@@ -171,7 +171,7 @@ function ExtensionsSection() {
           key={failure.sourceName}
           label={`${failure.sourceName} (not loaded)`}
           help={`Could not be read, so its elements are missing. Reload the page, and report this if it persists — ${failure.message}`}
-          control={<i className="iconify bi--exclamation-triangle text-red-600" title="Failed to load" aria-label="Failed to load" />}
+          control={<i className={`${ICONS.warning} text-red-600`} title="Failed to load" aria-label="Failed to load" />}
         />
       ))}
 
@@ -237,7 +237,7 @@ function PrivacySection() {
             type="button"
             className={s.inlineBtnDanger}
             onClick={() => {
-              if (window.confirm('Clear all local data, including settings and the saved studyflow? This cannot be undone.')) {
+              if (window.confirm('Clear all local data, including settings and the saved study? This cannot be undone.')) {
                 clearAllLocalData();
                 setEstimate(getStorageEstimate());
               }
@@ -250,7 +250,7 @@ function PrivacySection() {
 
       <Row
         label="Reset settings"
-        help="Restore every setting on this page to its default. Your studyflow is untouched."
+        help="Restore every setting on this page to its default. Your study is untouched."
         control={
           <button type="button" className={s.inlineBtn} onClick={reset}>
             Reset to defaults
@@ -263,11 +263,11 @@ function PrivacySection() {
 
 // A skill's pages (an account it signs in to) sit between the app's own and Privacy and About.
 const SECTIONS: SettingsSection[] = [
-  { id: 'editor', label: 'Editor', icon: 'bi--pencil', Component: EditorSection },
-  { id: 'extensions', label: 'Extensions', icon: 'bi--diagram-3', Component: ExtensionsSection },
+  { id: 'editor', label: 'Editor', icon: 'ph--pencil-simple', Component: EditorSection },
+  { id: 'extensions', label: 'Extensions', icon: 'ph--puzzle-piece', Component: ExtensionsSection },
   ...SKILL_SETTINGS_SECTIONS,
-  { id: 'privacy', label: 'Privacy', icon: 'bi--shield-lock', Component: PrivacySection },
-  { id: 'about', label: 'About', icon: 'bi--info-circle', Component: AboutSection },
+  { id: 'privacy', label: 'Privacy', icon: 'ph--shield-check', Component: PrivacySection },
+  { id: 'about', label: 'About', icon: 'ph--info', Component: AboutSection },
 ];
 
 export function SettingsView({ onClose }: { onClose: () => void }) {

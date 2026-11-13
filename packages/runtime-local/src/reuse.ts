@@ -6,9 +6,9 @@ import type { Note, PlanElement, Reuse } from '@core/engine';
 import { KeptOutOfHistory, type ElementRecord, type RunRepo } from '@runtime-local/prov';
 
 /**
- * What a re-run reuses (packages/runtime-local/CONTRACT.md, "Re-runs"). A step is skipped when its record still stands: nothing it
+ * Decides what a re-run reuses (packages/runtime-local/CONTRACT.md, "Re-runs"). A step is skipped when its record still stands: nothing it
  * reads was re-made earlier in this run, its outputs are where it left them, and the commit its record names still
- * holds what it ran with — every artifact it reads or makes, compared by git itself, and its own drawing (at a
+ * holds what it ran with: every artifact it reads or makes, compared by git itself, and its own drawing (at a
  * gateway, the flows it weighs too), read back out of the study that commit carries.
  */
 
@@ -41,7 +41,7 @@ export type ReuseOptions = {
 };
 
 export class Records implements Reuse {
-  /** What this run re-made: whatever reads it runs again. */
+  /** The ids this run re-made: whatever reads one runs again. */
   readonly tainted = new Set<string>();
   private demanded: Set<string> | undefined;
   private readonly pending = new Map<string, { stale: boolean; verdict?: string }>();
@@ -71,7 +71,7 @@ export class Records implements Reuse {
     return text.includes(id) || (!!name && text.includes(name));
   }
 
-  /** What an activity reads: the sources of its data inputs and the names its arguments cite, and the text of its
+  /** The things an activity reads: the sources of its data inputs and the names its arguments cite, and the text of its
    * transformations and arguments. */
   private dependencies(element: PlanElement): { sources: Set<string>; text: string } {
     const sources = new Set(element.inputs.map((input) => input.source));
@@ -95,7 +95,7 @@ export class Records implements Reuse {
 
   /**
    * The step is not what the commit in its record holds: an artifact it reads or makes differs, by git's own
-   * comparison, or its drawing does — its element, and at a gateway the flows it weighs. A record naming no commit
+   * comparison, or its drawing does: its element, and at a gateway the flows it weighs. A record naming no commit
    * cannot be checked, so its step runs once more and leaves one.
    */
   private staleSince(element: PlanElement, prior: ElementRecord | undefined): boolean {
@@ -151,7 +151,7 @@ export class Records implements Reuse {
         }
       }
     }
-    // Only a gateway that will actually evaluate (no replayable decision, or a tainted condition) needs the
+    // Only a gateway that will evaluate (no replayable decision, or a tainted condition) needs the
     // memory-only values its conditions read; a replayed gateway needs nothing bound.
     const pulled = new Set<string>();
     for (const id of graph.walked) {

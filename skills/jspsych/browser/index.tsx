@@ -85,6 +85,8 @@ registerNode({
     return 'error' in trial ? null : { type: 'jspsych', node, trial };
   },
   Component: JsPsych,
+  // The trials' data, one row a trial.
+  answers: true,
   validateNode: (node) => {
     const trial = trialOf(readString(node, 'implementation'));
     return 'error' in trial ? [{ nodeId: node.id, message: trial.error }] : [];

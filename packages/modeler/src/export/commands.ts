@@ -19,7 +19,7 @@ export type ExportDiagramCommand = {
   print?: PrintSize;
 };
 
-/** What `encodeDiagram` takes besides the format. */
+/** The options `encodeDiagram` takes besides the format. */
 export type EncodeOptions = { print?: PrintSize };
 
 // The study's XML writes each data association in the standard `ioSpecification` form, so other BPMN tooling sees ordinary BPMN.
@@ -38,16 +38,17 @@ const cleanedSvg = (svg: string): string => dropUnresolvedIcons(svg.replace(/^(\
 /**
  * The diagram as a self-contained SVG, plus the `.studyflow.yaml` text it carries.
  *
- * No icon substitution pass: the renderer inlines each glyph from the stylesheet as a
- * real `<svg>` body, so what `toSvg` draws is already what the export carries.
+ * The renderer inlines each glyph from the stylesheet as an `<svg>` body, so the export carries `toSvg`'s drawing
+ * as it is.
  */
 async function renderSvg(modeler: Editor): Promise<{ svg: string; studyflow: string }> {
   return { svg: cleanedSvg(modeler.toSvg()), studyflow: toStudyflow(modeler) };
 }
 
 /**
- * The diagram as an image, and all a reader needs to open it again: the study's text and the bytes of the images
- * pasted on it, each in a PNG chunk of its own. Drawing it anew leaves no pasted image any the worse for the last save.
+ * The diagram as an image, with all a reader needs to open it again: the study's text and the bytes of the images
+ * pasted on it, each in a PNG chunk of its own. It is drawn anew on every save, so a pasted image does not degrade
+ * from one save to the next.
  */
 async function toPng(modeler: Editor): Promise<Uint8Array> {
   const drawn = dataUrlToBytes(await exportToPng(cleanedSvg(modeler.toSvg({ pastedImages: true }))));
@@ -96,12 +97,11 @@ const ENCODERS: Record<DiagramFormatId, (ctx: EncodeContext) => Promise<BlobPart
 };
 
 /**
- * Records that this artifact was produced, for the formats that carry the diagram itself; derived
- * documents leave no stamp. Whether an invocation deserves one at all is the caller's call — the
- * auto-save deliberately does not ask.
+ * Records that this artifact was produced, for the formats that carry the diagram itself; derived documents leave
+ * no stamp. The caller decides whether to stamp at all: auto-save does not.
  *
- * Lives here rather than beside the rest of the trail because it reads the build version through
- * `import.meta`, and `provenance/trail.ts` is loaded by the browserless unit specs, which cannot.
+ * It lives here, away from the rest of the trail, because it reads the build version through `import.meta`, and
+ * `provenance/trail.ts` is loaded by the browserless unit specs, which cannot.
  */
 export function stampProvenance(modeler: Editor, format: ExportFormat): void {
   if (!carriesDiagram(format)) return;
@@ -111,7 +111,7 @@ export function stampProvenance(modeler: Editor, format: ExportFormat): void {
   });
 }
 
-/** Say so when a file written at someone's asking leaves out the images pasted on the canvas. */
+/** Tells the user when a file they asked for leaves out the images pasted on the canvas. */
 export function sayPastedImagesLeftOut(modeler: Editor, format: ExportFormat): void {
   const count = modeler.study.pastedImages().size;
   if (count === 0 || keepsPastedImages(format)) return;

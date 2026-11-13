@@ -136,15 +136,15 @@ The Reporting Diagram view draws the documents of the guidelines a skill in use 
 ## What a participant meets
 
 ::: {layout-ncol=5}
-![Questionnaire](assets/img/elements/questionnaire.svg){width="110" fig-alt="A rounded rectangle with a clipboard-and-pencil icon in its top-left corner, labelled Questionnaire."}
+![Questionnaire](assets/img/elements/questionnaire.studyflow.svg){width="110" fig-alt="A rounded rectangle with a clipboard icon in its top-left corner, labelled Questionnaire."}
 
-![CognitiveTask](assets/img/elements/cognitive_task.svg){width="110" fig-alt="A rounded rectangle with a jigsaw-piece icon in its top-left corner."}
+![CognitiveTask](assets/img/elements/cognitive_task.studyflow.svg){width="110" fig-alt="A rounded rectangle with a jigsaw-piece icon in its top-left corner, labelled Cognitive task."}
 
-![behaverse:Task](assets/img/elements/behaverse_task.svg){width="110" fig-alt="A rounded rectangle with a hexagon icon in its top-left corner, labelled Behaverse Task."}
+![behaverse:Task](assets/img/elements/behaverse_task.studyflow.svg){width="110" fig-alt="A rounded rectangle with a hexagon holding the letters NB in its top-left corner, labelled Behaverse task."}
 
-![Instruction](assets/img/elements/instruction.svg){width="110" fig-alt="A rounded rectangle with an information icon in its top-left corner, labelled Instruction."}
+![Instruction](assets/img/elements/instruction.studyflow.svg){width="110" fig-alt="A rounded rectangle with an information icon in its top-left corner, labelled Instruction."}
 
-![Rest](assets/img/elements/rest.svg){width="110" fig-alt="A rounded rectangle with an armchair icon in its top-left corner, labelled Rest."}
+![Rest](assets/img/elements/rest.studyflow.svg){width="38" fig-alt="A double-ringed circle holding an armchair icon, labelled Rest below."}
 :::
 
 | Type | Drawn as | Means | Attributes |
@@ -258,7 +258,7 @@ Trial_Item:
 | `progress` | any activity or event | a percentage, or `done`, `blocked`, `in progress` |
 | `timeCycle`, under `timer` | a timer start or boundary event | a five-field cron expression, or a repeating ISO 8601 interval (`R3/PT10M`); a run waits for an interval's first firing, at a boundary event that does not interrupt starts a path at each firing, and passes a cron schedule at once |
 | `timer` (its `timeDuration`), or `timeDate` under it | a timer start, catch or boundary event | an ISO 8601 delay (`timer: PT5M`, `timer: P21D`), or a fixed moment; a run waits for it, and at a boundary event it ends the step it sits on when it runs out, or starts a path beside it when the event does not interrupt |
-| `cancelActivity` | a boundary event | `false` for one that leaves its step running: each time it happens, a path starts beside the step; an error boundary event always ends its step |
+| `cancelActivity` | a boundary event | `false` for one that leaves its step running: each time it happens, a path starts beside the step, and the event is drawn with dashed rings; an error boundary event always ends its step |
 | `condition` | a conditional catch, start or boundary event | on a boundary event, leave the step if this holds once the step is done; on a catch or start event, wait until it holds, read again each time a value changes |
 | `while`, under `loopCharacteristics` | the repeat marker on a step | repeat while this holds |
 | `cardinality`, under `loopCharacteristics` | the multi-instance marker on a step | run this many instances of the step |

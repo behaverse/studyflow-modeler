@@ -5,7 +5,8 @@
 #   - a tool is a service task with an `implementation`,
 #   - an agent loop is an ad-hoc sub-process,
 #   - a human approval is a user task or manual task with a timer.
-# What is here: a participant is a model, the request and response that message flows carry, and a prompt template as data object.
+# This schema declares a model as a kind of actor, the request and the reply that message flows carry, and a prompt
+# template as a data object.
 
 name: Agentic
 prefix: agentic
@@ -32,24 +33,23 @@ enumerations:
     literalValues:
       - name: Large language model
         value: llm
-        description: |
-          A model, named by `implementation` (`claude://claude-haiku-4-5`, `ollama://gemma4:12b-it-qat`). As a pool of its own it answers what the other sender elements send it.
-          On a choreography task's band it participates in the task.
+        # Named by `implementation` (`claude://claude-haiku-4-5`, `ollama://gemma4:12b-it-qat`). As a pool of its own it
+        # answers what the other sender elements send it; on a choreography task's band it participates in the task.
+        description: A language model, as a pool that answers what it is sent or on a task's band.
   - extends: studyflow:MessageStructureEnum
     description: What a message flow to or from a model's pool carries over.
     literalValues:
       - name: One Request
         value: agentic:Request
-        description: One request to the model, out of the sender that asks it (a prompt/image from a task or a sub-process).
+        description: One request to the model, a prompt or an image from the task or sub-process that asks.
       - name: One Reply
         value: agentic:Reply
-        description: |
-          The model's reply, back to the step that asked (image or text).
-          It is a single message, but it can be a multi-part message (text, image, audio, etc.) in one flow.
+        # A single message, which can have several parts (text, image, audio, etc.) in one flow.
+        description: The model's reply, back to the step that asked (image or text).
 
 types:
   - name: Prompt
-    description: A prompt kept as a data element, wired into the elements that send it to a model or receive it from another element.
+    description: A prompt kept as data, wired into the elements that send it to a model or receive it.
     superClass:
       - bpmn:DataObjectReference
     meta:
@@ -62,10 +62,9 @@ types:
         meta:
           order: 1
       - name: delivery
-        description: |
-          How often the prompt rides with the messages of a step it is wired into: `every` message (the default; a
-          reminder of the rule before each trial), or `once`, with the step's first message only (a task's
-          instructions, which an actor that keeps the conversation still holds).
+        # `every` message (the default; a reminder of the rule before each trial), or `once`, with the step's first
+        # message only (a task's instructions, which an actor that keeps the conversation still holds).
+        description: How often the prompt rides with the messages of a step it is wired into.
         isAttr: true
         type: PromptDeliveryEnum
         default: every

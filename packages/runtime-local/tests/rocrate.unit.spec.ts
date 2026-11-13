@@ -24,7 +24,7 @@ const EVENTS: RunEvent[] = [
   { event: 'finished', at: '2026-10-02T10:00:04.000Z', status: 'error' },
 ];
 const file = (bytes: number): CrateFile => ({ bytes, sha256: 'a'.repeat(64) });
-// What the crate folder holds: `gone.csv` is not among them.
+// The files the crate folder holds: `gone.csv` is not among them.
 const FILES = new Map<string, CrateFile>([
   ['study.studyflow.yaml', file(100)], ['events.jsonl', file(200)], ['studyflow.log', file(300)],
   ['trials.csv', file(40)], ['data/out.csv', file(50)], ['results', 'folder'],
@@ -44,7 +44,7 @@ test('the crate describes itself and its root as RO-Crate 1.3 and the Workflow R
   for (const [id, name, version] of [['https://w3id.org/ro/wfrun/workflow/0.6', 'Workflow Run Crate', '0.6'], ['https://w3id.org/workflowhub/workflow-ro-crate/1.1', 'Workflow RO-Crate', '1.1']]) {
     expect(entity(crate, id)).toEqual({ '@id': id, '@type': 'CreativeWork', name, version });
   }
-  // What RO-Crate asks of every root, the license an entity of its own.
+  // The properties RO-Crate asks of every root, the license an entity of its own.
   expect(root).toMatchObject({ '@type': 'Dataset', name: 'Run r1 of Flanker study', description: 'Two arms.', datePublished: '2026-10-29', license: { '@id': 'https://spdx.org/licenses/CC-BY-4.0' }, mainEntity: { '@id': 'study.studyflow.yaml' } });
   expect(entity(crate, 'https://spdx.org/licenses/CC-BY-4.0')).toEqual({ '@id': 'https://spdx.org/licenses/CC-BY-4.0', '@type': 'CreativeWork', name: 'CC-BY-4.0' });
   expect(entity(crateOf(EVENTS, { ...PARTS, license: 'https://example.org/terms' }), './').license).toEqual({ '@id': 'https://example.org/terms' });

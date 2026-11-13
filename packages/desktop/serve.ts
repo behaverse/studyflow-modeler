@@ -58,7 +58,7 @@ export function resolveFile(root: string, urlPath: string): { file: string } | {
   return undefined;
 }
 
-/** What a served path holds besides `root`'s files: a file anywhere on disk, read afresh per request, or text. */
+/** An extra served path, beside `root`'s files: a file anywhere on disk, read afresh per request, or text. */
 export type Served = string | { text: string; type: string };
 
 /** The served file's mtime in ms, on every read and write of it: the modeler links the file it opened when it sees

@@ -17,10 +17,10 @@ import { checkResults } from '@core/checks/results';
 import { checkExchanges } from '@core/checks/exchanges';
 import { checkStores } from '@core/checks/stores';
 
-/* What `studyflow validate` checks beyond reading a file, each check in a file of its own; `studyflow run` applies
+/* The checks `studyflow validate` applies beyond reading a file, each in a file of its own; `studyflow run` applies
    the plan checks before it starts a study. */
 
-/** What a check reports, about the element `elementId` names when it is about one. */
+/** An issue a check reports, about the element `elementId` names when it is about one. */
 export type Issue = {
   severity: 'error' | 'warning';
   elementId?: string;
@@ -36,7 +36,7 @@ export function planChecks(model: StudyModel): Issue[] {
   ];
 }
 
-/** What a run left in the file: counts that balance, a protocol that is still the one it ran, and a concealed
+/** Checks what a run left in the file: counts that balance, a protocol that is still the one it ran, and a concealed
  * allocation's seed that is the one it registered; `note` says what matched. */
 export async function recordChecks(model: StudyModel): Promise<{ issues: Issue[]; note?: string }> {
   const seal = await checkSeal(model);

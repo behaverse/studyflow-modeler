@@ -1,4 +1,4 @@
-/** What the eeg skill gives the modeler: the ARTEM-IS export, an EEG methods report over the diagram's acquisition, signal, and instrument elements, and
+/** The eeg skill's contribution to the modeler: the ARTEM-IS export, an EEG methods report over the diagram's acquisition, signal, and instrument elements, and
  * NIDM-Results, the neuroimaging data model's provenance of the diagram's data operations. */
 import type { ExportFormat } from '@modeler/diagram/formats';
 import { hasRole, type ExportedElement, type ExportModel } from '@modeler/export/model';

@@ -33,9 +33,8 @@ type OpenMenu = {
 };
 
 /**
- * A mouse event the editor's create gesture can read coordinates off. Keyboard
- * selection inside the menu produces no pointer position, so the anchor's own
- * cursor stands in — the drag then starts where the menu was opened from.
+ * A mouse event the editor's create gesture can read coordinates off. Keyboard selection inside the menu produces
+ * no pointer position, so the anchor's own cursor stands in, and the drag starts where the menu was opened from.
  */
 function pointerEventFor(event: ReactMouseEvent, anchor: PopupPosition): MouseEvent {
   const native = (event as unknown as { nativeEvent?: MouseEvent })?.nativeEvent ?? (event as unknown as MouseEvent);
@@ -186,9 +185,8 @@ export function PopupMenus() {
     }
 
     if (isReplace) {
-      // The same catalog the create/append menus offer, trimmed to what the editor
-      // would actually accept in this element's place — and with the element's own
-      // type dropped, because "change it to what it already is" is not a choice.
+      // The catalog the create and append menus offer, trimmed to what the editor accepts in this
+      // element's place, and without the element's own type, which would change nothing.
       const currentBpmn = source?.type;
       const currentExtension = source?.extension;
       const currentDefinition = eventDefinitionTypeOf(source && study.element(source.id));
@@ -267,7 +265,7 @@ export function PopupMenus() {
             onDragStart: startDrag,
             onSelect: (event) => {
               // Click-append places the shape outright; a boundary event needs a
-              // host, so it falls back to the drag the bpmn plugin also uses.
+              // host, so it falls back to the drag.
               if (isAppend && !mustDragToAppend(entry.bpmnType)) {
                 executeCommand(modeler, {
                   type: 'AppendElement',

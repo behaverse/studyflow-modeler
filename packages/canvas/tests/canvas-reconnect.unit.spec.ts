@@ -18,7 +18,7 @@ import { edge, loadYaml, node, pointerDown, pointerMove, pointerUp, savedDrawing
 
 /**
  * `Start_1 → Task_1`, with `Task_2` off to the right as the reconnect candidate and
- * a second START event as the one the rules must refuse (nothing may flow INTO a
+ * a second start event as the one the rules must refuse (nothing may flow into a
  * start event).
  */
 const FIXTURE_YAML = `id: Defs_1
@@ -62,7 +62,7 @@ function last(edge: SceneEdge): Point {
 
 // --- pointer helpers ---------------------------------------------------------
 
-/** Select `flow`, grab its LAST waypoint and drop it at `to`. */
+/** Select `flow`, grab its last waypoint and drop it at `to`. */
 function dragTargetEnd(canvas: Canvas, flow: SceneEdge, to: Point): void {
   canvas.select(flow.id);
   const grab = { ...last(flow) };
@@ -133,15 +133,15 @@ test('dropped on empty space the endpoint free-moves, exactly like a bendpoint',
 
   dragTargetEnd(canvas, flow, { x: 300, y: 320 });
 
-  // Still docked to Task_1 as a MODEL, but its tip now sits where it was dropped.
+  // Still docked to Task_1 in the model, but its tip now sits where it was dropped.
   expect(flow.target?.id).toBe('Task_1');
   expect(last(flow).x).toBeCloseTo(300, 3);
   expect(last(flow).y).toBeCloseTo(320, 3);
 
-  // …and NOTHING else moved. A lone run has no joint to keep square, so it goes
-  // diagonal. It used to grow an elbow to keep every run square — the one gesture
-  // whose whole point is "put the tip here" answering by re-cutting the edge into a
-  // shape nobody drew.
+  // …and nothing else moved. A lone run has no joint to keep square, so it goes
+  // diagonal. Growing an elbow to keep every run square would answer the one gesture
+  // whose whole point is "put the tip here" by re-cutting the edge into a shape
+  // nobody drew.
   expect(flow.waypoints).toHaveLength(2);
   expect(isOrthogonal(flow.waypoints)).toBe(false);
   expect(flow.waypoints[0]).toEqual({ x: 136, y: 118 });
@@ -150,8 +150,8 @@ test('dropped on empty space the endpoint free-moves, exactly like a bendpoint',
 });
 
 test('a reconnect drop lands on the grid, like every other waypoint gesture', async () => {
-  // The dock follows the DROP, and a drop is a waypoint position: it snaps to the
-  // grid, exactly as a bendpoint drag does. Two drops inside the same grid cell
+  // The dock follows the drop, and a drop is a waypoint position: it snaps to the
+  // grid, as a bendpoint drag does. Two drops inside the same grid cell
   // therefore dock in the same place.
   const near = load();
   const far = load();
@@ -163,7 +163,7 @@ test('a reconnect drop lands on the grid, like every other waypoint gesture', as
 
   expect(last(edge(near.canvas, 'Flow_1'))).toEqual(last(edge(far.canvas, 'Flow_1')));
 
-  // …and one that rounds to the NEXT docks somewhere else.
+  // …and one that rounds to the next docks somewhere else.
   const next = load();
   dragTargetEnd(next.canvas, edge(next.canvas, 'Flow_1'), { x: one.x + 6, y: 147 });
   expect(last(edge(next.canvas, 'Flow_1'))).not.toEqual(last(edge(near.canvas, 'Flow_1')));
@@ -193,9 +193,9 @@ test('the drag ghost shows the path the release commits, onto a shape and in ope
 });
 
 /**
- * What an endpoint drag does to the joint behind it. A square terminal run keeps its
- * shape: drag the end of a vertical drop sideways and the whole drop slides with it. A
- * run somebody has already bent is left as they bent it.
+ * A square terminal run keeps its shape under an endpoint drag: drag the end of a
+ * vertical drop sideways and the whole drop slides with it. A run somebody has
+ * already bent is left as they bent it.
  */
 const BENT_YAML = `id: Defs_B
 definitions:

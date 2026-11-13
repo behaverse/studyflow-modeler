@@ -5,7 +5,7 @@ import { addPaletteElement, gotoModeler, pressOnCanvas } from './utils';
 
 /**
  * Connect and reconnect feedback, driven by a real pointer. The canvas specs pin what a
- * drop does; this pins what the user SEES while the pointer is down: the cursor under
+ * drop does; this pins what the user sees while the pointer is down: the cursor under
  * it, whether the shape it is over says it will take the drop, and whether a refused
  * drag reads as refused. So it reads computed styles, not only the markers the canvas
  * sets (`data-connect-status`, `sf-drop-ok`, `sf-drop-not-ok`).

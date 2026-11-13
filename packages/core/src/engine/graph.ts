@@ -5,7 +5,7 @@ export const GATEWAY_TYPES = new Set(['exclusiveGateway', 'inclusiveGateway', 'c
 export const CONTAINER_TYPES = new Set(['subProcess', 'adHocSubProcess', 'transaction']);
 export const PASSTHROUGH_TYPES = new Set(['startEvent', 'intermediateCatchEvent', 'intermediateThrowEvent']);
 
-/** What a container holds that no sequence flow leads to. */
+/** The element types a container holds that no sequence flow leads to. */
 export const NOT_FLOW_NODES = new Set([...DATA_TYPES, 'sequenceFlow', 'boundaryEvent', 'textAnnotation', 'association', 'group']);
 
 /** A property's initial value, which the walk reads as a {@link literal}. */

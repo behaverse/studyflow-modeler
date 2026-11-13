@@ -84,12 +84,12 @@ function namesOf(metamodel: Metamodel, type: string): Names {
   return names;
 }
 
-/** The key a file writes `type`'s property `name` (its local name) under; a name the type does not hold as it is. */
+/** The key a file writes `type`'s property `name` (its local name) under; a name the type does not hold is returned as it is. */
 export function fileKey(metamodel: Metamodel, type: string, name: string): string {
   return namesOf(metamodel, type).file.get(name) ?? name;
 }
 
-/** The property a file's `key` on a `type` element names, by its local name; a key the type does not know as it is. */
+/** The property a file's `key` on a `type` element names, by its local name; a key the type does not know is returned as it is. */
 export function modelKey(metamodel: Metamodel, type: string, key: string): string {
   return namesOf(metamodel, type).model.get(key) ?? key;
 }

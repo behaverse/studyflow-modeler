@@ -11,7 +11,7 @@
  * - each value written, message sent and file made is a `prov:Entity` the run generated, and each file staged in one
  *   it used.
  *
- * What PROV has no term for keeps a term of Studyflow's (`sf:`): a step's status, the flow a gateway took, the flow a
+ * A fact PROV has no term for keeps a term of Studyflow's (`sf:`): a step's status, the flow a gateway took, the flow a
  * message went along, the property or data store a value was written to. The counts are the study's state, not
  * provenance, and are left out.
  */

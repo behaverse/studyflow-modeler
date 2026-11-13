@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="sf-canvas" viewBox="-4 -4 128 88" width="128" height="88"><metadata><bpmn:definitions xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:prov="https://w3id.org/studyflow/prov" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="element_behaverse_task" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Element" name="behaverse_task">
+    <bpmn:extensionElements>
+      <studyflow:study/>
+      <prov:activity action="created" when="2026-11-13T23:55:23+01:00" with="studyflow-modeler/26.11.5"/>
+    </bpmn:extensionElements>
+    <bpmn:task id="Behaverse_Task" name="Behaverse task">
+      <bpmn:extensionElements>
+        <behaverse:task instrument="NB" timeline="XCIT_NB_01"/>
+      </bpmn:extensionElements>
+    </bpmn:task>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Element">
+      <bpmndi:BPMNShape id="Behaverse_Task_di" bpmnElement="Behaverse_Task">
+        <dc:Bounds x="0" y="0" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions></metadata><defs><marker id="sf-arrow-sequence" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="context-stroke" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-arrow-message" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="none" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-arrow-open" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="none" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-marker-default" markerWidth="10" markerHeight="10" refX="0" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M3,2 L7,8" fill="none" stroke="context-stroke" stroke-width="1.5"/></marker><marker id="sf-marker-message-start" markerWidth="10" markerHeight="10" refX="1.5" refY="5" orient="auto" markerUnits="userSpaceOnUse"><circle cx="5" cy="5" r="3" fill="#ffffff" stroke="context-stroke" stroke-width="1"/></marker></defs><g data-layer="elements"><g class="sf-shape" data-element-id="Behaverse_Task" data-element-type="bpmn:Task"><rect x="0" y="0" width="120" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><svg x="3" y="3" width="24" height="24" class="sf-icon" viewBox="0 0 256 256" stroke="none" color="#78716c" data-icon-key="Task"><path fill="#78716c" d="m223.68 66.15l-88-48.15a15.88 15.88 0 0 0-15.36 0l-88 48.17a16 16 0 0 0-8.32 14v95.64a16 16 0 0 0 8.32 14l88 48.17a15.88 15.88 0 0 0 15.36 0l88-48.17a16 16 0 0 0 8.32-14V80.18a16 16 0 0 0-8.32-14.03M216 175.82L128 224l-88-48.18V80.18L128 32l88 48.17Z"/></svg><text class="sf-icon-text" x="15" y="15" text-anchor="middle" dominant-baseline="central" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13.200000000000001" font-weight="bold" fill="#44403c" stroke-width="0">NB</text><text class="sf-label" x="60" y="40" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Behaverse task</text></g></g></svg>

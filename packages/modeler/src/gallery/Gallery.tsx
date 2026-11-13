@@ -10,17 +10,13 @@ import {
 } from '@modeler/examples/entries';
 import { galleryCategories } from '@modeler/examples/catalog';
 import { filenameStem } from '@modeler/diagram/file';
-import { surface, radius, button } from '@modeler/ui/styles';
+import { surface, radius } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 import { PaletteIcon } from '@modeler/palette/PaletteIcon';
 
 const g = {
   filters: 'flex flex-wrap items-center gap-1.5 pb-4 shrink-0',
-  // Pushed to its own end of the row: starting from nothing is not one of the shelves. Wears the
-  // nav bar's action look, so the one button here that acts reads like the ones that act there.
-  blankButton: `ms-auto ${button.action} ${button.accentFill} ${radius.button}`,
-  blankButtonIcon: 'text-[14px]',
-  chip: `px-3 py-1 ${radius.pill} text-[12.5px] border transition-colors cursor-pointer`,
+  chip: `px-3 py-1 ${radius.pill} text-xs border transition-colors cursor-pointer`,
   chipIdle: 'border-black/[0.06] text-stone-600 hover:bg-black/[0.04]',
   chipActive: 'bg-stone-900 border-stone-900 text-cream-50',
 
@@ -35,15 +31,15 @@ const g = {
   thumb: 'relative w-full aspect-[16/9] bg-white border-b border-black/[0.06] flex items-center justify-center overflow-hidden',
   thumbImage: 'max-h-full max-w-full object-contain p-3 transition-transform duration-300 ease-out group-hover:scale-[1.04]',
   thumbBusy: 'absolute inset-0 flex items-center justify-center bg-white/70',
-  thumbSpinner: `${ICONS.arrowRepeat} text-stone-500 animate-spin`,
+  thumbSpinner: `${ICONS.spinner} text-stone-500 animate-spin`,
   // The skill's schema icon, pinned to the picture's corner so it reads as where the example comes from.
   badge: `absolute top-2 start-2 flex size-6 items-center justify-center ${radius.button} bg-white/90 text-stone-500 ring-1 ring-black/[0.06]`,
 
   body: 'flex flex-col gap-1 px-3.5 py-3',
-  eyebrow: 'text-[10.5px] font-semibold uppercase tracking-[0.08em] text-stone-400',
-  title: 'text-[13.5px] font-semibold tracking-tight text-stone-900 line-clamp-2',
-  summary: 'text-[12.5px] leading-snug text-stone-500 line-clamp-2',
-  error: 'text-[12.5px] text-red-500',
+  eyebrow: 'text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-stone-400',
+  title: 'text-sm font-semibold tracking-tight text-stone-900 line-clamp-2',
+  summary: 'text-xs leading-snug text-stone-500 line-clamp-2',
+  error: 'text-xs text-red-500',
 
   blankThumb: 'relative w-full aspect-[16/9] bg-white border-b border-black/[0.06] flex items-center justify-center',
   blankIcon: 'text-[2rem] text-stone-300 group-hover:text-stone-400 transition-colors',
@@ -91,7 +87,7 @@ export function GalleryDialog({ isOpen, onClose }: Props) {
       await executeCommand(modeler, { type: 'NewDiagram' });
       onClose();
     } catch (err: any) {
-      notify('error', err?.message || 'Could not start an empty diagram. Reload the page and try again.');
+      notify('error', err?.message || 'Could not start an empty study. Reload the page and try again.');
       console.error(err);
     } finally {
       setBusy(null);
@@ -121,7 +117,7 @@ export function GalleryDialog({ isOpen, onClose }: Props) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="New Diagram"
+      title="New Study"
       size="xl"
       testId="gallery-dialog"
     >
@@ -139,28 +135,14 @@ export function GalleryDialog({ isOpen, onClose }: Props) {
                   {shelf === 'all' ? 'All' : shelf}
                 </button>
               ))}
-              <button
-                type="button"
-                data-testid="new-diagram-blank"
-                onClick={startBlank}
-                disabled={!!busy}
-                className={g.blankButton}
-              >
-                <i
-                  className={`${busy === BLANK ? ICONS.arrowRepeat + ' animate-spin' : ICONS.fileNew} ${g.blankButtonIcon}`}
-                  aria-hidden="true"
-                ></i>
-                Empty diagram
-              </button>
             </div>
 
             <ul className={g.grid}>
-              {filter === 'all' && (
               <li key={BLANK}>
                 <button
                   type="button"
-                  data-testid="new-diagram-blank-card"
-                  aria-label="Empty diagram"
+                  data-testid="new-diagram-blank"
+                  aria-label="Empty study"
                   onClick={startBlank}
                   disabled={!!busy}
                   className={g.card}
@@ -170,12 +152,11 @@ export function GalleryDialog({ isOpen, onClose }: Props) {
                   </div>
                   <div className={g.body}>
                     <span className={g.eyebrow}>Blank</span>
-                    <span className={g.title}>Empty diagram</span>
+                    <span className={g.title}>Empty study</span>
                     <span className={g.summary}>One start event on an empty canvas. Build the rest from the palette.</span>
                   </div>
                 </button>
               </li>
-              )}
               {visible.map((entry) => (
                 <li key={entry.filename}>
                     <button

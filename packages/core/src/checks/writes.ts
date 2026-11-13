@@ -11,7 +11,7 @@ function dataOf(model: StudyModel, element: Element): Element {
   return named ?? element;
 }
 
-/** What `node` writes along its data output associations, and, for a sub-process, what the steps inside it write. */
+/** The data elements `node` writes along its data output associations, and, for a sub-process, those the steps inside it write. */
 function writesOf(model: StudyModel, node: Element): Element[] {
   const written = list(node.dataOutputAssociations)
     .map((edge) => model.get(idOf(edge.targetRef) ?? undefined))

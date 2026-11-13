@@ -66,7 +66,7 @@ const EXCHANGE_OWN = new Set(['participantRef', 'initiatingParticipantRef', 'mes
  * The BPMN XML of a choreography task inside a process: BPMN defines choreography tasks only in a choreography, and
  * gives them no data. So the XML writes one as a `bpmn:task`, which may read and write data, marked
  * `studyflow:exchange`, with its bands as `studyflow:participants` and `studyflow:initiator`; {@link tasksToExchanges}
- * draws it back. Whether it changed any.
+ * reverses it. Returns whether it changed any.
  */
 export function exchangesToTasks(definitions: any): boolean {
   const exchanges = [...contained(definitions)].filter((el) => isChoreographyTaskBo(el) && el.$parent?.$type !== 'bpmn:Choreography');

@@ -1,7 +1,7 @@
 import { clearDiagramHandoff, createDiagramHandoff } from '@core/storage';
 import type { Editor } from '@modeler/editor/port';
 
-/** Bus commands rather than keybindings */
+/** Undo and redo, as bus commands. */
 export type UndoCommand = { type: 'Undo' };
 export type RedoCommand = { type: 'Redo' };
 
@@ -13,14 +13,14 @@ export function runRedo(modeler: Editor, _command: RedoCommand): void {
   modeler.redo();
 }
 
-/** No seed rides along: the runner seeds from the study's own, and runs unseeded when it pins none. */
+/** Carries no seed: the runner takes the study's own, and runs unseeded when the study pins none. */
 export type OpenRunnerCommand = {
   type: 'OpenRunner';
   /** Tab claimed by the click handler; see `openRunnerTab`. Omit and this opens its own. */
   target?: Window | null;
 };
 
-/** Reported in *this* tab: the runner tab either never opened or has nothing to read. */
+/** Reported in the modeler's tab: the runner tab either never opened or has nothing to read. */
 export class OpenRunnerError extends Error {}
 
 function fail(message: string): never {
@@ -30,7 +30,7 @@ function fail(message: string): never {
 
 const POPUP_BLOCKED = 'Could not open the runner. Allow pop-ups for this site and try again.';
 
-/** Must be called *synchronously* from the click: `window.open` is only honoured while the gesture is live, and the async hand-off would land after it expires. */
+/** Must be called synchronously from the click handler: `window.open` is only honoured while the gesture is live, and the async hand-off would land after it expires. */
 export function openRunnerTab(): Window | null {
   return window.open('', '_blank');
 }

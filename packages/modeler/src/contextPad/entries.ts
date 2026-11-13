@@ -1,4 +1,4 @@
-/** What the context pad offers for a selection, as data; the host renders and wires it. */
+/** The entries the context pad offers for a selection, as data; the host renders and wires them. */
 
 import { BPMN } from '@core/constants.ts';
 

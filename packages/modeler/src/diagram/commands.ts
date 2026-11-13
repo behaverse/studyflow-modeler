@@ -113,7 +113,7 @@ function studyText(modeler: Editor, filename: string, content: string | ArrayBuf
 }
 
 export async function runOpenDiagram(modeler: Editor, command: OpenDiagramCommand): Promise<void> {
-  // What reading could not place is gone from the next save, so say what it met, as `studyflow validate` does.
+  // Anything the reader could not place will be missing from the next save, so report it, as `studyflow validate` does.
   const warnings: string[] = [];
   await openText(modeler, studyText(modeler, command.filename, command.content), (message) => { warnings.push(message); }, pastedImagesIn(command.filename, command.content));
   rememberOpenedPrintSize(printSizeOf(command.filename, command.content));

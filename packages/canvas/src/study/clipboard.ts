@@ -18,7 +18,7 @@ import type { Scene, SceneEdge, SceneNode } from '@canvas/study/scene.ts';
 import { renameClashes } from '@canvas/study/templates.ts';
 import { hostOf } from '@canvas/study/tree.ts';
 
-/** What a copy leaves behind, and a paste does not take: they frame a diagram rather than sit in it. */
+/** The types a copy leaves behind, and a paste does not take: they frame a diagram rather than sit in it. */
 const FRAMES = new Set(['bpmn:Participant', 'bpmn:Lane']);
 const DATA_ASSOCIATIONS = ['dataInputAssociations', 'dataOutputAssociations'];
 
@@ -30,7 +30,7 @@ const DATA_ASSOCIATIONS = ['dataInputAssociations', 'dataOutputAssociations'];
 export function copyOf(scene: Scene, ids: readonly string[]): string | undefined {
   const named = ids.map((id) => scene.elementsById.get(id)).map((element) => (element?.kind === 'label' ? element.owner : element));
   const chosen = new Set(named.filter((element): element is SceneNode => element?.kind === 'node' && !FRAMES.has(element.type)));
-  // What sits on an activity goes with it, and never alone.
+  // An element that sits on an activity goes with it, and never alone.
   for (const element of scene.elementsById.values()) {
     const host = element.kind === 'node' ? hostOf(scene, element) : undefined;
     if (host && chosen.has(host)) chosen.add(element as SceneNode);

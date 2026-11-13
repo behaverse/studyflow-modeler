@@ -39,7 +39,7 @@ export async function validate(studyflow: Studyflow, log: LogFn): Promise<Valida
   const entryExit = checkEntryExit(studyflow.model).map(({ elementId, severity, message }) => ({ nodeId: elementId, severity, message }));
   const issues: ValidationIssue[] = [...entryExit, ...validateUnwalked(studyflow)];
 
-  // What a definition prepares (a build manifest, say) goes to its own validators and nowhere else.
+  // The context a definition prepares (a build manifest, say) goes to its own validators only.
   const contexts = new Map<AnyNodeDefinition, unknown>();
   for (const def of getRegisteredNodes()) {
     const context = def.prepare ? await def.prepare(studyflow, log) : undefined;

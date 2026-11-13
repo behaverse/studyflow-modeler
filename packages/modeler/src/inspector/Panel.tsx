@@ -22,7 +22,7 @@ function Header({ element, model }: { element: Element; model: StudyModel }) {
 
 function ToggleButton({ isInspectorVisible, onClick }: { isInspectorVisible: boolean; onClick: () => void }) {
   const title = isInspectorVisible ? 'Hide Inspector' : 'Show Inspector';
-  const icon = isInspectorVisible ? ICONS.sidebarCollapse : ICONS.sidebarExpand;
+  const icon = isInspectorVisible ? ICONS.sidebarShown : ICONS.sidebar;
 
   return (
     <button onClick={onClick} className={s.toggleButton} title={title}>
@@ -32,8 +32,8 @@ function ToggleButton({ isInspectorVisible, onClick }: { isInspectorVisible: boo
 }
 
 /**
- * What the inspector shows, by id: the one selected element (a caption's is what it captions), else what the view
- * shows, the container it is drilled into or the document root.
+ * The id of the element the inspector shows: the one selected element (for a caption, the element it captions),
+ * else the container the view is drilled into, or the document root.
  */
 function inspected(editor: Editor, selection: readonly string[]): string {
   const id = selection.length === 1 ? selection[0] : editor.canvas.scope ?? editor.study.root.id;
@@ -74,7 +74,7 @@ export function Panel() {
   const [isVisible, setIsVisible] = useState(() => window.innerWidth > 900);
   const [width, setWidth] = useState(() =>
     clampPanelWidth(fromStoredWidth(loadInspectorWidth() ?? undefined), window.innerWidth));
-  // The width the user actually chose, scale-independent. A resize that crosses a
+  // The width the user chose, independent of the scale. A resize that crosses a
   // `--ui-scale` step re-derives from this, so the panel grows with its contents.
   const baseWidth = useRef(toStoredWidth(width));
 
@@ -122,7 +122,7 @@ export function Panel() {
             </>
           )}
         </div>
-        {/* Outside the panel so position:fixed anchors to the viewport, not the backdrop-filter context. */}
+        {/* Outside the panel: the handle must not scroll with it, and the toggle shows while it is hidden. */}
         {element && (
           <>
             {isVisible && (

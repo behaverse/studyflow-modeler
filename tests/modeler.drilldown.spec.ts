@@ -8,11 +8,11 @@ import { diagramTitle, examplePath, gotoModeler, openCommandPalette } from './ut
  * one lands and what is dropped inside it are pinned in jsdom
  * (`packages/canvas/tests/canvas.unit.spec.ts`).
  *
- * `sklearn_pipeline` is the fixture because it ships BOTH shapes of the feature at
- * once: `select_model` is drawn collapsed and owns its own `bpmndi:BPMNDiagram`,
- * while `prepare_data` is drawn expanded with its children filed in the parent
- * plane. The editor used to treat those two as different kinds of thing, so the
- * tests assert the same behaviour for both.
+  * `sklearn_pipeline` is the fixture because it ships both shapes of the feature at
+  * once: `select_model` is drawn collapsed and owns its own `bpmndi:BPMNDiagram`,
+  * while `prepare_data` is drawn expanded with its children filed in the parent
+  * plane. The editor must treat the two as one kind of thing, so the tests assert
+  * the same behaviour for both.
  */
 
 async function openExample(page: import('@playwright/test').Page): Promise<void> {
@@ -43,7 +43,7 @@ test.describe('sub-process drill-down', () => {
       // The container's contents are on screen, the parent plane's are not, and the trail says where.
       await expect(shape(inside), id).toBeVisible();
       await expect(shape(outside), id).toBeHidden();
-      await expect(crumbs, id).toContainText('sklearn_pipeline');
+      await expect(crumbs, id).toContainText('scikit-learn pipeline');
       await expect(crumbs, id).toContainText(id);
 
       // The root crumb leads back, and at the root there is no trail to draw.
@@ -56,7 +56,7 @@ test.describe('sub-process drill-down', () => {
     // the trail reads the new name at once, and the sub-process keeps its own.
     await shape('select_model').click();
     await drilldown(page).click();
-    await expect(diagramTitle(page)).toHaveText('sklearn_pipeline');
+    await expect(diagramTitle(page)).toHaveText('scikit-learn pipeline');
     await diagramTitle(page).click();
     await page.getByTestId('diagram-name-input').fill('Pipeline');
     await page.getByTestId('diagram-name-input').press('Enter');

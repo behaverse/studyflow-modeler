@@ -24,7 +24,7 @@ test.describe('standard-BPMN ioSpecification boundary', () => {
   test('a study written as standard BPMN folds back to the shipped YAML', async () => {
     const fixture = readFileSync(STATE_PROPERTIES_FIXTURE, 'utf8');
 
-    // What another BPMN tool reads: a data input per bound source, named after it, and `result` for the output.
+    // Another BPMN tool reads a data input per bound source, named after it, and `result` for the output.
     const standard = await xmlOf(fixture);
     const activity = await activityOf(standard, 'Run_Trial');
     const io = activity.ioSpecification;

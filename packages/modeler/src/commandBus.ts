@@ -29,20 +29,19 @@ type CommandResult<C extends ControllerCommand> = {
 }[RunKey];
 
 /**
- * Dispatch `command` over the editor's bus (`events.send`), the same bus `ElementsChanged` & co.
- * travel on, so a finished command lands on `CommandDone` beside them.
+ * Sends `command` on the editor's bus (`events.send`). Events such as `ElementsChanged` travel on the same bus, so
+ * a finished command is announced there as `CommandDone`.
  */
 export async function executeCommand<C extends ControllerCommand>(modeler: Editor, command: C): Promise<CommandResult<C>> {
   return modeler.events.send<CommandResult<C>>(command);
 }
 
 /**
- * Register every `runX` as the one listener on topic `X`, so `events.send({ type: 'X' })`
- * runs it. That is what makes commands and events one mechanism: the canvas (a leaf
- * that cannot import `@modeler/*`) sends `OpenAppendMenu` on the bus it already holds.
+ * Registers every `runX` as the only listener on topic `X`, so `events.send({ type: 'X' })` runs it. The canvas
+ * cannot import `@modeler/*`, so it reaches an app command this way: it sends `OpenAppendMenu` on the bus it
+ * already holds.
  *
- * Called once at boot (`app/Modeler.tsx`); the subscriptions die with the editor,
- * whose `destroy()` clears the bus.
+ * Called once at boot (`app/Modeler.tsx`). The editor's `destroy()` clears the bus, and these subscriptions with it.
  */
 export function connectCommandBus(modeler: Editor): void {
   for (const feature of FEATURES) {

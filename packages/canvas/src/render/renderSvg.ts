@@ -24,7 +24,7 @@ export interface RenderSvgOptions extends RendererOptions {
 /** Room round the drawing, so a stroke on its edge is not cut. */
 const MARGIN = 4;
 
-/** What a view of `study` shows, as SVG text framed on it: nothing inside a collapsed container, nothing outside `scope`. */
+/** The drawing a view of `study` shows, as SVG text framed on it: nothing inside a collapsed container, nothing outside `scope`. */
 export function renderSvg(study: Study, { scope, document, pastedImages = false, ...options }: RenderSvgOptions = {}): string {
   const container = scope === undefined ? undefined : studyInternals(study).scene.elementsById.get(scope);
   const draw = (): string => picture(study, container?.kind === 'node' ? container : undefined, pastedImages, options);

@@ -1,7 +1,6 @@
 /**
- * What the create/append menus offer — one list for both: the app's curated BPMN
- * groups (`palette/groups.ts`, the same entries the palette flyouts show) followed
- * by every appendable schema type, grouped by the schema that declares it.
+ * The entries of the create and append menus, one list for both: the app's BPMN groups (`palette/groups.ts`, the
+ * entries the palette flyouts show), then every appendable schema type, grouped by the schema that declares it.
  *
  * {@link isAppendable} lives here so the create and append menus cannot drift.
  */
@@ -11,11 +10,10 @@ import { toLocalName } from '@core/naming';
 import { getPaletteIconForBpmnType, PALETTE_GROUPS } from '@modeler/palette/groups';
 
 /**
- * Whether a schema type can be created from a menu at all: concrete, not already
- * covered by the static palette groups, and backed by a BPMN type to mint.
+ * Whether a schema type can be created from a menu at all: concrete, not already covered by the static palette
+ * groups, and backed by a BPMN type to mint.
  *
- * Note this deliberately does NOT test `hiddenFromPalette` — the "more elements"
- * menu is the superset the palette flyouts trim down from.
+ * It does not test `hiddenFromPalette`: the "more elements" menu is the superset the palette flyouts trim down from.
  */
 export function isAppendable(type: TypeEntry): boolean {
   return !type.isAbstract
@@ -52,8 +50,7 @@ function keywordsFor(label: string, bpmnType: string, extensionType?: string): s
 /**
  * Every element the create/append menus can offer, grouped for display.
  *
- * Pure and catalog-driven — no editor, no backend. Callers rebuild it whenever a
- * menu opens, which is also what keeps it honest after an extension is toggled in
+ * Pure: it reads only the catalog. Callers rebuild it whenever a menu opens, so it follows an extension toggled in
  * Settings (the catalog is replaced, not mutated).
  */
 export function buildElementEntries(): PopupElementGroup[] {

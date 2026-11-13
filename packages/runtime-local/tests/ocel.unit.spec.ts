@@ -57,7 +57,7 @@ test('the run, its participants, tasks, actors and datasets are the objects, nam
     ['run', RUN], ['participant', SUBJECT], ['actor', `${PLAN}#Model`], ['dataset', `${RUN}/file/data/trials.jsonl`], ['task', `${PLAN}#Task`],
   ]);
   const object = (type: string) => log.objects.find((candidate) => candidate.type === type)!;
-  // What never changes holds from the start; the run's status from its end.
+  // An attribute that never changes holds from the start; the run's status holds from its end.
   expect(object('run').attributes.map(({ name, value, time }) => [name, value, time])).toEqual([
     ['run', 'r1', '1970-01-01T00:00:00Z'], ['plan', 'sha256:abc', '1970-01-01T00:00:00Z'], ['seed', 7, '1970-01-01T00:00:00Z'],
     ['who', 'ada', '1970-01-01T00:00:00Z'], ['with', 'studyflow-cli/1.0', '1970-01-01T00:00:00Z'], ['status', 'ok', '2026-10-01T10:00:06.000Z'],

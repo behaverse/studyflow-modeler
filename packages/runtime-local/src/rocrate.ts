@@ -26,9 +26,9 @@ export type CrateFile = { bytes: number; sha256: string } | 'folder';
 export type CrateParts = {
   /** The study as run, the workflow: its path in the crate, and what it says of itself. */
   study: { path: string; name: string; description?: string; version?: string };
-  /** What the crate holds, by its path in it. A file the record names that is not here is left out. */
+  /** The files the crate holds, by path. A file the record names that is not here is left out. */
   files: ReadonlyMap<string, CrateFile>;
-  /** What the crate is shared under: an SPDX license id (`CC-BY-4.0`), or a license's URL. */
+  /** The license the crate is shared under: an SPDX license id (`CC-BY-4.0`), or a license's URL. */
   license: string;
   /** When the crate was made, an ISO 8601 date. */
   published: string;
@@ -58,7 +58,7 @@ const JSON_LINES = { '@id': 'https://jsonlines.org/', '@type': 'WebSite', name: 
 
 const ref = (id: string): { '@id': string } => ({ '@id': id });
 
-/** What a file is: its format, its size and its SHA-256. A folder says none of these. */
+/** A file's description: its format, its size and its SHA-256. A folder has none of these. */
 function described(uri: string, file: CrateFile): Record<string, unknown> {
   if (file === 'folder') return {};
   const extension = path.posix.extname(uri).toLowerCase();

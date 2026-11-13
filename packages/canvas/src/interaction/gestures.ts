@@ -61,7 +61,7 @@ function segmentAt(waypoints: readonly Point[], point: Point): number | undefine
   return undefined;
 }
 
-/** What the gestures need of the canvas beyond its public API: the tools they drive and the edits a key or a click makes. */
+/** The parts of the canvas the gestures need beyond its public API: the tools they drive and the edits a key or a click makes. */
 export interface GestureTools {
   create: Create;
   connect: Connect;
@@ -74,7 +74,6 @@ export interface GestureTools {
   viewportCentre(): Point;
   /** A shape a create just landed: selected, and (for a task-like shape) named. */
   placed(node: SceneNode): void;
-  /** Move one waypoint and commit it. */
   /** Commit an end dropped clear of every shape: the route the reconnect ghost drew. */
   moveEnd(edge: SceneEdge, end: 'source' | 'target', point: Point): void;
   /** Move the selection by `(dx, dy)` as one edit; `false` when nothing moved. */
@@ -87,7 +86,7 @@ export interface GestureTools {
   selection: Selection;
   /** The scene the view draws: another one after a load, an undo or a redo. */
   scene(): Scene;
-  /** What may connect, contain or resize what. */
+  /** The rules for what may connect, contain or resize what. */
   rules: Rules;
   /** The camera: pan, zoom, and screen to diagram and back. */
   viewport: Viewport;
@@ -98,7 +97,7 @@ export interface GestureTools {
   /** The view's root, where presses land and its gesture classes go. */
   svg: SVGSVGElement;
   labelEditing: LabelEditing;
-  /** What the view shows at a point, in diagram coordinates. */
+  /** The element the view shows at a point, in diagram coordinates. */
   hitTest(point: Point, options?: HitOptions): SceneElement | undefined;
 }
 

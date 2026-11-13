@@ -249,7 +249,7 @@ test('set takes a structured attribute as the file spells it: a loop, a timer, t
   expect(study.set({ id: 'Task_1', attribute: 'loopCharacteristics', value: { while: 'count < 3', maximum: 3 } })).toMatchObject({ ok: true, changed: ['Task_1'] });
   expect(task().loopCharacteristics).toMatchObject({ type: 'bpmn:StandardLoopCharacteristics', loopMaximum: 3, loopCondition: 'count < 3' });
 
-  // What a step reads, by the `$id` of what it reads: a reference the document resolves.
+  // An input names what the step reads by its `$id`: a reference the document resolves.
   expect(study.set({ id: 'Task_1', attribute: 'inputs', value: { In_Count: { source: '$Count' } } }).ok).toBe(true);
   expect(task().dataInputAssociations[0].sourceRef).toEqual(['Count']);
 
@@ -273,7 +273,7 @@ test('set takes a structured attribute as the file spells it: a loop, a timer, t
 
 test('an AI finds what it may write before it writes: describe says what a type takes, can tries any write on a copy, list finds by name', () => {
   const study = open();
-  // What a task takes: its schema's attributes, and BPMN's own, the polymorphic ones with the types they may hold.
+  // A task takes its schema's attributes and BPMN's own, the polymorphic ones with the types they may hold.
   const described = study.call('describe', { type: 'bpmn:Task' }) as any;
   expect(described.attributes.map((attribute: any) => attribute.name)).toContain('name');
   const structure = new Map<string, any>(described.structure.map((entry: any) => [entry.name, entry]));
@@ -989,7 +989,7 @@ test('a reconnected data association is filed on its new activity, the one that 
   study.add({ type: 'bpmn:DataObjectReference', id: 'Other', at: { x: 500, y: 320 } });
   study.connect({ from: 'Data', to: 'Task_1', id: 'In_1' });
   study.connect({ from: 'Task_1', to: 'Data', id: 'Out_1' });
-  // What the file says, read back: the activity an association hangs off is the one that takes or makes the data.
+  // The file, read back: the activity an association hangs off is the one that takes or makes the data.
   const reopened = () => Study.of(studyModel(study.toYaml()));
   const ownerOf = (again: Study, id: string) => again.model.holderOf(again.element(id)!)?.parent?.id;
 

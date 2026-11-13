@@ -50,7 +50,7 @@ export interface ChangedIds {
 }
 
 /**
- * What one change did to the study, and why. An 'edit' is one commit: what it added, changed and removed. A
+ * One change to the study, and its cause. An 'edit' is one commit: the ids it added, changed and removed. A
  * 'load', an 'undo' and a 'redo' put another document in place: what only the old one held is removed, what only
  * the new one holds added, and everything else changed, the root among it.
  */
@@ -62,12 +62,12 @@ export interface StudyChange extends ChangedIds {
 export type BandsChange = { top?: BandChange; bottom?: BandChange; initiator?: 'top' | 'bottom'; kinds?: { top?: string; bottom?: string } };
 
 export interface OpenOptions extends ImportOptions {
-  /** What the text is read by: the metamodel of the schemas the study uses. */
+  /** The metamodel the text is read with: that of the schemas the study uses. */
   metamodel: Metamodel;
 }
 
 /**
- * What one verb did, as data a host or an AI reads alike: the ids of the elements it added, changed and removed,
+ * The result of one verb, as data a host or an AI reads alike: the ids of the elements it added, changed and removed,
  * or, when `ok` is false, why it wrote nothing.
  */
 export interface StudyResult extends ChangedIds {
@@ -77,7 +77,7 @@ export interface StudyResult extends ChangedIds {
   readonly id?: string;
 }
 
-/** Whether a verb would run, and why not: what `can` answers. */
+/** Whether a verb would run, and why not; `can` returns it. */
 export interface Verdict {
   readonly ok: boolean;
   readonly reason?: string;
@@ -85,11 +85,11 @@ export interface Verdict {
 
 type ChangeListener = (change: StudyChange) => void;
 
-/** What the canvas's views read behind a study's public surface. They write only through the study: its verbs, and
+/** The internals the canvas's views read behind a study's public surface. They write only through the study: its verbs, and
  * `settle` for what a gesture moved in place. */
 export interface StudyInternals {
   readonly scene: Scene;
-  /** What may connect, contain or resize what: the study's verbs and every view's gestures ask the same rules. */
+  /** The rules for what may connect, contain or resize what; the study's verbs and every view's gestures ask the same ones. */
   readonly rules: Rules;
   /**
    * Commit, as one edit, the geometry a gesture has already moved in the scene (`changed`), and the change of
@@ -153,7 +153,7 @@ export class Study {
   private holding: StudyChange[] | undefined;
   private readonly options: ImportOptions;
   private readonly rules = new Rules();
-  /** The study after each edit, as its `.studyflow.yaml` tree in JSON ({@link snapshotOf}): what undo and redo go back and forth through. */
+  /** The study after each edit, as its `.studyflow.yaml` tree in JSON ({@link snapshotOf}); undo and redo step through these. */
   private readonly history: History<string>;
   /** The last commit, for the verb that made it to report. */
   private committed?: Commit;
@@ -214,8 +214,8 @@ export class Study {
   }
 
   /**
-   * The study model the study edits: another one after a load, an undo or a redo. What reads the study reads it; what
-   * edits it goes through the verbs, `revise` among them.
+   * The study model the study edits: another one after a load, an undo or a redo. Readers of the study read this
+   * model; edits go through the verbs, `revise` among them.
    */
   get model(): StudyModel {
     return own(this).scene.model;
@@ -261,7 +261,7 @@ export class Study {
     return found && attributesOf(this.model, found.element);
   }
 
-  /** What `add`, `append` and `replace` make, as data: the BPMN shape types, the schema types extending them, the templates. */
+  /** The things `add`, `append` and `replace` can make, as data: the BPMN shape types, the schema types extending them, the templates. */
   catalog(): Catalog {
     const { metamodel } = this.model;
     return installedCatalog((prefix) => metamodel.package(prefix) !== undefined);
@@ -278,7 +278,7 @@ export class Study {
   }
 
   /**
-   * Whether the rules let `append`, `connect` or `replace` run on `args`, without writing, and why not: what a menu asks
+   * Whether the rules let `append`, `connect` or `replace` run on `args`, without writing, and why not. A menu asks this
    * before it offers an entry. Leave out what is not decided yet to ask about any: `can('append', { from })` asks
    * whether anything may follow `from`, `can('connect', { from })` whether a flow may leave it, `can('replace', { id })`
    * whether it may be retyped at all.
@@ -296,7 +296,7 @@ export class Study {
   }
 
   /**
-   * What an element of `type` takes, before one exists: its schema's attributes (with `extension`, that schema
+   * The attributes an element of `type` takes, before one exists: its schema's (with `extension`, that schema
    * type's too), and the properties BPMN gives it, which `set` takes as the file spells them.
    */
   describe(args: { type: string; extension?: string }): ToolResult {
@@ -328,7 +328,7 @@ export class Study {
 
   /**
    * Say what the message flow `id` carries, or what the property or data object `id` holds: the item definition of
-   * `structure`, which the document keeps one of, made on first use. An empty `structure` says nothing of it.
+   * `structure`, which the document keeps one of, made on first use. An empty `structure` unsets it.
    */
   item({ id, structure }: { id: string; structure: string }): StudyResult {
     const found = this.find(id);
@@ -365,7 +365,7 @@ export class Study {
     // An event's kind, and the loop marker (`true` a bare standard loop), are written as the file spells them.
     const kind = !!named && (named.name === 'loopCharacteristics' || (named.name === 'eventDefinitions' && named.key !== named.name));
     const property = model.property(element, local);
-    // What BPMN keeps as an element or a reference is written as the file spells it, and cleared by taking it out;
+    // A value BPMN keeps as an element or a reference is written as the file spells it, and cleared by taking it out;
     // text kept in an element of its own (an expression, the documentation) is written in place, as it is typed.
     const held = [element[local]].flat()[0];
     const text = typeof held === 'string' || (isElement(held) && (model.isA(held, 'bpmn:Expression') || model.isA(held, 'bpmn:Documentation')));
@@ -456,8 +456,8 @@ export class Study {
   }
 
   /**
-   * `revise`, as part of the step the study holds rather than a step of its own: what is written beside the edits (a
-   * save's provenance stamp), which one undo takes back with the last of them. In-process only, not a tool.
+   * `revise`, as part of the last undo step rather than a step of its own, for what is written beside the edits (a
+   * save's provenance stamp): one undo takes it back with the last of them. In-process only, not a tool.
    */
   amend(id: string, write: (element: Element, model: StudyModel, ids: Ids) => void): StudyResult {
     let result: StudyResult | undefined;
@@ -644,7 +644,7 @@ export class Study {
 
   /**
    * The shapes `ids` name, with what they hold, the boundary events on them and the flows between them, as a
-   * `.studyflow.yaml` document of their own: what `paste` takes. A read.
+   * `.studyflow.yaml` document of their own, which `paste` takes. A read.
    */
   copy(args: { ids: string[] }): { ok: true; yaml: string } | { ok: false; reason: string } {
     const found = this.elements(args.ids);
@@ -899,7 +899,7 @@ export class Study {
     });
   }
 
-  /** What `append` would join, or why it would refuse; without a shape or a template, whether anything may follow `from`. */
+  /** The elements `append` would join, or why it would refuse; without a shape or a template, whether anything may follow `from`. */
   private appending(args: { from: string } & Partial<NewShape> & { template?: string }): { source: Drawable; shape?: NewShape } | string {
     const { scene, rules } = own(this);
     const source = scene.elementsById.get(args.from);
@@ -910,7 +910,7 @@ export class Study {
     return { source, ...(shape ? { shape } : {}) };
   }
 
-  /** What `connect` would join, or why it would refuse; without `to`, whether any flow may leave `from`. */
+  /** The elements `connect` would join, or why it would refuse; without `to`, whether any flow may leave `from`. */
   private connecting(args: { from: string; to?: string }): { source: Drawable; target?: SceneNode } | string {
     const { scene, rules } = own(this);
     const source = scene.elementsById.get(args.from);
@@ -921,7 +921,7 @@ export class Study {
     return rules.canConnect(source, target) ? { source, target } : `nothing connects '${args.from}' to '${args.to}'`;
   }
 
-  /** What `replace` would retype, and into what, or why it would refuse; without `type`, whether `id` may be retyped at all. */
+  /** The node `replace` would retype, and into what, or why it would refuse; without `type`, whether `id` may be retyped at all. */
   private replacing(args: { id: string } & Partial<NewShape>): { node: SceneNode; prototype?: CreatePrototype } | string {
     const { scene, rules } = own(this);
     const node = scene.elementsById.get(args.id);
@@ -1048,7 +1048,7 @@ function referencesTo(scene: Scene, store: Element): SceneNode[] {
     && scene.model.host(element.element) === 'bpmn:DataStoreReference' && idsIn(element.element.dataStoreRef).includes(store.id!));
 }
 
-/** What shows `node`'s element once it changes: `node`, and whatever else draws it. */
+/** The drawables to redraw once `node`'s element changes: `node`, and whatever else draws it. */
 function redrawn(scene: Scene, node: Drawable): Drawable[] {
   // A participant's name is drawn on every choreography task it takes a band of.
   if (node.kind === 'node' && node.type === 'bpmn:Participant') return tasksReferencing(scene, node.element, node);
@@ -1112,7 +1112,7 @@ function draftPlanes(model: StudyModel, options: ImportOptions): string[] {
   return drafted;
 }
 
-/** What a revision did, by id: the elements only `after` holds, those it holds otherwise, and those it no longer holds. */
+/** A revision's changes, by id: the elements only `after` holds, those it holds otherwise, and those it no longer holds. */
 function revisedIds(before: StudyModel, after: StudyModel): ChangedIds {
   const spelled = (model: StudyModel): Map<string, string> => new Map([...model.elements()].map((element) => [element.id!, JSON.stringify(element)]));
   const was = spelled(before);

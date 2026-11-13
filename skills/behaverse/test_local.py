@@ -15,7 +15,7 @@ def task(**attributes):
             "extensions": [{"namespace": behaverse.BEHAVERSE, "type": "task", "attributes": {"instrument": "NB", **attributes}}]}
 
 
-# What the task's trials came to, block by block. A `Click` answers a trial, and so does a `TrialEnd` with a
+# The task's trials counted block by block. A `Click` answers a trial, and so does a `TrialEnd` with a
 # `responseTime`; the reply this runner sent does not, since the build may have stopped waiting.
 def record(*events):
     trials = behaverse.Trials()

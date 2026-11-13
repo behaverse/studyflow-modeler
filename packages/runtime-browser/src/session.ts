@@ -64,7 +64,7 @@ export class Session {
   private readonly events: RunEvent[] = [];
   /** The element whose screen is up: where a value it publishes is written from. */
   private serving: string | undefined;
-  /** What the person answered the message on screen. */
+  /** The person's answer to the message on screen. */
   private replied: unknown = null;
   private show: (id: string, job: Job | undefined, signal?: AbortSignal) => Promise<unknown> = () => Promise.reject(new Error('the session is not running'));
   /** The screens asked for, one at a time: a step on another path of the walk waits for the one on screen. */
@@ -153,7 +153,7 @@ export class Session {
     return this.events;
   }
 
-  /** What the screen on show answers: for a message, the reply its sender gets; for a step, its result. */
+  /** The answer of the screen on show: for a message, the reply its sender gets; for a step, its result. */
   answer(reply: unknown): void {
     this.replied = reply;
   }

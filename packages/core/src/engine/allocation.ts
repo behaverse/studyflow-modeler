@@ -104,7 +104,7 @@ const ALGORITHMS = ['simple', 'block', 'alternation', 'minimization'] as const;
 /**
  * A random gateway's allocation as the walk applies it: the algorithm, the arms' weights in branch order
  * (`allocationRatio`, equal without one), the block size, and the factors to stratify or minimize on (`stratifyBy`,
- * names separated by commas). What the walk cannot apply as written is an error before the walk: a ratio that does not
+ * names separated by commas). An allocation the walk cannot apply as written is an error before the walk: a ratio that does not
  * give each branch a positive whole number, a block that cannot hold the arms in that ratio, an algorithm it does not
  * know, strata under simple randomization (which draws each participant alone, so strata change nothing), minimization
  * without factors, or at a ratio other than equal.
@@ -145,7 +145,7 @@ export function allocationOf(gateway: PlanElement, arms: number): Allocation {
   return { algorithm, weights, size, factors, seedDigest: read('seedDigest') };
 }
 
-/** Why a walk of one participant, a browser session, cannot allocate by what the participants before it took. */
+/** The message saying why a walk of one participant, a browser session, cannot allocate by what the participants before it took. */
 export function withoutCohort(gateway: PlanElement, allocation: Allocation): string {
   const factors = allocation.factors.map((factor) => `'${factor}'`).join(', ');
   const how = allocation.algorithm === 'minimization' ? `minimizes imbalance on ${factors}` : `deals its arms within each stratum of ${factors}`;
@@ -164,7 +164,7 @@ export async function seedDigestOf(seed: string): Promise<string> {
   return `sha256:${Array.from(hash, (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
 }
 
-/** Why a run that was not given a concealed allocation's seed cannot draw it, and how a run is given it. */
+/** The message saying why a run that was not given a concealed allocation's seed cannot draw it, and how a run is given it. */
 export function withoutConcealedSeed(gateway: PlanElement, digest: string): string {
   return `'${gateway.name || gateway.id}' conceals its allocation: it draws from a seed the file shows only as `
     + `${digest.slice(0, 19)}…, and this run was not given it. The local runtime takes it as `

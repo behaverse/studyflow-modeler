@@ -375,7 +375,7 @@ types:
 
 # Palette flyout entries: the elements a drop adds, spelled as in a `.studyflow.yaml` file.
 templates:
-  - description: An EEG session pool - fit the cap, record a baseline, run a task, export.
+  - description: A pool that fits the cap, records a baseline, runs a task, and exports.
     elements:
       EEG_session:
         type: Participant

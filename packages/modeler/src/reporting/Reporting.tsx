@@ -12,12 +12,12 @@ import type { Editor } from '@modeler/editor/port';
 type Props = { isOpen: boolean; onClose: () => void };
 
 const chip = {
-  base: `px-3 py-1 ${radius.pill} text-[12.5px] border transition-colors cursor-pointer`,
+  base: `px-3 py-1 ${radius.pill} text-xs border transition-colors cursor-pointer`,
   idle: 'border-black/[0.06] text-stone-600 hover:bg-black/[0.04]',
   active: 'bg-stone-900 border-stone-900 text-cream-50',
 };
 
-/** What a document draws of the study, or why it could not: a skill's mistake is said here, not thrown at the app. */
+/** The document's drawing of the study, or the reason it has none. A skill's error is reported here instead of thrown at the app. */
 function drawn(modeler: Editor, document: ReportingDocument): { svg: string } | { unavailable: string } {
   try {
     return document.draw(modeler);

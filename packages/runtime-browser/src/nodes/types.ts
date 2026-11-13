@@ -38,7 +38,24 @@ export interface NodeDefinition<J extends Job = Job, C = unknown> {
   toJob: (node: FlowNode) => J | null;
   Component: ComponentType<NodeProps<J>>;
   /**
-   * This definition mounts a long screen -- a task that boots an engine, an
+   * Whether this screen itself plays the pool on the step's band: a program it asks for each answer, or one that
+   * plays inside what the screen runs. The exchange the band stands for then happens in the screen. A band that
+   * names a program no screen plays is refused, since no one in the page answers for that pool.
+   */
+  playsBand?: (node: FlowNode) => boolean;
+  /**
+   * The data objects wired into the step that this screen reads itself, by id: a prompt it sends a model, say. A
+   * screen is handed the Parameters wired into its step and no other data input, so the page warns of each one that
+   * no screen reads.
+   */
+  reads?: (node: FlowNode) => string[];
+  /**
+   * This screen gives its step a result (`session.answer`), which the page writes along the step's data outputs as
+   * the walk writes a runner's. The page warns of a data output of a step whose screen gives none.
+   */
+  answers?: boolean;
+  /**
+   * This definition mounts a long screen: a task that boots an engine, an
    * instrument with many items. Debug (`?debug=1`) shows its name instead
    * of running it; cheap nodes ignore the flag and run for real.
    */

@@ -10,17 +10,17 @@ import { connectsToFixture, loadSchemaModels } from '@tests/schemas';
  * The rules: may this edit happen? Two layers, and the connection tables split the
  * same way:
  *
- * - the **schema layer** reads `TypeCatalog.connectionRule`. No *shipped* schema
- *   declares `meta.connectsTo` (every studyflow type defers), so the
- *   `connects-to` fixture schema — the same one `packages/core/tests/catalog.unit.spec.ts` uses —
- *   is compiled alongside the real ones to exercise `true` / `false` / `'*'`.
- * - the **structural layer** is plain BPMN sense: no flow out of an end event, none
+  * - the schema layer reads `TypeCatalog.connectionRule`. No shipped schema
+  *   declares `meta.connectsTo` (every studyflow type defers), so the
+  *   `connects-to` fixture schema, the one `packages/core/tests/catalog.unit.spec.ts` uses,
+  *   is compiled alongside the real ones to exercise `true` / `false` / `'*'`.
+ * - the structural layer is plain BPMN sense: no flow out of an end event, none
  *   into a start event, no self-loop, sequence vs. message flow by participant
  *   boundary, containment.
  *
  * The rules are pure, so nothing here needs a DOM, a canvas or a study:
  * a `RuleElement` is any object carrying `type` / `element` / `parent`,
- * which is exactly what `SceneNode`, `SceneEdge` and a detached palette shape all
+ * which is what `SceneNode`, `SceneEdge` and a detached palette shape all
  * are. Each table row is the question, the rules' answer and the expected one.
  */
 

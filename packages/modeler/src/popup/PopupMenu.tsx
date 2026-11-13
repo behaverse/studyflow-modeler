@@ -1,22 +1,19 @@
 /**
- * The app's popup menu — one component, every menu id.
+ * The app's popup menu: one component for every menu id.
  *
- * `editor/popupMenus.ts` is the socket: a caller names a menu and hands over
- * anchor geometry, and this renders it. See `PopupMenus.tsx` for the four
- * registrations.
+ * A caller names a menu through `editor/popupMenus.ts` and hands over anchor geometry, and this renders it. See
+ * `PopupMenus.tsx` for the four registrations.
  *
- * Two variants, because two shapes of menu are all the three ids need:
+ * It has two variants:
  *
- * - `list` — grouped icon + label rows, searchable once the list is long enough,
- *   arrow-key navigable, and press-draggable (a row can start a create drag the
- *   same way a palette tile does);
- * - `swatches` — rows of small square buttons, one row per section: a colour chip
- *   where the item carries a `swatch`, a glyph where it carries one. The style menu
- *   is all three at once (element colours, the text toggles, the text inks).
+ * - `list`: grouped icon and label rows, searchable once the list is long enough, navigable with the arrow keys,
+ *   and press-draggable (a row can start a create drag as a palette tile does);
+ * - `swatches`: rows of small square buttons, one row per section: a colour chip where the item carries a
+ *   `swatch`, a glyph where it carries one. The style menu has all three kinds of row (element colours, the text
+ *   toggles, the text inks).
  *
- * Anchoring: `position` is in CLIENT coordinates (what `canvas.screenBox`
- * returns, and what the palette computes from a button rect), so the panel is
- * `position: fixed` and clamped into the viewport after measuring.
+ * Anchoring: `position` is in client coordinates (what `canvas.screenBox` returns, and what the palette computes
+ * from a button rect), so the panel is `position: fixed` and clamped into the viewport after measuring.
  */
 
 import {
@@ -40,18 +37,17 @@ export type PopupMenuItem = {
   label: string;
   /** Tooltip; falls back to `label`. */
   title?: string;
-  /** Iconify class or image URL — list variant only. */
+  /** Iconify class or image URL; list variant only. */
   icon?: string;
-  /** Fill/stroke pair — swatches variant only. `undefined` means "clear it". */
+  /** Fill/stroke pair; swatches variant only. `undefined` clears it. */
   swatch?: { fill?: string; stroke?: string };
-  /** Iconify class drawn in place of a chip — swatches variant only. */
+  /** Iconify class drawn in place of a chip; swatches variant only. */
   glyph?: string;
   /** A toggle's state, drawn as the pressed style and reported as `aria-pressed`. */
   pressed?: boolean;
   /**
-   * Leave the menu open after this item runs. What the style menu's every entry
-   * does: styling is iterative (bold, then italic, then an ink), and the pressed
-   * state it shows is only worth computing while the menu is still up to show it.
+   * Leaves the menu open after this item runs. Every entry of the style menu sets it, because styling takes
+   * several clicks (bold, then italic, then an ink) and the pressed state is only shown while the menu is up.
    */
   keepOpen?: boolean;
   /** Extra text the search box matches on top of `label`. */
@@ -74,9 +70,8 @@ export type PopupMenuModel = {
   width?: number;
   variant?: 'list' | 'swatches';
   /**
-   * Forces the search field on. Left unset, a list grows one once it passes
-   * {@link SEARCH_THRESHOLD} rows — the opener's `search` option is a floor, not a
-   * ceiling, because the caller cannot know how long the catalog made the menu.
+   * Forces the search field on. Left unset, a list still gets one once it passes {@link SEARCH_THRESHOLD} rows,
+   * because the caller cannot know how long the catalog made the menu.
    */
   search?: boolean;
   emptyText?: string;

@@ -50,7 +50,7 @@ function firstActivity(model: StudyModel): Element {
 
 const firstEvent = (model: StudyModel): Element => flowElementsOf(model).find((e) => /Event$/.test(model.host(e)))!;
 
-/** What `runInvalidateProvenanceRecord` touches: a study of `model`, which it edits. */
+/** The part of a modeler `runInvalidateProvenanceRecord` touches: a study of `model`, which it edits. */
 async function mockModeler(model: StudyModel) {
   return { study: await Study.open(studyText(model.study, model.metamodel), { metamodel: freshMetamodel() }) };
 }
@@ -248,7 +248,7 @@ test.describe('provenance view model', () => {
     appendTrailEntry(model, { action: 'executed', when: '2026-08-03T10:00:00Z', run: 'repo' });
     const task = firstActivity(model);
     const other = firstEvent(model);
-    // Run B consumed task's marker; run C consumed other's marker AND re-ran task again.
+    // Run B consumed task's marker; run C consumed other's marker and re-ran task again.
     stampElement(task, { action: 'executed', when: '2026-08-01T10:05:00Z', run: 'repo' });
     stampElement(task, { action: 'invalidated', when: '2026-08-01T12:00:00Z', what: '2026-08-01T10:05:00Z', run: 'repo' });
     stampElement(task, { action: 'executed', when: '2026-08-02T10:05:00Z', run: 'repo' });

@@ -13,7 +13,7 @@ import {
 import { runOnUnity, waitForReady } from '@skills/behaverse/browser/unityRuntime';
 import { TrialTally } from '@skills/behaverse/browser/blocks';
 import { EVENT } from '@skills/behaverse/browser/events';
-import { getBehaverseTaskPayload, withRunIdentity } from '@skills/behaverse/browser/parser';
+import { getBehaverseTaskPayload, playsBand, readsOf, withRunIdentity } from '@skills/behaverse/browser/parser';
 import { fetchManifest, validateBehaverseNode } from '@skills/behaverse/browser/validation';
 import { registerNode } from '@runner/nodes/registry';
 // A run is recorded on the Behaverse Data Server when its runner's switch says so.
@@ -54,6 +54,7 @@ function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJo
 
   useEffect(() => {
     let cancelled = false;
+    let reveal: ReturnType<typeof setTimeout> | undefined;
     // The build's records of its trials, tallied as they arrive, so the result carries what each block came to.
     const tally = new TrialTally();
     const onEvent = (event: MessageEvent): void => {
@@ -72,9 +73,7 @@ function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJo
         const unity = await waitForReady(() => iframeRef.current);
         if (cancelled) return;
         setStatusLine('Starting the task...');
-        setTimeout(() => {
-          if (!cancelled) setStageReady(true);
-        }, STAGE_REVEAL_DELAY_MS);
+        reveal = setTimeout(() => setStageReady(true), STAGE_REVEAL_DELAY_MS);
 
         log('task', `Running ${job.payload.scene} / ${job.payload.timeline}.`);
         const result = await runOnUnity(
@@ -98,13 +97,19 @@ function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJo
       } catch (err) {
         if (cancelled) return;
         const message = err instanceof Error ? err.message : String(err);
-        log('error', `Behaverse task '${job.node.id}' could not run: ${message}`);
+        log('error', `Behaverse task '${job.node.id}' failed: ${message}`);
+        // The build stops with its task, as its window closes in a local run.
+        clearTimeout(reveal);
+        if (iframeRef.current) iframeRef.current.src = 'about:blank';
+        setStageReady(false);
+        setStatusLine('The task failed.');
         abort(message);
       }
     })();
 
     return () => {
       cancelled = true;
+      clearTimeout(reveal);
       window.removeEventListener('message', onEvent);
     };
     // Each is fixed for the node's mount: the runner keys a node by its job and hands it stable callbacks.
@@ -151,6 +156,10 @@ registerNode<BehaverseJob, Manifest>({
   heavy: true,
   toJob: behaverseToJob,
   Component: Behaverse,
+  playsBand,
+  reads: readsOf,
+  // A completed task's result is what the build reports and what each block came to.
+  answers: true,
   prepare,
   validateNode: (node, _studyflow, manifest) => manifest ? validateBehaverseNode(node, manifest) : [],
 });

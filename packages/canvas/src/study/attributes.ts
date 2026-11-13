@@ -1,7 +1,7 @@
 /**
  * The attributes an element takes, as data an AI reads to spell `set`: its name, and those its schema types declare
  * (its extension's, and the traits on its BPMN type), each named as the `.studyflow.yaml` file spells it, with what
- * it holds now. What the inspector shows, less its layout.
+ * it holds now: the inspector's content, without its layout.
  */
 
 import { getAttributeSpec } from '@core/element/index.ts';
@@ -9,9 +9,9 @@ import { isExtensionPrefix, readAttribute, type Element, type StudyModel } from 
 import { getCatalog, hasCatalog, type AttributeSpec } from '@core/notation/index.ts';
 
 export interface AttributeRecord {
-  /** What `set` takes, as the document spells it: the local name, qualified only where two of the element's share it. */
+  /** The name `set` takes, as the document spells it: the local name, qualified only where two of the element's share it. */
   readonly name: string;
-  /** What it holds: `String`, `Integer`, `Boolean`, `Real`, an enumeration or a schema type. */
+  /** Its type: `String`, `Integer`, `Boolean`, `Real`, an enumeration or a schema type. */
   readonly type: string;
   readonly description?: string;
   /** It holds a list. */
@@ -20,7 +20,7 @@ export interface AttributeRecord {
   readonly values?: readonly unknown[];
   /** Shown in the inspector only while these attributes hold these values (`$set`: any value). */
   readonly when?: Readonly<Record<string, unknown>>;
-  /** What it holds now, when that is plain JSON; a structured value is read in the document. */
+  /** Its current value, when that is plain JSON; a structured value is read in the document. */
   readonly value?: unknown;
 }
 
@@ -30,7 +30,7 @@ export function attributesOf(model: StudyModel, element: Element): AttributeReco
   const extensionType = model.extensionType(element);
   const catalog = getCatalog();
   const extension = extensionType ? catalog.instanceAttributesOf(extensionType) : [];
-  // What the extension redefines, it keeps: the BPMN type's own spelling of it steps aside.
+  // The extension keeps an attribute it redefines: the BPMN type's own spelling of it is left out.
   const redefined = new Set(extension.map((spec) => spec.redefinedName ?? localNameOf(spec)));
   const declared = (spec: AttributeSpec): boolean => isExtensionPrefix(spec.ns?.prefix) || !!spec.redefines;
   const name = getAttributeSpec(host, 'bpmn:name');

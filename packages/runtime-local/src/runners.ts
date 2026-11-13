@@ -128,7 +128,7 @@ type Process = ChildProcessByStdio<Writable, Readable, null>;
 /** A JSON-RPC 2.0 message, one a line. */
 type Rpc = { id?: string | number; method?: string; params?: Record<string, any>; result?: any; error?: { code?: number; message?: string; data?: unknown } };
 
-/** What a runner answered a request with, when it answered with an error. */
+/** The error a runner answered a request with. */
 class Refused extends Error {
   readonly data: unknown;
 
@@ -140,7 +140,7 @@ class Refused extends Error {
 
 /**
  * A partial runner: one process for the whole run, spoken to in JSON-RPC 2.0 on its stdin and stdout, one message a
- * line (SKILL.md, beside this folder, is the contract). `initialize` names the plan and the run and is answered with
+ * line (CONTRACT.md, beside this folder, is the contract). `initialize` names the plan and the run and is answered with
  * the elements it takes; `execute` hands it one, and is answered with what it hands back; `message` and `cancel` reach
  * a hand-off while it runs; `shutdown` ends it. The runner sends `message` along a flow of the element it runs, `log`
  * for the run log, and asks `prompt` of the person at the walk's terminal. Its stderr stays on the terminal.
@@ -185,7 +185,7 @@ export class PartialRunner {
     } catch (error) {
       if ((error as { code?: unknown }).code === 'ENOENT') return undefined;
       void this.shutdown();
-      // What it lacks to run this study, in its own words; else it never spoke.
+      // A runner that refused says what it lacks to run this study; any other failure means it never answered.
       if (error instanceof Refused) throw new Error(`the ${this.name} runner cannot run this study: ${error.message}`);
       throw new Error(`the ${this.name} runner did not answer initialize (${(error as Error).message}): this walk speaks hand-off protocol ${PROTOCOL}`);
     }
@@ -316,7 +316,7 @@ export class PartialRunner {
     try {
       return await this.request('execute', { element: id, values, attributes: attributes ?? {}, ...(message ? { message } : {}), ...(conversation ? { conversation } : {}), ...(asker ? { asker } : {}) }, handoff);
     } catch (error) {
-      // What it had bound before it failed comes back with the failure.
+      // The values it had bound before it failed come back with the failure.
       const partial = error instanceof Refused && error.data && typeof error.data === 'object' ? error.data as Handback : undefined;
       throw new HandoffError(`${this.name}: ${stopped ? `${id} ${stopped}` : (error as Error).message}`, partial);
     } finally {

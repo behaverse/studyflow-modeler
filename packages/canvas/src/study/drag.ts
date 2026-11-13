@@ -233,14 +233,14 @@ export class Drag {
     return changed;
   }
 
-  /** Apply once more at `point`, then commit what actually moved. */
+  /** Apply once more at `point`, then commit what moved. */
   end(point: Point, grid: GridAxes = BOTH_AXES): SceneElement[] {
     const changed = this.finish(point, grid);
     if (changed) this.settle(changed);
     return changed ?? [];
   }
 
-  /** Apply once more at `point` and close the drag: what actually moved, uncommitted; nothing when no drag was on. */
+  /** Apply once more at `point` and close the drag: what moved, uncommitted; nothing when no drag was on. */
   private finish(point: Point, grid: GridAxes): SceneElement[] | undefined {
     const state = this.state;
     if (!state) return undefined;

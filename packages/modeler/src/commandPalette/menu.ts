@@ -141,7 +141,7 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       id: 'view-checklist',
       group: 'View',
       label: 'View as Checklist...',
-      icon: ICONS.checkSquare,
+      icon: ICONS.checkbox,
       action: () => openDialog('checklist'),
     },
     {
@@ -159,8 +159,8 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       keywords: 'figure svg png drawio paper export',
       action: () => openDialog('manuscript'),
     },
-    // Offered while a skill in use draws one, and found by what those skills call theirs: a guideline's documents
-    // come and go with its extension.
+    // Offered only while a skill in use draws a reporting document, and found by the guideline and document names
+    // those skills give.
     ...(documents.length > 0 ? [{
       id: 'view-reporting',
       group: 'View',

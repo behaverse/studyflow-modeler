@@ -39,9 +39,9 @@ import type { Editor } from '@modeler/editor/port';
 
 export type SaveDiagramCommand = {
   type: 'SaveDiagram';
-  /** Always opens the picker, then links whatever the user chose. The Export dialog's other half. */
+  /** Always opens the picker, then links whatever the user chose. The Save dialog sends it. */
   saveAs?: boolean;
-  /** What to write. Defaults to the linked file's own format, then the opened file's, then studyflow. */
+  /** The format to write. Defaults to the linked file's own format, then the opened file's, then studyflow. */
   format?: ExportFormatId;
   /** The auto-save write-through: never prompts, never opens a picker, gives up quietly. */
   auto?: boolean;
@@ -137,7 +137,7 @@ async function saveInPlace(modeler: Editor, file: LinkedFile, auto: boolean, pri
   if (permission !== 'granted') {
     markBlocked();
     if (!auto) {
-      notify('error', `The browser did not grant permission to write ${file.name}. Use "Export..." to choose the file again.`);
+      notify('error', `The browser did not grant permission to write ${file.name}. Use "Save As..." to choose the file again.`);
     }
     return 'skipped';
   }

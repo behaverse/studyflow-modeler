@@ -39,7 +39,7 @@ assert trials.variable_names({"timeline_variables": [{"stimulus": "A"}, {"stimul
 assert trials.field("block", {"block": "Test"}, {"block": "Practice"}) == "Test"
 assert trials.field("task", {}, {"task": "AXCPT"}) == "AXCPT" and trials.field("condition", {}, {}) is None
 
-# What a trial offers the actor: the options ResponseOptions names, each pressing its key as the trial's choices spell
+# A trial offers the actor the options ResponseOptions names, each pressing its key as the trial's choices spell
 # it; without it, the choices themselves. A plugin of buttons responds with the button's place. A trial that takes no
 # answer, or any key, offers nothing.
 MAPPING = {"Match": "F", "NonMatch": "j"}

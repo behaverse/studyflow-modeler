@@ -364,7 +364,7 @@ S:
       cwd: dir, stdio: 'pipe', env: ENV,
     });
 
-    // What the first run reaches is pinned by packages/core/tests/engine.unit.spec.ts, on this study.
+    // The steps the first run reaches are pinned by packages/core/tests/engine.unit.spec.ts, on this study.
     run(path.join(dir, 'conserve.bpmn'));
     expect(await unconserved(xml, archivedState(archived)._meta.reached)).toEqual([]);
 
@@ -416,7 +416,7 @@ S:
   });
 
   test('an invalidated record makes the next run branch at its step\'s commit, the furthest back of them, redo every step from there, and reuse the steps before it', () => {
-    // C is written before A, so the furthest back is not merely the first marker read.
+    // C is written before A, so the furthest back is not the first marker read.
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-invalidated-'));
     fs.writeFileSync(path.join(dir, 'steps.studyflow.yaml'), `id: steps
 definitions:
@@ -831,7 +831,7 @@ S:
     expect(digest.elements.Trial_Item).toMatchObject({ type: 'itemDefinition', attributes: { structureRef: 'cognitive:Trial' } });
     // `names` binds a name to one element: `model` names two, and `Done` is another element's id, so neither is offered.
     expect(digest.names).toEqual({ T: 'fit', Dat: 'digits' });
-    // What the runner ran with joins its step's record, and is no value a later step reads.
+    // The step's record takes what the runner ran with, which is no value a later step reads.
     const record = fs.readFileSync(path.join(dir, 'run', 'events.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
     expect(record.find((event) => event.event === 'executed' && event.id === 'T').entry).toMatchObject({ version: 'm 1.0' });
     expect(JSON.parse(fs.readFileSync(path.join(dir, 'run', '.cache', 'Done.state.json'), 'utf8'))).not.toHaveProperty('record');

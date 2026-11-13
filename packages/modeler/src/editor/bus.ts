@@ -1,34 +1,29 @@
 /**
- * The editor's event bus, a tiny publish/subscribe emitter, held as `Editor.events`: `editor/mount.ts`
- * forwards the canvas's and the study's news onto it (`SelectionChanged`, `RootSet`, `ElementsChanged`,
- * `ImportDone`, `HistoryChanged`), and commands travel on it too. Listeners run in subscription order;
- * nothing has needed a priority.
+ * The editor's event bus, held as `Editor.events`. `editor/mount.ts` forwards the canvas's and the study's events
+ * onto it (`SelectionChanged`, `RootSet`, `ElementsChanged`, `ImportDone`, `HistoryChanged`), and commands travel on
+ * it too. Listeners run in subscription order.
  */
 
 /**
- * A bus listener. The payload shape is topic-specific; see the emitters.
+ * A bus listener. The payload's shape depends on the topic; see the emitters.
  *
- * A returned value is the ANSWER `fire` hands back. Commands are topics too: a
- * command type (`'Undo'`, `'SetColor'`) is a topic with exactly one listener whose
- * answer is the command's result, sent with {@link EventBus.send}.
+ * `fire` hands back the value a listener returns. A command type (`'Undo'`, `'SetColor'`) is a topic with exactly
+ * one listener, whose return value is the command's result; send it with {@link EventBus.send}.
  */
 export type EventListener<P = unknown> = (payload: P) => unknown;
 
-/** What every listener receives: the topic as `type`, plus the payload. Commands and events alike. */
+/** The message a listener receives, for a command or an event: the payload, with the topic as `type`. */
 export type Message<P = unknown> = P & { type: string };
 
-/** A small pub/sub emitter. Listeners fire in the order they subscribed. */
 export class EventBus {
   private readonly topics = new Map<string, EventListener<never>[]>();
 
-  /** Subscribe `listener` to `topic`. */
   on<P = unknown>(topic: string, listener: EventListener<P>): void {
     const subs = this.topics.get(topic) ?? [];
     subs.push(listener as EventListener<never>);
     this.topics.set(topic, subs);
   }
 
-  /** Remove a previously registered `listener` from `topic`. */
   off<P = unknown>(topic: string, listener: EventListener<P>): void {
     const subs = this.topics.get(topic);
     if (!subs) return;
@@ -38,14 +33,11 @@ export class EventBus {
   }
 
   /**
-   * Fire `topic` with `payload`, invoking listeners in subscription order, and hand
-   * back the last answer any of them returned (`undefined` when none did, which is
-   * every notification topic).
+   * Fires `topic`: calls its listeners in subscription order and returns the last value one of them returned
+   * (`undefined` when none did, as for every notification topic).
    *
-   * Listeners receive one message, `{ type: topic, ...payload }` — the same shape a
-   * command travels in, so a listener reads `event.element` off a notification and
-   * `event.type` off anything. A missing payload is delivered as `{ type }`, never
-   * `undefined`.
+   * A listener receives one message, `{ type: topic, ...payload }`, the shape a command has too, so it can read
+   * `event.type` off any message. A missing payload is delivered as `{ type }`.
    */
   fire<R = unknown, P = unknown>(topic: string, payload?: P): R | undefined {
     const subs = this.topics.get(topic);
@@ -61,10 +53,9 @@ export class EventBus {
   }
 
   /**
-   * Run the command `{ type, ... }` — the one listener on topic `type` answers —
-   * and announce the fact on `CommandDone` (or `CommandFailed`). Same bus, same
-   * `on`: a feature registers `bus.on('SetColor', run)` and anyone holding the bus
-   * may send it; nothing else distinguishes a command from an event.
+   * Runs the command `{ type, ... }` by calling the one listener on topic `type`, then announces `CommandDone`, or
+   * `CommandFailed` when it throws. A feature registers a command with `bus.on('SetColor', run)`, as it would a
+   * listener, and anything holding the bus may send it.
    */
   async send<R = unknown>(command: { type: string } & Record<string, unknown>): Promise<R> {
     const subs = this.topics.get(command.type) ?? [];

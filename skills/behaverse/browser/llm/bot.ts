@@ -70,20 +70,16 @@ export function matchResponseOption(raw: string, options: string[]): string | un
   return options.find((option) => option.toLowerCase() === reply);
 }
 
-/** The model's answer to one trial, or why there is none. */
+/** The model's answer to one trial, or why its reply is none. A call that fails throws. */
 export async function selectResponse(
   input: LLMBotInput,
   config: LLMProviderConfig,
 ): Promise<{ response?: string; error?: string }> {
   if (!input.responseOptions.length) return { error: 'no response options' };
-  try {
-    const req = buildPrompt(input, config.model);
-    const raw = config.provider === 'claude'
-      ? await callClaude(req, config.proxyUrl)
-      : await callOllama(req, config.url);
-    const response = matchResponseOption(raw, input.responseOptions);
-    return response !== undefined ? { response } : { error: `the reply names no option: "${raw.slice(0, 80)}"` };
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : String(err) };
-  }
+  const req = buildPrompt(input, config.model);
+  const raw = config.provider === 'claude'
+    ? await callClaude(req, config.proxyUrl)
+    : await callOllama(req, config.url);
+  const response = matchResponseOption(raw, input.responseOptions);
+  return response !== undefined ? { response } : { error: `the reply names no option: "${raw.slice(0, 80)}"` };
 }

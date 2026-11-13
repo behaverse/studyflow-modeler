@@ -14,8 +14,8 @@ export type FakeModelerOptions = {
 
 /**
  * A partial `Editor`: the exporters list the study's elements, read each one off the study model, and take the
- * diagram's name off the root, and that is the whole of what they ask the editor for — which is why one study
- * stand-in serves every interchange format.
+ * diagram's name off the root. That is all they ask the editor for, which is why one study stand-in serves
+ * every interchange format.
  */
 function fakeModeler(model: StudyModel, { diagramName }: FakeModelerOptions = {}): any {
   const listed = [...model.elements()].filter((element) => !ROOT_TYPES.has(model.host(element)));
@@ -28,7 +28,7 @@ function fakeModeler(model: StudyModel, { diagramName }: FakeModelerOptions = {}
   };
 }
 
-/** What the interchange exporters take: the semantic model of a process holding `elements`, as a file spells them. */
+/** The interchange exporters' input: the semantic model of a process holding `elements`, as a file spells them. */
 export function fakeExportModel(elements: Element[], options: FakeModelerOptions = {}): ExportModel {
   const metamodel = freshMetamodel();
   const doc = { id: 'D', definitions: { targetNamespace: 'http://bpmn.io/schema/bpmn' }, Process_1: { type: 'bpmn:Process', flowElements: elements } };

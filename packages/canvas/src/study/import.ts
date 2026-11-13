@@ -2,7 +2,7 @@
  * A study model's drawing → {@link Scene}.
  *
  * The layout map is the drawing: a shape or an edge per element it names, one tree of them, each element under the
- * nearest drawn node it sits in. What a further diagram draws (`study.diagram`) is left as the study holds it.
+ * nearest drawn node it sits in. A further diagram's drawing (`study.diagram`) is left as the study holds it.
  */
 
 import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, isDataAssociationType } from '@core/element/index.ts';
@@ -108,7 +108,7 @@ export function importStudy(model: StudyModel, options: ImportOptions = {}): Sce
 }
 
 /**
- * What `element` sits in: what holds it, except that a data association is held by its activity, and it sits beside
+ * The element `element` sits in: its holder, except that a data association, which its activity holds, sits beside
  * that activity, so a sub-process's own associations stay at its level.
  */
 function containerOf(model: StudyModel, element: Element | undefined): Element | undefined {
@@ -190,7 +190,7 @@ function resolveEndpoints(model: StudyModel, edge: SceneEdge, drawn: Map<string,
 }
 
 /**
- * Containment what holds an element does not carry: a pool owns its process's nodes through `processRef`, a lane its
+ * Containment that an element's holder does not carry: a pool owns its process's nodes through `processRef`, a lane its
  * members through `flowNodeRef` (deepest lane wins).
  */
 function collectRefContainment(model: StudyModel, elements: readonly Drawable[]): Map<Element, Element> {

@@ -36,16 +36,17 @@ export function ChoreographyParticipantsSection({ element }: { element: any }) {
   return <ParticipantFields key={element.id} element={element} />;
 }
 
-/** How an actor's kind reads: its pool's. */
+/** The label of an actor's kind, which is its pool's kind. */
 function kindLabel(kind: ParticipantKind | undefined): string {
   return kind?.label ?? t('kindUntyped');
 }
 
 /**
  * One band of a choreography-shaped task, the same for a plain choreography task and a typed one (a cognitive
- * task): an editable select over every actor the file declares, text that names one or renames the band's own, and
- * "None" to clear it. A typed task has one such band, who takes it; empty, the pool it sits in does. The actor's kind
- * reads under the field; it is set on the pool, which the line selects.
+ * task). It is an editable select over every actor the file declares: typed text names an actor or renames the
+ * band's own, and "None" clears it. A typed task has one such band, for the actor who takes it; when it is empty,
+ * the pool the task sits in takes it. The actor's kind shows under the field. It is set on the pool, which the
+ * button on that line selects.
  */
 function ParticipantField({ element, field, participant, label, help, declared, typed, fallback = '' }: {
   element: any; field: 'top' | 'bottom'; participant: any; label: string; help: string; declared: any[]; typed: boolean; fallback?: string;
@@ -123,9 +124,9 @@ function ParticipantField({ element, field, participant, label, help, declared, 
 }
 
 /**
- * A pool's kind, on the pool: a person, a program, a device, a model, among the kinds the loaded extensions declare,
- * for a pool no schema types yet. Typed, the kind is the type's own attribute (`actorType`), and the settings of that
- * kind, which the tab lists with the rest.
+ * A pool's kind, set on the pool: a person, a program, a device or a model, among the kinds the loaded extensions
+ * declare. This section is for a pool no schema types yet. Once typed, the pool's kind is the type's own attribute
+ * (`actorType`), listed in the tab with the settings of that kind.
  */
 export function ActorKindSection({ element }: { element: any }) {
   const modeler = useModeler();

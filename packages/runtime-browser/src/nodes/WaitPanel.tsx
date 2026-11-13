@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { NodePanel } from '@runner/nodes/NodePanel';
 import { nodeStyles } from '@runner/nodes/styles';
 
-/** What the session adds to a timer event's job as the walk starts waiting: when the wait ends, in ms since the epoch. */
+/** The field the session adds to a timer event's job as the walk starts waiting: when the wait ends, in ms since the epoch. */
 export type Waiting = { until?: number };
 
 /** The clock, read four times a second. */

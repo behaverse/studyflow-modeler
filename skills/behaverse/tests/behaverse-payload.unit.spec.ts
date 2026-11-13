@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test';
 import { parseStudyflow } from '@runner/studyflow';
 import { botForUnity } from '@skills/behaverse/browser/botConfig';
 import { matchResponseOption } from '@skills/behaverse/browser/llm/bot';
-import { getBehaverseTaskPayload } from '@skills/behaverse/browser/parser';
+import { getBehaverseTaskPayload, playsBand, readsOf } from '@skills/behaverse/browser/parser';
 import type { BehaverseBotPayload, BehaverseTaskPayload, Manifest } from '@skills/behaverse/browser/types';
 import { runOnUnity, waitForReady } from '@skills/behaverse/browser/unityRuntime';
 import { AWAITING_RESPONSE, READY, TASK_COMPLETED, type UnityInstance, type UnityWindow } from '@skills/behaverse/browser/unityTopics';
@@ -213,12 +213,29 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
   }
 });
 
-test('what the page sends Unity and takes back: the task once to each runtime object, a model\'s answer to each trial it awaits, and the end of this task alone', async () => {
+test('the task\'s screen plays a model or the build\'s bot on its band itself, which is what lets a page carry the band, and reads the Prompt wired into the task for a model alone', async () => {
+  const CASES: [label: string, actor: string, plays: boolean, reads: string[]][] = [
+    ['a model, which the screen asks at each trial, telling it the Prompt', '<studyflow:actor actorType="llm" implementation="claude://claude-haiku-4-5" />', true, ['Instructions']],
+    ['the build\'s bot, which plays inside the build', '<studyflow:actor actorType="software" implementation="behaverse://bot" />', true, []],
+    ['a person', '<studyflow:actor actorType="human" />', false, []],
+    // Its pool answers along message flows, which only a local run carries.
+    ['a simulated participant', '<studyflow:actor implementation="simulate://random" />', false, []],
+  ];
+  for (const [label, actor, plays, reads] of CASES) {
+    const { flowNodes } = await parseStudyflow(bandsXml(actor), freshPackages());
+    const task = flowNodes.get('TheTask') as FlowNode;
+    expect(playsBand(task), label).toBe(plays);
+    expect(readsOf(task), `${label}: the wired data its screen reads`).toEqual(reads);
+  }
+});
+
+test('what the page sends Unity and takes back: the task once to each runtime object, a model\'s answer to each trial it awaits, and the end of this task alone; a model whose call fails, or a build that cannot take its answer, fails the task', async () => {
   const fetchBefore = globalThis.fetch;
   const asked: string[] = [];
+  let reply = () => new Response(JSON.stringify({ response: 'NonMatch' }));
   globalThis.fetch = (async (_url: string, init: RequestInit) => {
     asked.push(JSON.parse(String(init.body)).user);
-    return new Response(JSON.stringify({ response: 'NonMatch' }));
+    return reply();
   }) as typeof fetch;
   try {
     await inPage(async (page, frame) => {
@@ -256,6 +273,27 @@ test('what the page sends Unity and takes back: the task once to each runtime ob
       expect(await done).toEqual({ TaskId: 'NB', TimelineId: 'XCIT_NB_01', IsCompleted: true });
       await awaiting('r3', 2);
       expect(asked).toHaveLength(2);
+
+      // Neither is a miss: the task ends there, failed, and a trial the build still awaits is no longer answered.
+      const refusing: UnityInstance = { SendMessage: (_object, method) => { if (method === 'InjectResponse') throw new Error('the build has quit'); } };
+      const FAILURES: { label: string; build: UnityInstance; reply: typeof reply; error: RegExp }[] = [
+        {
+          label: 'the model\'s call fails',
+          build: unity,
+          reply: () => new Response('overloaded', { status: 529 }),
+          error: /^claude:claude-haiku-4-5 could not answer trial 0: Claude proxy responded 529: overloaded$/,
+        },
+        { label: 'the build cannot take the answer', build: refusing, reply, error: /^the build has quit$/ },
+      ];
+      for (const failure of FAILURES) {
+        reply = failure.reply;
+        asked.length = 0;
+        const failed = expect(runOnUnity(failure.build, payload, () => frame as unknown as UnityWindow), failure.label).rejects.toThrow(failure.error);
+        await awaiting('f1', 0);
+        await failed;
+        await awaiting('f2', 1);
+        expect(asked, `${failure.label}: the next trial is not answered`).toHaveLength(1);
+      }
     });
   } finally {
     globalThis.fetch = fetchBefore;

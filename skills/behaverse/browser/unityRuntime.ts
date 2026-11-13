@@ -34,17 +34,13 @@ export function runOnUnity(
     const sendResponse = (detail: AwaitingResponseDetail, response: string, agentId: string) => {
       // BDM `response_option_index`: 0-based position of the chosen option in `ResponseOptions`.
       const responseOptionIndex = detail.ResponseOptions.indexOf(response);
-      try {
-        sendToRuntime(unity, 'InjectResponse', JSON.stringify({
-          RequestId: detail.RequestId,
-          Response: response,
-          ResponseOptionIndex: responseOptionIndex,
-          Agent: { Id: agentId },
-        }));
-        history.push({ trialIndex: detail.TrialIndex, stimulus: detail.Stimulus, chosenResponse: response });
-      } catch {
-        // swallow; the trial's natural maxResponseTime handles missed responses
-      }
+      sendToRuntime(unity, 'InjectResponse', JSON.stringify({
+        RequestId: detail.RequestId,
+        Response: response,
+        ResponseOptionIndex: responseOptionIndex,
+        Agent: { Id: agentId },
+      }));
+      history.push({ trialIndex: detail.TrialIndex, stimulus: detail.Stimulus, chosenResponse: response });
     };
 
     const onAwaiting = async (detail: AwaitingResponseDetail | undefined) => {
@@ -69,17 +65,21 @@ export function runOnUnity(
     const unsubscribe = [
       subscribeUnityTopic<TaskCompletion>(TASK_COMPLETED, getUnityWindow, onCompleted),
       subscribeUnityTopic<AwaitingResponseDetail>(AWAITING_RESPONSE, getUnityWindow, (detail) => {
-        void onAwaiting(detail);
+        // A model whose call fails, or a build that cannot take its answer, is no miss: the task ends there, failed.
+        onAwaiting(detail).catch(fail);
       }),
     ];
     const cleanup = () => unsubscribe.forEach((off) => off());
+    const fail = (error: unknown) => {
+      cleanup();
+      reject(error);
+    };
 
     try {
       const unityPayload = { ...payload, bot: botForUnity(payload.bot) };
       sendToRuntime(unity, 'RunCognitiveTask', JSON.stringify(unityPayload));
     } catch (err) {
-      cleanup();
-      reject(err);
+      fail(err);
     }
   });
 }

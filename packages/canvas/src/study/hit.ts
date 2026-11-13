@@ -98,9 +98,9 @@ function nearestEdge(scene: Scene, point: Point, { scope, accept }: HitOptions):
 }
 
 const SUBPROCESS_TYPES = new Set(['bpmn:SubProcess', 'bpmn:AdHocSubProcess', 'bpmn:Transaction']);
+/** A frame around a transparent interior never shadows what it encloses. */
 const FRAME_TYPES = new Set(['bpmn:Participant', 'bpmn:Lane', 'bpmn:Group']);
 
-/** A frame around a transparent interior never shadows what it encloses. */
 /** The node a drop onto `hit` lands in: the node itself, a caption's owner's, or a flow's container. */
 export function containerOf(hit: SceneElement | undefined): SceneNode | undefined {
   if (!hit) return undefined;

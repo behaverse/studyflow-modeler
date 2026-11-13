@@ -1,6 +1,6 @@
 import type { NewShape } from '@canvas/index.ts';
 
-/** What a palette or menu entry adds, as the study takes it: its BPMN type, the schema type extending it, its attributes. */
+/** The shape a palette or menu entry adds, in the form the study takes: its BPMN type, the schema type extending it, its attributes. */
 export function newShape(bpmnType: string, extensionType?: string, attributes?: Record<string, unknown>): NewShape {
   return {
     type: bpmnType,

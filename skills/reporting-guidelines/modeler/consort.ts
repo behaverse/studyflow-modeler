@@ -38,7 +38,7 @@ export type Line = { text: string; style: 'head' | 'plain' | 'sub' };
 export type Row = { phase?: string; cells: (Line[] | undefined)[] } | { phase?: string; across: Line[] };
 
 export type ConsortFlow = {
-  /** What the picture is of: the study's name. */
+  /** The picture's subject: the study's name. */
   study: string;
   assessed: string;
   excluded?: Line[];

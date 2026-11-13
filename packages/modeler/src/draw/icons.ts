@@ -3,16 +3,16 @@ import { ICONS } from '@modeler/icons';
 
 /** The glyph a BPMN type draws when neither a template nor its extension type names one (`editor/mount.ts resolveIcon`); markers belong in MARKER_ICONS. */
 export const BPMN_ICON_OVERRIDES: Record<string, string> = {
-  [BPMN.ManualTask]:          `${ICONS.handLeft} rotate-90`,
+  [BPMN.ManualTask]:          `${ICONS.hand} rotate-90`,
   [BPMN.UserTask]:            ICONS.person,
-  [BPMN.ServiceTask]:         ICONS.cog,
+  [BPMN.ServiceTask]:         ICONS.gear,
   [BPMN.ScriptTask]:          ICONS.script,
   [BPMN.SendTask]:            ICONS.envelope,
   [BPMN.ReceiveTask]:         ICONS.envelopeOpen,
-  [BPMN.BusinessRuleTask]:    ICONS.tableGrid,
-  [BPMN.ExclusiveGateway]:    ICONS.crossThin,
-  [BPMN.ParallelGateway]:     ICONS.plusThin,
-  [BPMN.InclusiveGateway]:    ICONS.circleOutline,
+  [BPMN.BusinessRuleTask]:    ICONS.table,
+  [BPMN.ExclusiveGateway]:    ICONS.close,
+  [BPMN.ParallelGateway]:     ICONS.plus,
+  [BPMN.InclusiveGateway]:    ICONS.circle,
   [BPMN.ComplexGateway]:      ICONS.asterisk,
   [BPMN.EventBasedGateway]:   ICONS.pentagon,
   [BPMN.DataObjectReference]: ICONS.document,
@@ -28,17 +28,17 @@ export const BPMN_ICON_OVERRIDES: Record<string, string> = {
   'bpmn:ConditionalEventDefinition': 'iconify ph--article',
   'bpmn:LinkEventDefinition':        'iconify ph--arrow-right',
   'bpmn:TerminateEventDefinition':   'iconify ph--circle-fill',
-  'bpmn:CompensateEventDefinition':  ICONS.bpmnCompensationMarker,
-  'bpmn:CancelEventDefinition':      ICONS.crossThin,
+  'bpmn:CompensateEventDefinition':  ICONS.rewind,
+  'bpmn:CancelEventDefinition':      ICONS.close,
 };
 
 export const MARKER_ICONS: Record<string, string> = {
   'subprocess':   ICONS.plusBox,
   'adhoc':        ICONS.tilde,
-  'parallel':     `${ICONS.menu} rotate-90`,
-  'sequential':   ICONS.menu,
+  'parallel':     `${ICONS.list} rotate-90`,
+  'sequential':   ICONS.list,
   'loop':         ICONS.loop,
-  'compensation': ICONS.bpmnCompensationMarker,
+  'compensation': ICONS.rewind,
   'checklist':    ICONS.checkbox,
   'function':     ICONS.function,
 };

@@ -49,7 +49,7 @@ import json  # noqa: E402
 import platform  # noqa: E402
 import tempfile  # noqa: E402
 
-# What provides an implementation: an installed distribution by its metadata, the standard library by Python's version.
+# The provider of an implementation: an installed distribution by its metadata, the standard library by Python's version.
 assert python.distribution("yaml") == f"PyYAML {importlib.metadata.version('PyYAML')}"
 assert python.distribution("json") == f"python {platform.python_version()}"
 assert python.distribution("no_such_package") is None
@@ -73,7 +73,7 @@ step = Step("Dump", {"elements": {"Dump": dump}}, {})
 assert python.claims(step.plan) == {"live": False, "elements": ["Dump"]}
 assert python.execute(step) == "[1]" and step.record == {"version": f"python {platform.python_version()}"}, step.record
 
-# What a step makes goes where its data outputs say, each narrowed by its edge's `transformation`: into the file its
+# A value a step makes goes where its data outputs say, each narrowed by its edge's `transformation`: into the file its
 # `uri` names, by its format; a JSON-able value back to the walk too; any other spilled to the cache, where the next
 # hand-off reads it.
 from fractions import Fraction  # noqa: E402

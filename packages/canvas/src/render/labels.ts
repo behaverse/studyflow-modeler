@@ -92,7 +92,7 @@ function drawLines(
 
 /** The most lines of a name, however tall its shape. */
 const MAX_LINES = 4;
-/** What a name's letters take on average, in ems: less than the room `wrap` keeps for them, which would cut a name that stands clear of a glyph. */
+/** The average width of a name's letters, in ems: less than the room `wrap` keeps for them, which would cut a name that stands clear of a glyph. */
 const LETTER_WIDTH = 0.5;
 
 /** The gap a name on one row keeps from the glyphs on it, and from the shape's top and bottom. */

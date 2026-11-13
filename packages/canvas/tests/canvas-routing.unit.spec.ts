@@ -19,7 +19,7 @@ import { centre, click, dragBy, edge, installDocument, loadYaml, node, sceneOf, 
  * Routing and docking. `route()` draws an orthogonal path of at most five points
  * between two shapes and crops each end onto the silhouette the renderer draws: a
  * circle for an event, a diamond for a gateway, a page or a cylinder for data, a
- * rectangle for the rest — never the centre, never outside. The geometry takes plain
+ * rectangle for the rest, never the centre and never outside. The geometry takes plain
  * bounds (`SceneNode` satisfies them), so most of this needs no document.
  */
 
@@ -32,7 +32,7 @@ function task(x: number, y: number): CroppableShape {
   return { x, y, width: 100, height: 80, type: 'bpmn:Task' };
 }
 
-/** A 36×36 event — the circle whose crop radius must come out as 18. */
+/** A 36×36 event: the circle whose crop radius must come out as 18. */
 function event(x: number, y: number, type = 'bpmn:StartEvent'): CroppableShape {
   return { x, y, width: 36, height: 36, type };
 }
@@ -284,14 +284,14 @@ test('a plain association is routed as ONE straight diagonal, cropped to both ou
 
   const points = routeFor('bpmn:Association', task, note);
   expect(points).toHaveLength(2);
-  // The line runs centre to centre — no elbow anywhere on it.
+  // The line runs centre to centre, with no elbow anywhere on it.
   expect(isOrthogonal(points)).toBe(false);
-  // …and both ends sit ON their silhouettes, exactly as a routed edge's do.
+  // …and both ends sit on their silhouettes, as a routed edge's do.
   expect(containsPoint(task, points[0])).toBe(true);
   expect(containsPoint(note, points[1])).toBe(true);
   expect(points).toEqual(straightRoute(task, note));
 
-  // The straight treatment is the plain association ALONE. A data association keeps
+  // Only the plain association is routed straight. A data association keeps
   // the orthogonal router, which is how every shipped example's DI already has them.
   expect(isStraightRouted('bpmn:Association')).toBe(true);
   expect(isStraightRouted('bpmn:DataOutputAssociation')).toBe(false);

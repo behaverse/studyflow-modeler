@@ -7,7 +7,7 @@ import { createInterface } from 'node:readline';
 import { expect, test } from '@playwright/test';
 import { JSDOM } from 'jsdom';
 
-/** `skills/behaverse/local.py`: the behaverse skill's local runner (Unity WebGL), without Unity or the walk — the
+/** `skills/behaverse/local.py`: the behaverse skill's local runner (Unity WebGL), without Unity or the walk. The
  * stage page's script runs in jsdom for one trial and the rest of its protocol is exercised by hand, as the page would,
  * and so is the walk's (packages/runtime-local/CONTRACT.md). */
 
@@ -158,7 +158,7 @@ test('claims its tasks, serves the build and the stage, relays what the page rep
   expect(await ask('r2', 5, 'Up')).toEqual({ Response: null, Agent: 'Reachy Mini' });
   expect(await ask('r3', 1)).toEqual({ Response: null, Agent: 'Reachy Mini' });
   // The build's own record of each trial is what the block counts hold: three shown, one answered with a
-  // click, one with a response time, one that ended without one — however well the replies above named an option.
+  // click, one with a response time, one that ended without one, however well the replies above named an option.
   const shown = (n: number) => ({ trialContext: { block: { id: 1 }, trial: { id: n }, types: ['TrialStart'] } });
   expect((await post('/event', shown(1))).status).toBe(204);
   await post('/event', shown(2));

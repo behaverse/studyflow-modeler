@@ -1,5 +1,5 @@
 /**
- * An element as plain data, what a study's reads return: what it is, where it sits and how it connects, by id.
+ * An element as plain data, as a study's reads return it: what it is, where it sits and how it connects, by id.
  * JSON through and through, so a host, a spec and an AI read it alike; the element as the study model holds it is
  * `study.element(id)`.
  */
@@ -88,7 +88,7 @@ export function recordOf(model: StudyModel, element: SceneElement | RootElement)
   };
 }
 
-/** What `element`'s drawing sets of its look. */
+/** The look `element`'s drawing sets. */
 function styleOf(element: SceneNode | SceneEdge): Pick<ElementRecord, 'fill' | 'stroke' | 'font'> {
   const fill = element.kind === 'node' ? element.fill : undefined;
   return {
@@ -98,7 +98,7 @@ function styleOf(element: SceneNode | SceneEdge): Pick<ElementRecord, 'fill' | '
   };
 }
 
-/** What an element says of itself: the schema type extending it, and its name. */
+/** An element's own description: the schema type extending it, and its name. */
 function describe(model: StudyModel, element: Element): Pick<ElementRecord, 'extension' | 'name'> {
   const extension = model.extensionType(element);
   const name = nameOf(element);

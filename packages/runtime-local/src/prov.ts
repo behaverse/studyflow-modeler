@@ -26,8 +26,8 @@ export type ElementRecord = { run: string; when: string; what?: string; commit?:
 /** Who ran a study, as git writes an author: `Name <email>`, the email optional (empty). */
 export type Author = { name: string; email: string };
 
-/** Whom a run's commits name when it is given no author: no one, never this machine's user. RFC 2606's reserved TLD
- * gives an address git accepts and no mail ever leaves for. */
+/** The author a run's commits name when it is given none: a placeholder, never this machine's user. RFC 2606's
+ * reserved TLD gives an address git accepts and no mail ever leaves for. */
 const NO_AUTHOR: Author = { name: 'studyflow-runner', email: 'studyflow-runner@studyflow.invalid' };
 
 /** `--author`'s text, `Name <email>` or a name alone. */
@@ -41,11 +41,11 @@ export function authorOf(given: string): Author {
 /** An author as a record names them (`who`, `Prov-Who`): as git writes them, or the name alone. */
 export const signature = ({ name, email }: Author): string => (email ? `${name} <${email}>` : name);
 
-/** What a run that keeps its data out of the history (`--data-outside-history`) commits in the data's place: the SHA-256
- * of each file the history leaves out, in `sha256sum`'s format, so `sha256sum -c data.sha256` checks a run directory. */
+/** The file a run that keeps its data out of the history (`--data-outside-history`) commits in the data's place: the
+ * SHA-256 of each file the history leaves out, in `sha256sum`'s format, so `sha256sum -c data.sha256` checks a run directory. */
 export const MANIFEST = 'data.sha256';
 
-/** What the `.gitignore` of such a repository says first, to whoever opens it. */
+/** The first lines of such a repository's `.gitignore`, for whoever opens it. */
 const KEPT_OUT = [
   '# studyflow run --data-outside-history: this history holds the study as run and data.sha256, the SHA-256 of every',
   '# other file here, which stays in this directory alone.',
@@ -133,7 +133,7 @@ export class RunRepo {
   /** An inherited GIT_DIR would aim every command at the caller's repository instead of this one. */
   private static readonly SCRUBBED = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'];
   private static readonly LFS_PATTERNS = ['*.joblib', '*.parquet', '*.png', '*.svg', '*.tif', '*.tiff', '*.pdf'];
-  /** What every run writes about itself: its record (`events.jsonl`) and its log. */
+  /** The files every run writes about itself: its record (`events.jsonl`) and its log. */
   private static readonly ACCOUNTS = ['events.jsonl', 'studyflow.log'];
   /**
    * How a checkpoint commits. No housekeeping: git starts it in the background after a commit, and a repack beside
@@ -318,8 +318,8 @@ export class RunRepo {
     return done?.ok ? done.out.trim() : '';
   }
 
-  /** Whether any of `paths` differs from what `commit` holds — git's own object hashes, not ours; a file the history
-   * keeps out, from the SHA-256 the commit's manifest holds. */
+  /** Whether any of `paths` differs from what `commit` holds, by git's own object hashes; a file the history keeps
+   * out is compared by the SHA-256 the commit's manifest holds. */
   changedSince(commit: string, paths: string[]): boolean {
     const done = this.git(['diff', '--quiet', commit, '--', ...paths], { tolerate: true });
     if (!done?.ok) return true;

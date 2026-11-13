@@ -1,10 +1,10 @@
 import { PLACEHOLDER } from '@core/model/state';
 import { allocationOf, alternated, draw, minimized, permutedBlock, pick, withoutCohort, withoutConcealedSeed, type Allocation } from '@core/engine/allocation';
 import { CONTAINER_TYPES, GATEWAY_TYPES, Graph, PASSTHROUGH_TYPES } from '@core/engine/graph';
-import { Cancelled, HandoffError, Interrupted, keepRecord, logAt, type Handback, type Host, type Message, type Note, type StateTree, type Talk, type Thread, type WalkOptions } from '@core/engine/host';
+import { Cancelled, HandoffError, Interrupted, keepRecord, logAt, type Handback, type Host, type Message, type Note, type StateTree, type Thread, type WalkOptions } from '@core/engine/host';
 import type { Expression, Plan, PlanElement } from '@core/engine/plan';
 import type { Happening, RunEvent } from '@core/engine/record';
-import { Post, type Branch } from '@core/engine/post';
+import { Post, type Branch, type Exchange } from '@core/engine/post';
 import { Steps, type Entry } from '@core/engine/steps';
 import { cycleOf, timerDelay } from '@core/engine/timer';
 import { Values } from '@core/engine/values';
@@ -46,7 +46,7 @@ type Scope = {
   /** The tokens that have come to each join and wait there, with the path the last came along. */
   joins: Map<string, { arrived: number; thread: Thread }>;
   cancel: AbortController;
-  /** What ended the scope, a path's failure or a boundary event outside it: the scope's walk throws it. */
+  /** The thing that ended the scope, a path's failure or a boundary event outside it; the scope's walk throws it. */
   failure?: unknown;
   /** The completion condition of the ad-hoc sub-process the scope is the inside of. */
   completion?: Completion;
@@ -63,7 +63,7 @@ function subsets<T>(items: T[]): T[][] {
 }
 
 /**
- * What an inclusive gateway takes, given its conditioned flows that hold: those, each flow without a condition, and
+ * The flows an inclusive gateway takes, given its conditioned flows that hold: those, each flow without a condition, and
  * its default flow when no condition holds (BPMN 2.0), in the order of `flows`.
  */
 function inclusiveTaken(flows: PlanElement[], held: PlanElement[], fallback: unknown): PlanElement[] {
@@ -88,7 +88,7 @@ export class Walk {
   /** How many instances of a pool walk at once. */
   private readonly concurrency: number;
   private readonly blocks = new Map<string, number[]>();
-  /** What each allocation sequence has dealt so far, in order: each participant's levels of its factors, and its arm. */
+  /** The deals of each allocation sequence so far, in order: each participant's levels of its factors, and its arm. */
   private readonly dealt = new Map<string, { levels: string[]; arm: number }[]>();
   private readonly memory: Values;
   /** The values of each pool instance walking, by `<pool>#<instance>`: a pool of one walks the study's. */
@@ -105,15 +105,15 @@ export class Walk {
     this.host = host;
     this.graph = new Graph(plan);
     this.steps = new Steps(host.clock ? () => host.clock!() : undefined);
-    // What happens goes to the host as it happens: the run's record (packages/core/src/engine/record.ts). What happens
-    // before the run begins waits for it, so the record starts where the host says the run started. What a thread
+    // Each event goes to the host as it happens: the run's record (packages/core/src/engine/record.ts). An event
+    // before the run begins waits for it, so the record starts where the host says the run started. An event a thread
     // records names the participant it walks for.
     const record = this.record = (happened: Happening, thread?: Thread): void => {
       const participant = thread && this.participantOf(thread);
       const event = { ...happened, ...(participant ? { participant } : {}), at: host.now() } as RunEvent;
       if (this.early) this.early.push(event);
       else host.record?.(event);
-      // What changed may make a condition a path waits for hold.
+      // The change may make a condition a path waits for hold.
       this.post?.valuesChanged();
     };
     this.memory = new Values(this.graph, options.state ?? {}, record);
@@ -172,7 +172,7 @@ export class Walk {
 
   async run(): Promise<void> {
     const { graph, host } = this;
-    // What happened before the run began goes to the record now, after the host's `started`.
+    // The events from before the run began go to the record now, after the host's `started`.
     const early = this.early ?? [];
     this.early = undefined;
     for (const happened of early) host.record?.(happened);
@@ -369,9 +369,13 @@ export class Walk {
 
       if (type === 'endEvent') {
         const entry = this.steps.begin(id, name, bpmnType(element));
-        // A runner may claim the end too: its chance to fold what it started for the study.
-        if (host.claim(id)) await this.executeViaRunner(element, entry, thread);
-        await this.post.throwFrom(element, thread);
+        try {
+          // A runner may claim the end too: its chance to fold what it started for the study.
+          if (host.claim(id)) await this.executeViaRunner(element, entry, thread);
+          await this.post.throwFrom(element, thread);
+        } catch (error) {
+          this.stopped(id, entry, error, thread, 'event');
+        }
         this.steps.end(entry);
         this.record({ event: 'executed', id, entry }, thread);
         this.log(thread, 'event.reached', `● ${id}`);
@@ -410,7 +414,7 @@ export class Walk {
             // An event a runner executes waits in its runner: a catch event until sensed, a start until it may begin.
             this.log(thread, 'event.waiting', `◐ ${id}  (waiting via ${runner.name})`);
             this.adopt(id, await this.handOff(id, this.valuesOf(thread).json(), thread), entry, thread);
-            // What it recorded meanwhile (a rest's resting state) goes out along its data outputs.
+            // The values it recorded meanwhile (a rest's resting state) go out along its data outputs.
             this.noteOutputs(element, entry, thread);
           } else if (graph.flowsIn.has(id)) {
             // A catch event a message flow reaches waits for that message; its content is the result.
@@ -428,12 +432,10 @@ export class Walk {
             const at = element;
             await this.post.until(id, () => this.holds(at, condition, thread), thread, `${id} waits until ${condition.body} holds`);
           }
+          await this.post.throwFrom(element, thread);
         } catch (error) {
-          if (error instanceof Interrupted || error instanceof Cancelled) this.steps.end(entry);
-          else this.steps.fail(entry, error);
-          throw error;
+          this.stopped(id, entry, error, thread, 'event');
         }
-        await this.post.throwFrom(element, thread);
         this.steps.end(entry);
         this.record({ event: 'executed', id, entry }, thread);
         this.log(thread, 'event.reached', `○ ${id}`);
@@ -494,7 +496,7 @@ export class Walk {
       const outputs: unknown[] = [];
       const completion = element.loop?.kind === 'multiInstance' && !this.host.choose ? element.loop.completion : null;
       while (listed ? passes < listed.items.length : this.loopsAgain(element, passes, thread)) {
-        // What happened at a boundary event before this pass ends the activity here.
+        // A boundary event that happened before this pass ends the activity here.
         this.post.checkInterrupt(thread);
         passes += 1;
         if (passes > this.maxSteps) throw new Error(`${id}: loop budget exhausted — does its loop ever end?`);
@@ -517,13 +519,13 @@ export class Walk {
         this.valuesOf(thread).store(listed.into, outputs);
         this.host.reuse?.remade(listed.into); // re-made each run, so a recorded step that reads it runs again
       }
-      // The activity is done: what happens at its boundary events from now on is not its, and what happened by now is.
+      // The activity is done: an event at its boundary from now on no longer concerns it, and one that happened by now does.
       watched.close();
       this.post.checkInterrupt(thread, true);
     } catch (error) {
       if (error instanceof Interrupted && error.activity === id) {
-        // What answers the activity along its own flows answers what it no longer asks; the message the event
-        // caught, if one did, is its value.
+        // A message that answers the activity along its own flows now answers nothing it still asks, so it is
+        // discarded; the message the event caught, if one did, is its value.
         this.post.discard(id);
         if (error.caught) this.valuesOf(thread).store(error.boundary.id, error.caught.content);
         return error.boundary;
@@ -537,7 +539,7 @@ export class Walk {
   }
 
   /**
-   * What happens at an activity's boundary events while it runs, from the moment it is entered: a timer that runs out,
+   * Watches an activity's boundary events while it runs, from the moment it is entered: a timer that runs out,
    * a message that comes, taken as it comes whatever the activity is doing. An interrupting event is due at once and
    * stops every hand-off inside the activity, which then ends at it; one that does not interrupt (`cancelActivity`
    * false) starts a path from the event beside the activity each time it happens, a timer cycle at each firing up to
@@ -663,7 +665,7 @@ export class Walk {
     return this.host.decide?.(element.id, [element.id], new Error(`${element.id} waits until ${condition.body} holds`)) === element.id;
   }
 
-  /** What a multi-instance marker whose `loopDataInputRef` names a list runs over, read once as the activity starts. */
+  /** The list a multi-instance marker runs over when its `loopDataInputRef` names one, read once as the activity starts. */
   private loopList(element: PlanElement, thread: Thread): { items: unknown[]; item: string | null; output: string | null; into: string | null } | undefined {
     const { loop } = element;
     if (loop?.kind !== 'multiInstance' || !loop.input) return undefined;
@@ -797,33 +799,37 @@ export class Walk {
     try {
       await this.executeActivity(element, entry, thread);
     } catch (error) {
-      if (error instanceof Interrupted) {
-        entry.interruptedBy = error.boundary.id;
-        this.steps.end(entry);
-        throw error;
-      }
-      if (error instanceof Cancelled) {
-        this.steps.end(entry);
-        throw error;
-      }
-      // The failure throws the error its runner names (`errorCode`), else one of no code: the innermost error
-      // boundary event that catches it, on the step or on an activity around it, takes it.
-      const caught = this.catcher(thread, { code: error instanceof HandoffError ? error.partial?.errorCode : undefined });
-      const { status } = this.steps;
-      this.steps.fail(entry, error);
-      this.log(thread, 'activity.failed', `    ${id}: ${(error as Error)?.name ?? 'Error'}: ${(error as Error)?.message ?? error}`, { level: 'error' });
-      this.record({ event: 'failed', id, entry }, thread);
-      if (!caught) throw error;
-      // The record keeps the error, the run is not failed, and the walk goes on from the event, ending each scope it
-      // leaves on the way.
-      entry.interruptedBy = caught.boundary.id;
-      this.steps.status = status;
-      throw new Interrupted(caught.activity, caught.boundary);
+      if (error instanceof Interrupted) entry.interruptedBy = error.boundary.id;
+      this.stopped(id, entry, error, thread, 'activity');
     }
     this.steps.end(entry);
     host.reuse?.ran(id);
     this.log(thread, 'activity.finished', `    ${id} done in ${entry.durationMs}ms`, { level: 'debug' });
     this.record({ event: 'executed', id, entry }, thread);
+  }
+
+  /** A step, an activity, an event or a gateway, did not finish. One a boundary event ended, or another path
+   * stopped, ends there. One that failed throws the error its runner names (`errorCode`), else one of no code: the innermost error
+   * boundary event that catches it, on the step or on an activity around it, takes it. Then the record keeps the
+   * error, the run is not failed, and the walk goes on from that event, ending each scope it leaves on the way.
+   * With nothing to catch it, the failure stands, and so it does once the run is ending: a wait that fails because
+   * a pool failed is no error of its step. */
+  private stopped(id: string, entry: Entry, error: unknown, thread: Thread, kind: 'activity' | 'event' | 'gateway'): never {
+    if (error instanceof Interrupted || error instanceof Cancelled) {
+      this.steps.end(entry);
+      throw error;
+    }
+    const caught = this.post.failed === undefined
+      ? this.catcher(thread, { code: error instanceof HandoffError ? error.partial?.errorCode : undefined })
+      : undefined;
+    const { status } = this.steps;
+    this.steps.fail(entry, error);
+    this.log(thread, `${kind}.failed`, `    ${id}: ${(error as Error)?.name ?? 'Error'}: ${(error as Error)?.message ?? error}`, { level: 'error' });
+    this.record({ event: 'failed', id, entry }, thread);
+    if (!caught) throw error;
+    entry.interruptedBy = caught.boundary.id;
+    this.steps.status = status;
+    throw new Interrupted(caught.activity, caught.boundary);
   }
 
   /** The innermost activity a path is inside (the step it performs first) whose error boundary event catches
@@ -884,9 +890,11 @@ export class Walk {
       await talk?.delivered(); // what it sent last is answered before the walk goes on
       this.adopt(id, handed, entry, thread);
     } catch (error) {
-      // What a failed hand-off had bound before it failed is kept: the step fails, its work is not lost.
+      // The values a failed hand-off had bound before it failed are kept: the step fails, its work is not lost.
       if (error instanceof HandoffError && error.partial) this.adopt(id, error.partial, entry, thread);
-      throw error;
+      // A pool it asked could not answer: its hand-off was stopped, and the step fails with the pool's failure.
+      const unanswered = error instanceof Interrupted || error instanceof Cancelled ? undefined : talk?.failed();
+      throw unanswered ?? error;
     }
     this.noteOutputs(element, entry, thread);
   }
@@ -922,11 +930,12 @@ export class Walk {
 
   /** One hand-off to the host, which an interrupting boundary event of an activity around it may stop (a timer that
    * runs out, a message that comes), and so may a path that ends its scope: the walk then leaves for that event, or
-   * stops, whatever the hand-off had done. */
-  private async handOff(id: string, values: Record<string, unknown>, thread: Thread, talk?: Talk): Promise<Handback> {
+   * stops, whatever the hand-off had done. A pool it asked that could not answer stops it too. */
+  private async handOff(id: string, values: Record<string, unknown>, thread: Thread, talk?: Exchange): Promise<Handback> {
     const handoff = new AbortController();
     const stops = [...thread.watching.map(({ stop }) => stop.signal), ...thread.cancels];
     const abort = (): void => handoff.abort();
+    talk?.onFailure(abort);
     for (const signal of stops) {
       if (signal.aborted) handoff.abort();
       else signal.addEventListener('abort', abort, { once: true });
@@ -952,7 +961,7 @@ export class Walk {
     }
   }
 
-  /** What the activity's data output edges targeted. A sub-process carries its own edges, so a dataset the steps
+  /** Notes the targets of the activity's data output edges. A sub-process carries its own edges, so a dataset the steps
    * inside it fill is generated by the sub-process. */
   private noteOutputs(element: PlanElement, entry: Entry, thread: Thread): void {
     const targets = element.outputs.map((output) => output.target).filter((target): target is string => !!target);
@@ -1042,9 +1051,7 @@ export class Walk {
         if (fired) return await at(branches.find((branch) => branch.flow === flow)!);
         return await take([flow], 'first message', { message: true });
       } catch (error) {
-        if (error instanceof Interrupted || error instanceof Cancelled) this.steps.end(entry);
-        else this.steps.fail(entry, error);
-        throw error;
+        this.stopped(id, entry, error, thread, 'gateway');
       }
     }
 
@@ -1086,8 +1093,7 @@ export class Walk {
         const chosen = host.decide?.(id, flows.map((flow) => flow.id), error as Error);
         const decided = flows.find((flow) => flow.id === chosen);
         if (decided) return take([decided], 'decided by the host');
-        this.steps.fail(entry, error);
-        throw error;
+        this.stopped(id, entry, error, thread, 'gateway');
       }
       if (levels.length > 0 && allocation.algorithm !== 'minimization') {
         // Within strata: the k-th participant of a stratum takes place k of the stratum's own sequence.
@@ -1144,8 +1150,7 @@ export class Walk {
       const chosen = host.decide?.(id, flows.map((flow) => flow.id), error as Error);
       const decided = flows.find((flow) => flow.id === chosen);
       if (decided) return take([decided], 'decided by the host');
-      this.steps.fail(entry, error);
-      throw error;
+      this.stopped(id, entry, error, thread, 'gateway');
     }
     if (element.type === 'inclusiveGateway') {
       const taken = inclusiveTaken(flows, held, element.attributes.default);
@@ -1158,10 +1163,13 @@ export class Walk {
       const bare = flows.filter((flow) => !flow.condition);
       if (bare.length === 1) return take(bare, 'otherwise', { otherwise: true });
     }
+    const dead = new Error(`${id}: no condition held, and there is no default flow or single flow without a condition`);
+    // With no flow to take the gateway has failed, and an error boundary event around it catches that as any failure.
+    if (this.post.failed === undefined && this.catcher(thread, {})) this.stopped(id, entry, dead, thread, 'gateway');
     entry.status = 'stuck';
     this.steps.end(entry);
     this.steps.status = 'error';
-    throw new Error(`${id}: no condition held, and there is no default flow or single flow without a condition`);
+    throw dead;
   }
 
   /** An event-based gateway's branch as its race reads it: the event it starts at, and what makes that event happen,
@@ -1230,17 +1238,17 @@ export class Walk {
 
   // --- what a host reads and writes of the run's values ---
 
-  /** The `state` tree: `state.<scope>.<property>`, and `state._meta`, the walk's own. */
   /** The flows whose messages were sent this run and never taken. */
   untaken(): string[] {
     return this.post.untaken();
   }
 
+  /** The `state` tree: `state.<scope>.<property>`, and `state._meta`, the walk's own. */
   get state(): StateTree {
     return this.memory.state;
   }
 
-  /** What each element produced this run, by id. */
+  /** The value each element produced this run, by id. */
   get values(): ReadonlyMap<string, unknown> {
     return this.memory.held;
   }

@@ -1,6 +1,6 @@
 /*
- * moddle's tree of a study as its file holds it (`writtenStudy`), what its BPMN XML is written from; `serialize.ts`
- * reads the tree back. Each element is created as its type (a mapping without one as the type its property declares),
+ * Builds moddle's tree from a study as its file holds it (`writtenStudy`); its BPMN XML is written from that tree, and
+ * `serialize.ts` reads the tree back. Each element is created as its type (a mapping without one as the type its property declares),
  * a schema's typed element as the BPMN element it attaches to, with its schema's entry first among its extension
  * elements; a list holder from its list, an expression or documentation from its text, a YAML attribute's mapping as
  * its text, a property's value as the text that reads back as it; a reference as the element it names; the layout as
@@ -47,7 +47,7 @@ class ModdleBuilder {
   private readonly byId = new Map<string, any>();
   private readonly moddle: Moddle;
   private readonly metamodel: Metamodel;
-  /** What the definitions declare, the namespaces of foreign elements among it. */
+  /** The definitions' declarations, including the namespaces of foreign elements. */
   private readonly namespaces: Record<string, unknown>;
 
   constructor(moddle: Moddle, metamodel: Metamodel, namespaces: Record<string, unknown>) {
@@ -56,7 +56,7 @@ class ModdleBuilder {
     this.namespaces = namespaces;
   }
 
-  /** `node`, where an element of type `declared` is expected. */
+  /** Builds `node` as an element where one of type `declared` is expected. */
   build(node: Mapping, declared: string | undefined): any {
     // Only where a BPMN element is expected: an extension entry is the schema's entry itself.
     const host = typeof node.type === 'string' && declared?.startsWith('bpmn:') ? attachOf(this.metamodel, node.type) : undefined;
@@ -100,7 +100,7 @@ class ModdleBuilder {
     return el;
   }
 
-  /** What `raw` is where a `declared` value is expected: an element, a list holder of its list, an expression or
+  /** The value `raw` builds as where a `declared` value is expected: an element, a list holder of its list, an expression or
    * documentation of its text, or itself. */
   private value(raw: unknown, declared: string): unknown {
     const elementType = !MODDLE_BUILTIN_TYPES.has(declared);
@@ -122,7 +122,7 @@ class ModdleBuilder {
   /** The study's diagrams, and its layout on the first one's plane (a diagram made when the study has none): a shape
    * or an edge for each drawing that has its geometry, since diagram interchange has none without. */
   diagrams(study: Study): any[] {
-    // What each drawing draws, found before the diagrams' own ids are.
+    // The element each drawing draws, found before the diagrams' own ids are.
     const drawn = Object.entries(study.layout).flatMap(([id, drawing]) => {
       const type = 'bounds' in drawing ? 'bpmndi:BPMNShape' : 'waypoint' in drawing ? 'bpmndi:BPMNEdge' : undefined;
       const element = this.byId.get(id);

@@ -5,7 +5,7 @@ import { isAnsweringPool, isTypedChoreography } from '@core/model/choreography';
 import { idOf, isElement, type Element, type StudyModel } from '@core/model/index';
 
 /**
- * Whom a typed choreography task exchanges with (a cognitive task, a questionnaire). In a study with a pool a program
+ * Checks whom a typed choreography task (a cognitive task, a questionnaire) exchanges with. In a study with a pool a program
  * answers (a model, a simulated actor), a task names who answers it on its band (`participantRef`), or draws the
  * message flows its exchange goes along, its own or a sub-process's or its pool's: one that does neither would reach
  * no one, and a local run would stop at it, so it is refused here. A task whose band names that pool exchanges with

@@ -64,8 +64,9 @@ function isTyping(target: EventTarget | null): boolean {
   return !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 }
 
-/** A field writes what is typed in it as it loses the focus, so a save by key takes the focus and gives it back, or the
- * file goes without that text. The blur closes a canvas name's editor, which leaves the canvas the focus. */
+/** A field commits its text when it loses the focus. A save by key therefore blurs the field and focuses it again,
+ * or the saved file would lack that text. The blur also closes a name editor on the canvas, which leaves the focus
+ * on the canvas. */
 function commitTyping(modeler: Editor): void {
   const field = document.activeElement as HTMLElement | null;
   if (!field || !isTyping(field)) return;
@@ -148,12 +149,12 @@ export function CommandPalette({ ref }: Props) {
         return;
       }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
-        // Chrome's own "save page" would fire otherwise, and it saves the wrong thing entirely.
+        // Otherwise Chrome's own "save page" dialog opens, which saves the page, not the study.
         e.preventDefault();
         commitTyping(modeler);
         if (isOpen) close();
-        // The quick write only exists once there is a file to write; without one — or with Shift,
-        // to reach the format and destination controls — this is the dialog's job.
+        // The quick write needs a linked file. Without one, or with Shift (to reach the format and destination
+        // controls), the Save dialog opens instead.
         if (e.shiftKey) setDialog({ id: 'save' });
         else void saveLinkedFile(modeler).then((saved) => { if (!saved) setDialog({ id: 'save' }); });
         return;
@@ -259,7 +260,7 @@ export function CommandPalette({ ref }: Props) {
                   setActiveIndex(0);
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder={`Search commands... (${OPEN_PALETTE_SHORTCUT_LABEL} or "/" to toggle)`}
+                placeholder="Search commands and elements..."
                 className={cp.searchInput}
                 aria-label="Search commands"
               />

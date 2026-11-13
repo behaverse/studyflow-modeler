@@ -1,5 +1,5 @@
 /**
- * A shape before it exists, described as data: what the palette, a click-append, a replace or an AI asks for.
+ * A shape before it exists, described as data, as the palette, a click-append, a replace or an AI asks for it.
  * Its prototype is sized to its type's default, for the rules to judge and a ghost to draw, before the mutator
  * mints it.
  */
@@ -68,7 +68,7 @@ function expandedOf(shape: NewShape): boolean | undefined {
   return isExpandable(shape.type) ? shape.expanded === true : undefined;
 }
 
-/** What `shape` sets on its element: its attributes, and its name. */
+/** The values `shape` sets on its element: its attributes, and its name. */
 function attributesOf(shape: NewShape): Record<string, unknown> | undefined {
   if (shape.name === undefined) return shape.attributes && { ...shape.attributes };
   return { ...shape.attributes, name: shape.name };
@@ -115,7 +115,7 @@ export function mintTyped(model: StudyModel, type: string, attributes: Record<st
   return foldTyped(model.metamodel, element);
 }
 
-/** What the mutator mints for `prototype` at `center`, under the id given when there is one. */
+/** The spec the mutator mints from for `prototype` at `center`, under the id given when there is one. */
 export function shapeSpec(prototype: CreatePrototype, center: Point, id?: string): AddShapeSpec {
   return {
     type: prototype.type,

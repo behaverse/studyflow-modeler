@@ -3,8 +3,9 @@ import { expect, test } from '@playwright/test';
 import { checkRunnerPaths } from '@core/checks/runner-paths';
 import { studyModel } from '@tests/schemas';
 
-/** What the walk reads otherwise than BPMN: a complex gateway, a second start event, an event of a kind it does not read;
- * a loop that nothing ends, an event-based gateway branch with nothing to wait for, and a call activity's process. */
+/** The constructs the walk reads otherwise than BPMN: a complex gateway, a second start event, an event of a kind it
+ * does not read; a loop that nothing ends, an event-based gateway branch with nothing to wait for, and a call
+ * activity's process. */
 
 /** Start, then `node` (of `type`) splitting to A and B, which meet again at an end. */
 const split = (type: string): string => `id: paths

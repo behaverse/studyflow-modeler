@@ -45,7 +45,7 @@ export interface CanvasOptions extends RendererOptions {
 export type { Insets };
 
 export interface CanvasViewbox extends Viewbox {
-  /** The drawn diagram. */
+  /** The bounds of the drawn diagram. */
   inner: Bounds;
   /** The container, in screen pixels. */
   outer: { width: number; height: number };
@@ -66,13 +66,14 @@ const EDIT_ON_CREATE_TYPES = new Set<string>([
   BPMN.ReceiveTask, BPMN.BusinessRuleTask, BPMN.TextAnnotation, BPMN.Group,
 ]);
 
-/** What a view announces, each by id: a host hears it with `canvas.on(event, listener)`. */
+/** The events a view announces, each by id; a host listens with `canvas.on(event, listener)`. */
 export interface CanvasEvents {
   /** The selection changed: the ids now selected. */
   select: readonly string[];
   /**
-   * What the view shows: the id of the container it is drilled into, `undefined` for the whole diagram. Said on a
-   * drill-down, and whenever the view draws its study afresh after a load, an undo or a redo, before it reselects.
+   * The scope the view shows: the id of the container it is drilled into, `undefined` for the whole diagram.
+   * Announced on a drill-down, and whenever the view draws its study afresh after a load, an undo or a redo, before
+   * it reselects.
    */
   scope: string | undefined;
   /** The `a` key asked for the append menu, on the selection by id. */
@@ -87,13 +88,13 @@ function fadeOut(g: SVGGElement): void {
   leave(g);
 }
 
-/** What the canvas's own specs read behind a view's public face. The package index does not export it. */
+/** The internals the canvas's own specs read behind a view's public API. The package index does not export it. */
 export interface CanvasInternals {
   readonly svg: SVGSVGElement;
   readonly labelEditing: LabelEditing;
   /** An element's `<g>`, as the view draws it. */
   graphics(id: string): SVGGElement | undefined;
-  /** What the view shows at `point`, in diagram coordinates. */
+  /** The element the view shows at `point`, in diagram coordinates. */
   hitTest(point: Point, options?: HitOptions): SceneElement | undefined;
 }
 
@@ -105,7 +106,7 @@ export function canvasInternals(canvas: Canvas): CanvasInternals {
 }
 
 export class Canvas {
-  /** What the canvas shows and edits. */
+  /** The study the canvas shows and edits. */
   readonly study: Study;
   private readonly create: Create;
   private readonly connect: Connect;
@@ -330,8 +331,7 @@ export class Canvas {
     return [...this.scene.elementsById.values()];
   }
 
-  /** The live element behind an id, an element or a stale copy; `undefined` when nothing answers (the root included). */
-  /** The element the scene holds under `value`'s id: what a selection names is always read from the scene as it stands. */
+  /** The element the scene holds under `value`'s id, whether `value` is an id, an element or a stale copy; `undefined` when it holds none (the root included). A selection is always read from the scene as it stands. */
   private resolveElement(value: SceneElement | string): SceneElement | undefined {
     return this.scene.elementsById.get(typeof value === 'string' ? value : value.id);
   }
@@ -388,7 +388,7 @@ export class Canvas {
   // --- view -------------------------------------------------------------------------
 
   /**
-   * What the view shows: a region of the diagram and the scale it is drawn at (screen pixels per unit), with the
+   * The view's camera: the region of the diagram it shows and the scale it is drawn at (screen pixels per unit), with the
    * diagram's own extent (`inner`) and the view's size on screen (`outer`).
    */
   get viewbox(): CanvasViewbox {
@@ -402,7 +402,7 @@ export class Canvas {
     };
   }
 
-  /** What follows the camera: the anchored host element, and whoever hears `camera`. */
+  /** Updates what follows the camera: the anchored host element, and the listeners of `camera`. */
   private cameraMoved(): void {
     this.placeAnchor();
     if (this.listeners.get('camera')?.size) this.emit('camera', this.viewbox);
@@ -453,7 +453,7 @@ export class Canvas {
   /**
    * Keep `el`, a host element fixed to the page, beside the outline of the elements `ids` names: right of it, level
    * with its top, inside the view, as the camera and the edits move them; hidden during a gesture and while the view
-   * draws none of them. `null` lets it go. What the context pad floats on.
+   * draws none of them. `null` lets it go. The context pad floats on this.
    */
   anchor(el: HTMLElement, ids: readonly string[] | null): void {
     this.anchored = ids ? { el, ids } : undefined;
@@ -552,7 +552,7 @@ export class Canvas {
     // An edit the study made by reading its document back holds another scene too.
     const replaced = changed === 'all' || this.renderer.drawing !== scene;
     if (replaced) {
-      // Another scene: what points into the old one lets go, and is found again by id.
+      // Another scene: anything that points into the old one is dropped and found again by id.
       this.gestures.cancel();
       this.labelEditing.reset();
       this.selectionSet.setHovered(undefined);
@@ -574,8 +574,8 @@ export class Canvas {
     this.redrawElements(redrawn);
     if (replaced) {
       this.renderer.refreshJumps();
-      // What the view shows is another object now: a host re-reads it, the scope first, then the selection, which
-      // re-selecting by id says.
+      // The view now shows another object, so a host re-reads it: the scope first, then the selection, which
+      // re-selecting by id announces.
       this.emit('scope', this.scope);
       const selected = this.selectionSet.get().map((element) => element.id);
       if (selected.length > 0) this.selectionSet.select(selected);

@@ -84,11 +84,9 @@ function loadSvgImage(svg: string): Promise<HTMLImageElement> {
 }
 
 /**
- * Rasterize the diagram SVG onto a 2d canvas, `scale` pixels a unit, natively: the browser already knows
- * how to draw an SVG image, so the document goes through a blob URL into an `<img>`
- * and onto the canvas. This replaced Canvg, which existed to
- * paint icons the browser could not, back when they were `foreignObject`s; the
- * renderer now draws real glyphs, so plain `drawImage` covers the whole document.
+ * Rasterizes the diagram SVG onto a 2d canvas, `scale` pixels a unit. The browser draws an SVG image natively, so
+ * the document goes through a blob URL into an `<img>` and onto the canvas with `drawImage`. That covers the whole
+ * document because the renderer draws icons as real glyphs.
  */
 async function rasterize(svg: string, scale: number): Promise<HTMLCanvasElement> {
   const padded = padSvg(svg);

@@ -29,7 +29,7 @@ Item_Labels:
 
 sklearn_pipeline:
   type: Process
-  name: sklearn_pipeline
+  name: scikit-learn pipeline
   extensions:
     studyflow:Study:
       seed: 42
@@ -44,7 +44,7 @@ sklearn_pipeline:
       - {action: executed, when: "2026-08-20T12:28:56.471+02:00", who: morteza, with: studyflow_run.py, run: sklearn-demo, seed: 42}
   documentation: |
     A runnable scikit-learn classification workflow, drawn the way the
-    method is actually done: split first, report last.
+    method is done: split first, report last.
 
     Nothing downstream of the split touches the test quarter until the end:
     the model is selected on the training half alone, and every reported

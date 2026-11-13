@@ -13,7 +13,7 @@ const RUN_RECORD = 'prov:Activity';
  */
 const DRAWING = new Set(['icon', 'laneSets']);
 
-/** What a run or an audit fills in on a plan rather than plans: a Schedule view's `progress`; a checklist's ticks, below. */
+/** The attributes a run or an audit fills in rather than plans: a Schedule view's `progress`; a checklist's ticks, below. */
 const RECORDED = new Set(['progress']);
 
 /** A checklist as planned: its items, every tick cleared, so ticking one off after the run is not a new protocol. */
@@ -71,7 +71,7 @@ function canonicalElementIn(model: StudyModel, element: Element, entry: boolean,
   const unbound = anyActor && model.metamodel.isA(host, ACTOR);
   // An actor pool's documentation is the participant's, not its actor entry's, so it is left out on the pool.
   const pool = anyActor && !entry && model.isA(element, ACTOR);
-  // What a kind of actor a skill declares adds to the actor (a simulated actor's planted accuracies) is who answers too.
+  // The attributes a skill's kind of actor adds to the actor (a simulated actor's planted accuracies) also say who answers.
   const actorOwn = unbound ? new Set(model.metamodel.descriptor(ACTOR).properties.map((p) => p.ns.localName)) : undefined;
   const typed = entry ? undefined : model.typedEntry(element);
   // For any actor, an actor is an actor, whatever kind a skill makes it.

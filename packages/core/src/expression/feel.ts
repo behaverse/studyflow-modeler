@@ -34,7 +34,7 @@ export function namesIn(written: string): Set<string> {
 const FUNCTIONS = new Set(['not', 'contains', 'starts with', 'ends with', 'substring after', 'substring before', 'upper case',
   'lower case', 'string length', 'count', 'sum', 'min', 'max', 'mean', 'abs', 'is defined']);
 
-/** What feelin reads and the subset leaves out, by the node feelin parses it to: a study runs the same in both runtimes. */
+/** The syntax feelin reads and the Python subset leaves out, by the node feelin parses it to. It is refused, so a study runs the same in both runtimes. */
 const BEYOND: Record<string, string> = {
   QuantifiedExpression: 'some/every … satisfies',
   ForExpression: 'for … return',

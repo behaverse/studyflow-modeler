@@ -37,7 +37,7 @@ function nodeOf(doc: YamlDoc, model: StudyModel, element: Element): Node | undef
 
 /**
  * The property `key` names on `element`, a key as the file writes it or by BPMN's name, and the key itself: an event's
- * kind names its definitions. Undefined for a key it names none by.
+ * kind names its definitions. Undefined for a key that names no property.
  */
 export function attributeOf(model: StudyModel, element: Element, key: string): { name: string; key: string } | undefined {
   const host = model.host(element);
@@ -59,8 +59,8 @@ function spellingsOf(model: StudyModel, element: Element, name: string): string[
  * Sets `attribute` of `element` in `doc`, the document's `.studyflow.yaml` tree, to `value` as the file spells it: a
  * loop marker, an event's definition, a condition, a default flow, the properties a scope declares, the data a step
  * reads. `attribute` is the key it goes under, the file's or BPMN's, and any other spelling of the same property is
- * taken out. `null` clears it. False when the tree does not spell the element as a mapping of its own; reading the tree
- * back is what checks the value.
+ * taken out. `null` clears it. Returns false when the tree does not spell the element as a mapping of its own. The
+ * value is checked by reading the tree back.
  */
 export function patchDoc(doc: YamlDoc, model: StudyModel, element: Element, attribute: string, value: unknown): boolean {
   const node = nodeOf(doc, model, element);

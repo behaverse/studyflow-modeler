@@ -14,16 +14,16 @@ const s = {
   dropIdle: 'border-black/[0.12] bg-cream-100 hover:border-black/[0.22] hover:bg-cream-200',
   dropActive: 'border-stone-900 bg-cream-200',
   dropIcon: 'text-[2rem] text-stone-400',
-  dropTitle: `text-[13.5px] font-medium ${text.secondary}`,
-  dropHint: 'text-[12px] text-stone-500',
+  dropTitle: `text-sm font-medium ${text.secondary}`,
+  dropHint: 'text-xs text-stone-500',
 
   formats: 'mt-5 pt-4 border-t border-black/[0.06]',
-  formatsLabel: 'text-[10.5px] font-semibold uppercase tracking-[0.1em] text-stone-500 mb-2',
+  formatsLabel: 'text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-stone-500 mb-2',
   list: 'space-y-1',
-  row: 'flex items-baseline justify-between gap-4 text-[12.5px]',
+  row: 'flex items-baseline justify-between gap-4 text-xs',
   rowLabel: text.secondary,
-  rowExt: 'font-mono text-[11.5px] text-stone-500 text-right',
-  note: 'text-[12px] text-stone-500 mt-3 leading-snug',
+  rowExt: 'font-mono text-[0.6875rem] text-stone-500 text-right',
+  note: 'text-xs text-stone-500 mt-3 leading-snug',
 } as const;
 
 type Props = {
@@ -67,7 +67,7 @@ export function OpenDialog({ isOpen, onClose, onBrowse }: Props) {
         onDrop={(e) => { void handleDrop(e); }}
         className={`${s.drop} ${over ? s.dropActive : s.dropIdle}`}
       >
-        <i className={`${busy ? ICONS.arrowRepeat + ' animate-spin' : ICONS.folderOpen} ${s.dropIcon}`}></i>
+        <i className={`${busy ? ICONS.spinner + ' animate-spin' : ICONS.folderOpen} ${s.dropIcon}`}></i>
         <span className={s.dropTitle}>
           {busy ? 'Opening...' : 'Drop a file here, or click to browse'}
         </span>
@@ -95,7 +95,7 @@ export function OpenDialog({ isOpen, onClose, onBrowse }: Props) {
           ))}
         </ul>
         <p className={s.note}>
-          An SVG, PNG or TIFF opens only if studyflow is embedded in it.
+          An SVG, PNG or TIFF opens only if a study is embedded in it.
         </p>
       </div>
     </Modal>

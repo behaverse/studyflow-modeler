@@ -2,7 +2,7 @@ import type { Message, StateTree } from '@core/engine/host';
 import type { Entry } from '@core/engine/steps';
 
 /**
- * What happened in a run, in order: its one record. The walk tells its host each event as it happens, and the host
+ * The events of a run, in order: its one record. The walk tells its host each event as it happens, and the host
  * keeps them (the local runtime's `events.jsonl`, a browser session's record); every other account of the run is read
  * off them: the counts, properties and data stores in the state the study keeps ({@link stateOf}), the records stamped on its
  * elements ({@link recordOf}), a run repository's commits.
@@ -43,7 +43,7 @@ export type Happening = RunEvent extends infer Event ? (Event extends RunEvent ?
 
 /**
  * The state a run leaves: from its `started` event's state (else `start`), each count, pass and property as its
- * events say. What the walk holds at the end is this, so a run's record is enough to recover it.
+ * events say. The walk holds this state at the end, so a run's record is enough to recover it.
  */
 export function stateOf(events: readonly RunEvent[], start: StateTree = {}): StateTree {
   let state: StateTree = structuredClone(start);
@@ -78,7 +78,7 @@ export function stateOf(events: readonly RunEvent[], start: StateTree = {}): Sta
   return state;
 }
 
-/** When each element last did what its study records of it, by id. */
+/** The time each element last did what its study records of it, by id. */
 export type Stamping = {
   /** Steps that ran, and events passed. */
   executed: Map<string, string>;
@@ -90,7 +90,7 @@ export type Stamping = {
   imported: Map<string, string>;
 };
 
-/** What a run's events say to record on each element of the study: {@link Stamping}. */
+/** The records a run's events put on each element of the study: {@link Stamping}. */
 export function recordOf(events: readonly RunEvent[]): Stamping {
   const record: Stamping = { executed: new Map(), decided: new Map(), reused: new Map(), created: new Map(), imported: new Map() };
   for (const happened of events) {

@@ -46,7 +46,7 @@ function resolveIcon(iconKey: string, element?: Element): IconDef | null | undef
     const icon = templateIcon || extEntry?.iconClass || bpmnFallback;
     if (typeof icon === 'string' && icon) return iconFor(icon);
   }
-  // Anything else is the canvas's: its own glyph, when it has one.
+  // The canvas draws anything else with its own glyph, when it has one.
   return undefined;
 }
 
@@ -72,12 +72,12 @@ function coveredEdges(container: HTMLElement): Insets {
 
 export function mountEditor(options: MountEditorOptions): Editor {
   const { study } = options;
-  // How the app draws a study, on the canvas and in a picture of it.
+  // The app's drawing options, for the canvas and for a picture of it.
   const drawing: CanvasOptions = { iconResolver: resolveIcon };
   const canvas = new Canvas(options.container, study, { ...drawing, insets: () => coveredEdges(options.container) });
   const model: EditorModel = { metamodel: () => options.metamodel };
 
-  // The app's bus: the view's news and the study's, forwarded in the topics the app's modules hear.
+  // The app's bus. The canvas's and the study's events are forwarded onto it under the topics the app's modules listen for.
   const bus = new EventBus();
   const stopHearingCanvas = [
     canvas.on('select', (ids) => bus.fire('SelectionChanged', { newSelection: ids })),
@@ -88,9 +88,9 @@ export function mountEditor(options: MountEditorOptions): Editor {
   const saveXML = async (): Promise<{ xml: string }> => ({ xml: await study.toXml() });
 
 
-  // What the app hears of the study, after the canvas has drawn it (and said `RootSet`): an edit, by id; an edit,
-  // an undo or a redo moves the history; a load, an undo or a redo puts another document in place, which
-  // everything re-reads.
+  // Forwards the study's changes, after the canvas has drawn them (and fired `RootSet`). An edit fires
+  // `ElementsChanged` with the ids it touched. A load, an undo or a redo replaces the document, so it fires
+  // `ImportDone` and every listener re-reads. Everything but a load fires `HistoryChanged`.
   const stopHearing = study.on('change', ({ cause, added, changed, removed }) => {
     if (cause === 'edit') bus.fire('ElementsChanged', { added, changed, removed });
     else bus.fire('ImportDone', { error: null, warnings: [] });

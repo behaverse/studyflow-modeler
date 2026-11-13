@@ -131,7 +131,7 @@ test.describe('token simulation', () => {
     await page.getByRole('button', { name: /^simulate$/i }).click();
     await expect(app).toHaveClass(/simulation-active/);
 
-    // Some token reaches the inner tasks of `prepare_data`, which the walk used to skip.
+    // Some token reaches the inner tasks of `prepare_data`, the expanded sub-process.
     const inner = await Promise.all(['select_features', 'select_target', 'split_train_test'].map((id) => box(shape(page, id))));
     await expect.poll(async () => (await tokens(page, '.studyflow-simulation-token'))
       .some((t) => t.shown && inner.some((b) => inside(t, b))), { timeout: 15_000 }).toBe(true);

@@ -27,7 +27,7 @@ export type Row = TimingAttrs & {
   after: string[];
   /** The row of the sub-process, lane or pool this element sits in: this row is indented under it and hides when it folds. */
   parent?: string;
-  /** A container with rows inside it: what it states none of (onset, duration, progress) is summarized from them. */
+  /** A container with rows inside it. Any of onset, duration and progress it does not state is summarized from them. */
   group?: boolean;
   /** Best-effort parse of `onset` as minutes-since-epoch-or-T0; for a row that states none, the latest end of what it waits on. */
   onsetMin?: number;
@@ -184,7 +184,7 @@ function buildScheduleRow(record: ElementRecord, model: StudyModel, anchor: numb
   };
 }
 
-/** What a row waits on: the step before it, or the pool or step whose message starts it. */
+/** The flows a row waits on: from the step before it, or from the pool or step whose message starts it. */
 const WAITS_ON = new Set(['bpmn:SequenceFlow', 'bpmn:MessageFlow']);
 
 /** The scheduled elements upstream along those flows, looking through unscheduled ones (a gateway, an event). */
@@ -207,9 +207,9 @@ function predecessorsOf(record: ElementRecord, scheduled: Set<string>, byId: Rea
 
 /**
  * An onset for every row that states none but waits on rows that have one: the latest end among them, so steps follow
- * one another along the flow (a rest after the sessions, a return after the rest). A container's own onset is its
- * children's to summarize, so only the rows with none inside them are placed here. Placed rows place the rows after
- * them in turn, in passes until nothing moves; a loop in the flow is cut off after as many passes as there are rows.
+ * one another along the flow (a rest after the sessions, a return after the rest). A container's onset is summarized
+ * from its children, so only rows with no rows inside them are placed here. Placed rows place the rows after them in
+ * turn, in passes until nothing moves; a loop in the flow is cut off after as many passes as there are rows.
  */
 function inferOnsets(rows: ReadonlyMap<string, Row>): void {
   const containers = new Set([...rows.values()].map((row) => row.parent));

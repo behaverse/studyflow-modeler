@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { attributeOverridesIn, splitIn } from '@core/model/parameters';
 import { studyModel } from '@tests/schemas';
 
-/** What the Parameters wired into a step set on it: a key naming one of its attributes; only a wire makes one count. */
+/** The Parameters wired into a step set on it each key naming one of its attributes; only a wire makes one count. */
 
 const STUDY = `id: overrides
 definitions:

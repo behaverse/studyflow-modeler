@@ -8,7 +8,7 @@ import { hasPath, mergeParameters, parametersIn, splitIn } from '@core/model/par
 import { readStudy } from '@core/model/yaml';
 import type { FlowNode, SequenceFlow } from '@runner/flow';
 
-/** What a run can reach besides tasks (every `bpmn:Task` subtype is one); anything else in the process is ignored. */
+/** The element types a run can reach besides tasks (every `bpmn:Task` subtype is one); anything else in the process is ignored. */
 const FLOW_NODE_TYPES: ReadonlySet<string> = new Set<string>([
   BPMN.StartEvent,
   BPMN.EndEvent,
@@ -27,7 +27,7 @@ const FLOW_NODE_TYPES: ReadonlySet<string> = new Set<string>([
 
 const STUDY = 'studyflow:Study';
 
-/** What holds steps of its own: a sub-process, an ad-hoc one, a transaction. */
+/** The element types that hold steps of their own: a sub-process, an ad-hoc one, a transaction. */
 const CONTAINERS: ReadonlySet<string> = new Set<string>([BPMN.SubProcess, 'bpmn:AdHocSubProcess', 'bpmn:Transaction']);
 
 const listIn = (value: Value | undefined): Value[] => (Array.isArray(value) ? value : []);
@@ -43,7 +43,7 @@ export type ParsedStudy = {
   /** The steps a node module may have a screen for, and the flows between them. */
   flowNodes: Map<string, FlowNode>;
   sequenceFlows: Map<string, SequenceFlow>;
-  /** What the walk walks (packages/core/src/engine), read once the link's values are bound. */
+  /** The plan the walk walks (packages/core/src/engine), read once the link's values are bound. */
   plan: Plan;
   parameters: BoundParameters;
   /** The file's `state` tree as deposited; a session walks a copy of it. */
@@ -222,7 +222,7 @@ export async function parseStudyflow(
 }
 
 export type BoundParameters = {
-  /** What the run starts with: the values it was launched with, and the study's seed. */
+  /** The values the run starts with: those it was launched with, and the study's seed. */
   values: Record<string, unknown>;
   /** Names the link supplied that the study already carried a value for. */
   overridden: string[];

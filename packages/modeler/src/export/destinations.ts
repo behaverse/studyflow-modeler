@@ -1,8 +1,8 @@
 import type { ComponentType } from 'react';
 
 /**
- * A place "Save" sends the study other than this machine, a skill's (a server it publishes to): its button beside
- * Local, and the panel shown when it is picked, which asks what it needs and sends the study itself.
+ * A place a skill adds for "Save" to send the study, other than this machine (a server it publishes to). It has a
+ * button beside Local and a panel, shown when it is picked, which asks what it needs and sends the study itself.
  */
 export type SaveDestination = {
   id: string;

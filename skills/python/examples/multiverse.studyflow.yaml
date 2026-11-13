@@ -4,7 +4,7 @@ schemas:
 
 multiverse:
   type: Process
-  name: multiverse
+  name: Multiverse analysis
   extensions:
     studyflow:Study:
       seed: 42

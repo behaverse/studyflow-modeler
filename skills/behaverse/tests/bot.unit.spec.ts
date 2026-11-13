@@ -67,7 +67,7 @@ const OLLAMA: BehaverseBotPayload = { ResponseSource: 'llm', LLM: { Provider: 'o
 
 const json = (body: unknown) => () => new Response(JSON.stringify(body));
 
-test('a model on the band answers a trial through its provider, with the option its reply names; a reply naming none, or a failed call, is a miss', async () => {
+test('a model on the band answers a trial through its provider, with the option its reply names; a reply naming none is a miss, and a failed call throws', async () => {
   const CASES: {
     label: string;
     bot: BehaverseBotPayload;
@@ -77,6 +77,8 @@ test('a model on the band answers a trial through its provider, with the option 
     asked?: { url: string; body: unknown };
     answer?: { response: string; agentId: string };
     logged?: RegExp;
+    /** What the call throws, where it fails. */
+    fails?: RegExp;
   }[] = [
     { label: 'the build\'s own bot answers for itself: no model is asked', bot: { Speed: 20 } },
     {
@@ -117,17 +119,17 @@ test('a model on the band answers a trial through its provider, with the option 
       logged: /^error: \[claude:claude-haiku-4-5\] trial 3: no answer, so a miss \(the reply names no option: "It is Match"\)$/,
     },
     {
-      label: 'a provider that fails answers nothing',
+      label: 'a provider that fails is no miss: the call throws, naming the model and the trial',
       bot: OLLAMA,
       reply: () => new Response('model "gemma3" not found', { status: 404 }),
       asked: { url: 'http://localhost:11434/api/chat', body: expect.anything() },
-      logged: /^error: \[ollama:gemma3\] trial 3: no answer, so a miss \(Ollama responded 404: model "gemma3" not found\)$/,
+      fails: /^ollama:gemma3 could not answer trial 3: Ollama responded 404: model "gemma3" not found$/,
     },
   ];
 
   const fetchBefore = globalThis.fetch;
   try {
-    for (const { label, bot, trial, reply, asked, answer, logged } of CASES) {
+    for (const { label, bot, trial, reply, asked, answer, logged, fails } of CASES) {
       const requests: { url: string; body: unknown }[] = [];
       globalThis.fetch = (async (url: string, init: RequestInit) => {
         requests.push({ url, body: JSON.parse(String(init.body)) });
@@ -135,9 +137,10 @@ test('a model on the band answers a trial through its provider, with the option 
       }) as typeof fetch;
       const log: string[] = [];
       const payload: BehaverseTaskPayload = { scene: 'NB', timeline: 'XCIT_NB_01', configMode: 'builtin', agentType: 'bot', metadata: { studyflowNodeId: 'T' }, bot };
-      const decision = await decideResponse(payload, { ...AWAITING, ...trial }, [], (kind, message) => log.push(`${kind}: ${message}`));
+      const decision = decideResponse(payload, { ...AWAITING, ...trial }, [], (kind, message) => log.push(`${kind}: ${message}`));
+      if (fails) await expect(decision, label).rejects.toThrow(fails);
+      else expect(await decision, label).toEqual(answer);
       expect(requests, label).toEqual(asked ? [asked] : []);
-      expect(decision, label).toEqual(answer);
       if (logged) expect(log.at(-1), label).toMatch(logged);
     }
   } finally {

@@ -1,6 +1,6 @@
 /**
- * Append-anything, as commands. A click asks the canvas to place the new element
- * beside its source and connect it; a drag reuses the palette's create gesture.
+ * The append commands. A click asks the canvas to place the new element beside its source and connect it; a drag
+ * reuses the palette's create gesture.
  */
 
 import { newShape } from '@modeler/palette/newShape';
@@ -21,7 +21,7 @@ export type AppendElementCommand = {
   attributes?: Record<string, unknown>;
 };
 
-/** Click-append: the canvas places the shape beside `from`, connects the two, selects it and opens its name; its id. */
+/** Click-append: the canvas places the shape beside `from`, connects the two, selects it and opens its name. Returns its id. */
 export function runAppendElement(modeler: Editor, command: AppendElementCommand): string | undefined {
   return modeler.canvas.append(command.from, newShape(command.bpmnType, command.extensionType, command.attributes)).id;
 }

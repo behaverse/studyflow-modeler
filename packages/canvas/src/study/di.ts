@@ -1,7 +1,7 @@
 /**
  * {@link Scene} → the study's drawing. Rewrites the layout map from the scene: an entry per shape and per edge, its
- * box or route, colours, caption style, the box of a pinned caption, and what a shape shows (expanded, a marker). What
- * a draft placed and no edit has touched keeps only its look.
+ * box or route, colours, caption style, the box of a pinned caption, and what a shape shows (expanded, a marker). An
+ * element a draft placed and no edit has touched keeps only its look.
  */
 
 import { formatFont } from '@canvas/study/font.ts';
@@ -23,7 +23,7 @@ export function writeLayout(scene: Scene, drafted: ReadonlySet<string> = new Set
   nameRoot(scene);
 }
 
-/** What `drawing` says of an element's look (its colours and its caption's), when it says any of it. */
+/** The part of `drawing` that gives an element's look (its colours and its caption's), when it gives any. */
 export function lookOf(drawing: Drawing | undefined): Drawing | undefined {
   const look = Object.entries(drawing ?? {}).filter(([key]) => key === 'fill' || key === 'stroke' || key === 'font');
   return look.length > 0 ? Object.fromEntries(look) : undefined;

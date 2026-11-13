@@ -1,0 +1,181 @@
+id: model_conversation
+schemas:
+  agentic: https://w3id.org/studyflow/agentic
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+Model_Conversation:
+  type: Collaboration
+  name: Conversation with a model
+  extensions:
+    studyflow:Study: {}
+  documentation: |
+    Two questions put to a language model, the second of which only a model that remembers the first can answer.
+
+    The model is a pool of its own, named by its `implementation`, and nothing else in the study names it. Each
+    question is a prompt kept as data and wired into the step that asks it. The step sends it along the pool's
+    message flow, and the answer comes back into the property its data edge targets. The pool's `memory` is
+    `conversation`, so the second request carries the first exchange, and "it" has something to refer to.
+
+    Two things can go wrong, and each is a boundary event on the conversation. The timer ends a conversation the
+    model has not finished in two minutes. A call that fails (no Ollama on this machine, a model it does not hold)
+    fails the step that asked, and the error boundary event catches the failure.
+  participants:
+    Pool_Session:
+      name: Session
+      process: $Session
+
+    Pool_Model:
+      name: Model (gemma4)
+      extensions:
+        studyflow:Actor:
+          actorType: llm
+          implementation: ollama://gemma4:12b-it-qat
+          memory: conversation
+  messageFlows:
+    Msg_Question:
+      name: a question
+      source: $Pool_Session
+      target: $Pool_Model
+
+    Msg_Answer:
+      name: the answer
+      source: $Pool_Model
+      target: $Pool_Session
+
+Session:
+  type: Process
+  name: Session
+  properties:
+    animal:
+      name: animal
+
+    sound:
+      name: sound
+  elements:
+    Start:
+      type: StartEvent
+      name: Start
+
+    Conversation:
+      type: SubProcess
+      name: Conversation
+      elements:
+        C_Start:
+          type: StartEvent
+
+        Ask_Animal:
+          type: Task
+          name: Ask for an animal
+          inputs:
+            In_Animal_Prompt:
+              source: $Animal_Prompt
+          outputs:
+            Out_Animal:
+              target: $animal
+
+        Animal_Prompt:
+          type: DataObjectReference
+          name: First question
+          extensions:
+            agentic:Prompt:
+              template: Name one animal. Answer with one word.
+
+        Ask_Sound:
+          type: Task
+          name: Ask for its sound
+          inputs:
+            In_Sound_Prompt:
+              source: $Sound_Prompt
+          outputs:
+            Out_Sound:
+              target: $sound
+
+        Sound_Prompt:
+          type: DataObjectReference
+          name: Second question
+          extensions:
+            agentic:Prompt:
+              template: What sound does it make? Answer with one word.
+
+        C_End:
+          type: EndEvent
+
+        Flow_C_Start_Animal:
+          source: $C_Start
+          target: $Ask_Animal
+
+        Flow_Animal_Sound:
+          source: $Ask_Animal
+          target: $Ask_Sound
+
+        Flow_Sound_C_End:
+          source: $Ask_Sound
+          target: $C_End
+
+    Too_Slow:
+      type: BoundaryEvent
+      name: Not done in 2 min
+      timer: PT2M
+      attachedTo: $Conversation
+
+    Call_Failed:
+      type: BoundaryEvent
+      name: The call failed
+      error: true
+      attachedTo: $Conversation
+
+    Answered:
+      type: EndEvent
+      name: Answered
+
+    Gave_Up:
+      type: EndEvent
+      name: Gave up
+
+    Stopped:
+      type: EndEvent
+      name: Stopped
+
+    Flow_Start_Conversation:
+      source: $Start
+      target: $Conversation
+
+    Flow_Conversation_Answered:
+      source: $Conversation
+      target: $Answered
+
+    Flow_Too_Slow_Gave_Up:
+      source: $Too_Slow
+      target: $Gave_Up
+
+    Flow_Call_Failed_Stopped:
+      source: $Call_Failed
+      target: $Stopped
+
+layout:
+  Pool_Session: 120 80 800 440
+  Pool_Model: 120 560 800 100
+  Msg_Question: 360,520 360,560
+  Msg_Answer: 470,560 470,520
+  Start: 180 182 36 36
+  Conversation: {bounds: 270 120 480 260, expanded: true}
+  C_Start: 300 182 36 36
+  Ask_Animal: 376 160 100 80
+  In_Animal_Prompt: 426,280 426,240
+  Animal_Prompt: 408 280 36 50
+  Ask_Sound: 536 160 100 80
+  In_Sound_Prompt: 586,280 586,240
+  Sound_Prompt: 568 280 36 50
+  C_End: 684 182 36 36
+  Flow_C_Start_Animal: 336,200 376,200
+  Flow_Animal_Sound: 476,200 536,200
+  Flow_Sound_C_End: 636,200 684,200
+  Too_Slow: {bounds: 542 362 36 36, label: 432 402 120 15}
+  Call_Failed: {bounds: 662 362 36 36, label: 688 402 100 15}
+  Answered: 830 182 36 36
+  Gave_Up: 542 442 36 36
+  Stopped: 662 442 36 36
+  Flow_Start_Conversation: 216,200 270,200
+  Flow_Conversation_Answered: 750,200 830,200
+  Flow_Too_Slow_Gave_Up: 560,398 560,442
+  Flow_Call_Failed_Stopped: 680,398 680,442

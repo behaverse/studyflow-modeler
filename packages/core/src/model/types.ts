@@ -12,7 +12,7 @@
  *   so;
  * - the drawing is the `layout` map, each element's by its id, as the file writes it; the run state is `state`.
  *
- * What a property of a type holds, and in which order the file writes them, is the metamodel's (`./metamodel.ts`).
+ * The metamodel (`./metamodel.ts`) says what a property of a type holds, and in which order the file writes them.
  */
 
 /** Anything an element's property holds: text, a number, a truth value, an element, a list, or a mapping (YAML). */
@@ -35,7 +35,7 @@ export type State = Record<string, unknown>;
 export type Study = {
   /** The definitions' id. */
   id?: string;
-  /** What the definitions themselves hold: `targetNamespace`, `exporter`, namespace declarations. */
+  /** The definitions' own attributes: `targetNamespace`, `exporter`, namespace declarations. */
   definitions: Record<string, Value>;
   /** The root elements: processes, collaborations, messages, item definitions, ... in file order. */
   roots: Element[];

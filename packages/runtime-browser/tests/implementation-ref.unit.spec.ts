@@ -4,7 +4,7 @@ import { validateImplementations } from '@runner/nodes/implementationRef';
 import { Studyflow } from '@runner/studyflow';
 import { freshPackages } from '@tests/schemas';
 
-/** What the browser runner checks, before a run starts, of the functions a study's steps call. */
+/** The browser runner's checks, before a run starts, of the functions a study's steps call. */
 
 test('a malformed implementation reference fails validation before the run starts; a well-formed one raises nothing, whatever its scheme', async () => {
   const study = (implementation: string) => Studyflow.parse(`id: refs

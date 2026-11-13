@@ -193,7 +193,7 @@ class Step:
         self.unanswered = True
 
     def note(self, **record: Any) -> None:
-        """What the step ran with (a package version, a model digest, the request as sent): kept in its record, never
+        """The things the step ran with (a package version, a model digest, the request as sent): kept in its record, never
         read as a value."""
         self.record.update(record)
 
@@ -245,7 +245,7 @@ class Step:
         return self._cancelled.is_set()
 
     def unless_cancelled(self, work: Callable[[], Any]) -> Any:
-        """What `work()` returns or raises, run on a thread of its own. When the walk stops the step first, `Cancelled`
+        """Runs `work()` on a thread of its own and returns or raises what it does. When the walk stops the step first, `Cancelled`
         is raised at once, and the work, which cannot be stopped midway (a robot's move, a model's request), finishes
         behind the answer and is dropped: for a runner whose process is costly to start again, which the walk would
         otherwise end. Work that can stop checks `cancelled` instead."""

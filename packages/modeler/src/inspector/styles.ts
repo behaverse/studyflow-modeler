@@ -4,7 +4,7 @@ import { ICONS } from '@modeler/icons';
 export const inspector = {
   wrapper: 'fixed top-2 right-2 z-[220]',
   /** Width is set inline (see `inspector/panelWidth`): drag-resizable, so size is state, not a class. */
-  panel: `relative ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat}
+  panel: `relative ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panel}
           text-stone-900 max-h-[calc(100vh-5rem)] overflow-y-auto`,
   panelHidden: 'hidden',
   panelBody: 'w-full',
@@ -19,7 +19,8 @@ export const inspector = {
                  w-8 h-8 rounded-md
                  text-stone-500 hover:text-stone-900 hover:bg-black/[0.05]
                  transition-colors`,
-  toggleIcon: 'text-2xl',
+  /** Mirrored: the glyph draws its panel on the left, and the inspector stands on the right. */
+  toggleIcon: 'text-2xl -scale-x-100',
 
   headerTitle: 'pb-0 text-base font-semibold p-2 pb-0 text-stone-900 tracking-tight',
   headerSubtitle: 'text-[0.6875rem] text-left font-mono px-2 pb-2 text-stone-500',
@@ -32,16 +33,18 @@ export const inspector = {
   tabPanel: 'rounded-xl',
 } as const;
 
-/* ponytail: inspector fields wear a 0.20 border, under the 3:1 control minimum --
-   the cream-200 fill, label and focus ring carry identification; darken if audited. */
+/* ponytail: inspector fields wear a 0.20 border, under the 3:1 control minimum. The cream-200 fill, the label
+   and the focus ring identify them; darken if audited. */
 export const field = {
-  field: 'mx-2 pb-2',
+  /** `group/field`: a field's help icon shows while the field is hovered or holds the focus. */
+  field: 'group/field mx-2 pb-2',
 
   label: 'flex items-center justify-between text-sm font-semibold',
   labelActions: 'flex items-center gap-1',
   labelAddBtn: 'w-5 h-5 flex items-center justify-center rounded text-stone-500 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer',
   /** Flex rather than inline: baseline alignment left the `?` two pixels above the `+`. */
-  helpAnchor: 'relative inline-flex items-center justify-center w-5 h-5 group/help',
+  helpAnchor: `relative inline-flex items-center justify-center w-5 h-5
+               opacity-0 group-hover/field:opacity-100 group-focus-within/field:opacity-100 transition-opacity`,
   helpIcon: `${ICONS.help} text-base text-stone-500 cursor-help`,
   helpTooltip: `fixed w-48 ${tooltip} text-xs p-2 z-[260]`,
   helpTooltipWide: `fixed w-64 ${tooltip} text-xs p-2 z-[260]`,
@@ -58,7 +61,7 @@ export const field = {
 
   selectWrapper: 'relative',
   select: 'appearance-none px-2 py-1 pr-8 w-full rounded-md border border-black/[0.20] bg-cream-200 text-sm/6 text-stone-900 focus:outline-2 focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)]',
-  selectChevron: 'group iconify bi--caret-down pointer-events-none absolute top-1.5 right-2.5 text-stone-500',
+  selectChevron: `${ICONS.caretDown} pointer-events-none absolute top-1.5 right-2.5 text-stone-500`,
 
   comboInput: 'appearance-none px-2 py-1 pr-8 w-full rounded-md border border-black/[0.20] bg-cream-200 font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)]',
   comboChevronBtn: 'absolute top-0 right-0 h-full w-7 flex items-center justify-center text-stone-500 hover:text-stone-900 cursor-pointer',
@@ -83,7 +86,7 @@ export const field = {
   arrayRemoveBtn: 'absolute top-1/2 right-1.5 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-stone-500 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer',
 
   dataFlowRow: 'flex items-center gap-1.5',
-  /* Names wrap rather than truncate: an ellipsis eats exactly the name suffix a reader scans for. */
+  /* Names wrap rather than truncate: an ellipsis would hide the name's suffix, which a reader scans for. */
   dataFlowFixed: 'flex-1 min-w-0 px-2 py-1 bg-transparent font-mono text-sm/6 text-stone-600 break-words',
   dataFlowBindInput: 'flex-1 min-w-0 px-2 py-1 bg-black/[0.03] font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-none resize-none [field-sizing:content] break-words',
   dataFlowEquals: 'shrink-0 self-start py-1 px-0.5 font-mono text-sm/6 text-stone-500 select-none',
@@ -112,7 +115,7 @@ export const field = {
 export const codeEditor = {
   openButton: 'w-full mt-2 p-1.5 rounded-md cursor-pointer bg-cream-200 hover:bg-cream-300 text-stone-700 hover:text-stone-900 border border-black/[0.08] transition-colors',
   // Overlay sits above the inspector, its toggle, and the Headless UI dialog root (z-[220] to z-[250]).
-  modalOverlay: 'fixed inset-0 z-[260] flex items-center justify-center p-2 sm:p-4 md:p-6 backdrop-blur-xs',
+  modalOverlay: 'fixed inset-0 z-[260] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/[0.20]',
   modalBackdrop: 'absolute inset-0',
   modal: `relative z-[270] bg-cream-100 ${radius.capsule} ${shadow.sheet} border border-black/[0.06]
           flex flex-col

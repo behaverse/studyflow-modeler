@@ -100,7 +100,7 @@ function depthOf(element: ElementRecord, byId: ReadonlyMap<string, ElementRecord
   return depth;
 }
 
-/** Paint order, since draw.io has no z-index and simply draws cells in document order */
+/** Paint order: draw.io has no z-index and draws cells in document order. */
 function paintRank(element: any): number {
   if (element.type === 'bpmn:Group') return 1;
   const isSubProcess = element.type === 'bpmn:SubProcess' || element.type === 'bpmn:Transaction'
@@ -109,7 +109,7 @@ function paintRank(element: any): number {
   return isFrame ? 0 : 2;
 }
 
-/** What a shape reads: its element as the study model holds it, and the model, for what it refers to by id. */
+/** The input a shape's style reads: its element as the study model holds it, and the model, to resolve the ids it refers to. */
 type Read = { bo: any; model: { get(id: string): any } };
 
 function labelOf({ bo, model }: Read, type: string): string {
@@ -187,7 +187,7 @@ function shapeStyle(element: any, { bo, model }: Read): string {
     return `${EVENT_BASE}outline=${eventOutline(element, bo)};symbol=${eventSymbol(bo)};`;
   }
   if (type === 'bpmn:SubProcess' || type === 'bpmn:Transaction' || type === 'bpmn:AdHocSubProcess') {
-    // `bpmnShapeType` only for the transaction: draw.io reads its `subprocess` value as an *event* sub-process.
+    // `bpmnShapeType` only for the transaction: draw.io reads its `subprocess` value as an event sub-process.
     const transaction = type === 'bpmn:Transaction' ? 'bpmnShapeType=transaction;' : '';
     const collapsed = element.expanded === false ? 'isLoopSub=1;' : 'verticalAlign=top;';
     return `${ACTIVITY_BASE}taskMarker=abstract;${transaction}${collapsed}${activityMarkers(bo, type)}`;
@@ -335,7 +335,7 @@ export function exportToDrawio(modeler: Editor): string {
     + '</mxfile>\n';
 }
 
-/** draw.io reads a diagram back out of the root element's `content` attribute: that is what makes an SVG "editable". */
+/** draw.io reads a diagram from the root element's `content` attribute; an SVG that has one is "editable". */
 function embedDrawioIntoSvg(svg: string, mxfile: string): string {
   const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
   (doc.querySelector('svg') ?? doc.documentElement).setAttribute('content', mxfile);

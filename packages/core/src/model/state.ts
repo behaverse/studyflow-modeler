@@ -63,7 +63,7 @@ export function storeNamed(model: StudyModel, name: string): Element | undefined
 }
 
 /** The value `name` is declared with from `elementId` outward, the innermost declaration winning, then the data
- * store's; `undefined` when none declares one. What a condition there reads before any run writes it. */
+ * store's; `undefined` when none declares one. A condition there reads this value before any run writes it. */
 export function declaredIn(model: StudyModel, elementId: string, name: string): unknown {
   for (let scope = model.get(elementId); scope; scope = model.parentOf(scope)) {
     const value = declaredOn(model, scope, name);
@@ -77,8 +77,8 @@ export function declaredIn(model: StudyModel, elementId: string, name: string): 
  * Lexical lookup of a dotted `path` from `elementId`: the element, then each container outward to the study root,
  * then the data store of that name, each read as the last run left it in the state, else as the file declares it
  * ({@link declaredOn}), so a label shows a threshold before any run. A lone `{reached}` is the element's own counter,
- * `_meta.reached.<element id>`, and 0 when it has none — a run that never reached it counts 0, and so does a file no
- * run has touched, never a container's count. `state.a.b` is absolute (`state._meta.reached.X` included).
+ * `_meta.reached.<element id>`, and 0 when it has none: a run that never reached it counts 0, and so does a file no
+ * run has touched. It is never a container's count. `state.a.b` is absolute (`state._meta.reached.X` included).
  * `undefined` when nothing resolves.
  */
 export function resolveStateIn(model: StudyModel, elementId: string, path: string): unknown {

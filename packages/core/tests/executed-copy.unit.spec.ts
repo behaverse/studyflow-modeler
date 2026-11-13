@@ -124,7 +124,7 @@ const FIRST: Record<string, Stamp> = {
 const stateOf = (work: number): Record<string, unknown> => ({ _meta: { reached: { Start: 1, Work: work } } });
 const stateText = (work: number): string => `\nstate:\n  _meta:\n    reached:\n      Start: 1\n      Work: ${work}\n`;
 
-/** What the first run leaves: each element's records in `extensions` after its other keys, before its documentation
+/** The first run leaves each element's records in `extensions` after its other keys, before its documentation
  * and the elements it holds, in either spelling of a list, a step's data edge among them; the run's own added to the
  * `extensions` the study's root has; and the state at the end. */
 const EXECUTED = ([
@@ -156,7 +156,7 @@ test('a re-run of an executed copy replaces the records it replaces and the stat
   const text = executedText(EXECUTED, executed);
   const added = after(after(EXECUTED, record(4, FIRST.P, 'keyed'), record(6, again.P, 'line')), record(6, FIRST.Work), record(10, again.Work, 'line'));
   expect(text).toBe(added.replace(record(6, FIRST.Start), record(6, again.Start)).replace(stateText(1), stateText(2)));
-  // What the run added is all it takes out: every line registered is still there.
+  // The run takes out only what it added: every line registered is still there.
   expect(removed(REGISTERED, text!)).toEqual([]);
   sameStudy(text!, studyText(executed.study, executed.metamodel), executed);
 });

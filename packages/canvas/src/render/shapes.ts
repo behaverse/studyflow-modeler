@@ -54,12 +54,13 @@ function eventRadius(w: number, h: number): number {
   return Math.max(0, Math.round((w + h) / 4));
 }
 
-/** Start: a ring. End: a ring with a filled centre. Intermediate/boundary: a double ring. */
-export function drawEvent(parent: SVGElement, w: number, h: number, style: ShapeStyle, kind: EventKind): SVGElement {
+/** Start: a ring. End: a ring with a filled centre. Intermediate/boundary: a double ring, `dashed` for a boundary
+ * event that leaves its activity running, as BPMN draws one that does not interrupt. */
+export function drawEvent(parent: SVGElement, w: number, h: number, style: ShapeStyle, kind: EventKind, dashed = false): SVGElement {
   const cx = w / 2;
   const cy = h / 2;
   const r = eventRadius(w, h);
-  const dash = kind === 'boundary' ? '4,3' : null;
+  const dash = dashed ? '4,3' : null;
   // An end event is the same disc as a start event, drawn with a heavy ring.
   const ring = kind === 'end' ? STROKE_WIDTH * 2.5 : STROKE_WIDTH;
   const outer = append(parent, create('circle', {

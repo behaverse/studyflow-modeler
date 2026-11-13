@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test';
 
 import { timelineOf, trialOf } from '@skills/jspsych/browser/trial';
 
-/** What a `jspsych://` step hands jsPsych in the browser runtime: the builds it loads, and the timeline it runs. */
+/** A `jspsych://` step hands jsPsych, in the browser runtime, the builds it loads and the timeline it runs. */
 
 test('a reference names the plugin, and its version jsPsych\'s, which picks the plugin\'s release line', () => {
   expect(trialOf('jspsych://html-keyboard-response@8')).toEqual({

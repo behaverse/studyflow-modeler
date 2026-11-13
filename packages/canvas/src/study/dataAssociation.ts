@@ -1,42 +1,33 @@
 /**
- * Data associations: create and delete `bpmn:DataInputAssociation` and
- * `bpmn:DataOutputAssociation` between a data shape and an activity.
+ * Data associations: create and delete `bpmn:DataInputAssociation` and `bpmn:DataOutputAssociation` between a data
+ * shape and an activity.
  *
- * A data association is the one connection that is **not** filed in a container.
- * It hangs off the activity itself — `activity.dataInputAssociations` /
- * `activity.dataOutputAssociations` — and only one of its two ends is a reference
- * to the data shape:
+ * A data association is the one connection that is not filed in a container. It hangs off the activity itself
+ * (`activity.dataInputAssociations` or `activity.dataOutputAssociations`), and only one of its two ends refers to
+ * the data shape. An input (data to activity) has the data shape in its `sourceRef`, a list, and the activity's
+ * input slot as its `targetRef`. An output (activity to data) has the activity's output slot as its `sourceRef` and
+ * the data shape as its `targetRef`.
  *
- * | | `sourceRef` (isMany) | `targetRef` | filed on |
- * |---|---|---|---|
- * | `DataInputAssociation` (data → activity) | `[dataShape]` | the activity's *input slot* | `activity.dataInputAssociations` |
- * | `DataOutputAssociation` (activity → data) | the activity's *output slot* | `dataShape` | `activity.dataOutputAssociations` |
+ * The slot is where the two forms of a studyflow document differ, and this module writes whichever one the activity
+ * is already in (`@core/document/io-specification.ts` is the authority on both):
  *
- * The "slot" is where the two shapes of a studyflow document diverge, and this
- * module writes whichever one the activity is already in (`@core/document/io-specification.ts`
- * is the authority on both):
+ * - Compact form: the activity has no `bpmn:InputOutputSpecification`, and the slot ref is left unset.
+ *   `expandIoSpecification` mints the `bpmn:DataInput` or `bpmn:DataOutput` (and the input and output sets) on the
+ *   way out to standard BPMN, and `inlineIoSpecification` folds it away on the way in. The canvas sees this form for
+ *   a document the app imported, so it is the common path.
+ * - Declared form: the activity carries an `ioSpecification` (a standard-BPMN document whose declarations the
+ *   compact form cannot hold, such as a slot no association uses or one a multi-instance marker binds, or a YAML
+ *   file that spells one out). A bare association would then be half a declaration, so the slot is minted too: a
+ *   `bpmn:DataInput` or `bpmn:DataOutput` filed in the `ioSpecification` and referenced from its `inputSets` or
+ *   `outputSets`, named the way core's own expansion names it.
  *
- * - **Compact form** — the activity has no `bpmn:InputOutputSpecification`. The slot
- *   ref is simply left unset; `expandIoSpecification` mints the `bpmn:DataInput` /
- *   `bpmn:DataOutput` (and the input/output sets) on the way out to standard BPMN,
- *   and `inlineIoSpecification` folds it away again on the way in. This is what the
- *   canvas sees for a document the app imported, so it is the common path.
- * - **Declared form** — the activity carries an `ioSpecification` (a standard-BPMN
- *   document whose declarations the compact form cannot hold, such as a slot no
- *   association uses or one a multi-instance marker binds, or a YAML file that spells
- *   one out). Then a bare association would be a dangling half-declaration, so the
- *   slot is minted too: a `bpmn:DataInput`/`bpmn:DataOutput` filed in the
- *   `ioSpecification` and referenced from its `inputSets`/`outputSets`, named the way
- *   core's own expansion names it.
+ * {@link pruneDataAssociation} reverses the declared form: deleting an association gives back the slot it minted
+ * (and the `ioSpecification` itself once it declares nothing), so a create followed by a delete returns the document
+ * it started from. A declared `dataInput` with no association left behind would stop the activity from being inlined
+ * on the next save.
  *
- * {@link pruneDataAssociation} is the exact inverse of that second half: deleting an
- * association gives back the slot it minted (and the `ioSpecification` itself once
- * it declares nothing), so a create+delete round-trips to the document it started
- * from instead of leaving a declared-but-unassociated `dataInput` behind — which
- * would silently make the activity un-inlineable on the next save.
- *
- * Like `study/remove.ts`, this module only writes the study model; the scene
- * bookkeeping, the revision bump and the events are the Mutator's.
+ * Like `study/remove.ts`, this module only writes the study model; the scene bookkeeping, the revision bump and the
+ * events are the Mutator's.
  */
 
 import { IdGenerator } from '@canvas/study/ids.ts';
@@ -58,15 +49,12 @@ export interface DataAssociationEnds {
 /**
  * Sort a `source → target` pair into `{ data, activity, direction }`.
  *
- * The drawn direction *is* the BPMN direction — the rules already classify the pair
- * that way (`study/rules.ts` `structuralConnection`: a data shape as source yields a
- * `DataInputAssociation`, a data shape as target a `DataOutputAssociation`) — so the
- * type is derived from which end is the data shape rather than trusted from the
- * caller.
+ * The drawn direction is the BPMN direction, and the rules already classify the pair that way (`study/rules.ts`
+ * `structuralConnection`: a data shape as source yields a `DataInputAssociation`, a data shape as target a
+ * `DataOutputAssociation`). So the type is derived from which end is the data shape, not taken from the caller.
  *
- * Returns `undefined` when the pair is not one data shape and one shape that can
- * actually hold that direction, which is exactly when the rules refuse it: only
- * `bpmn:Activity` and `bpmn:ThrowEvent` own `dataInputAssociations`, and only
+ * Returns `undefined` when the pair is not one data shape and one shape that can hold that direction, which is when
+ * the rules refuse it: only `bpmn:Activity` and `bpmn:ThrowEvent` own `dataInputAssociations`, and only
  * `bpmn:Activity` and `bpmn:CatchEvent` own `dataOutputAssociations`, so the metamodel is asked.
  */
 export function dataAssociationEnds(
@@ -107,7 +95,7 @@ export function wireDataAssociation(
 
   if (ends.direction === 'input') {
     setRef(model, association, 'sourceRef', data);
-    // With no `ioSpecification` the target slot stays unset — the compact form core's
+    // With no `ioSpecification` the target slot stays unset: the compact form, which core's
     // `expandIoSpecification` fills in on the way out to standard BPMN.
     if (io) setRef(model, association, 'targetRef', mintDataInput(model, io, activity, data, ids));
   } else {
@@ -124,8 +112,8 @@ export function wireDataAssociation(
  * same activity still does), that slot's entry in every input/output set, and the
  * `ioSpecification` itself once it declares nothing at all.
  *
- * Call it while the association is still wired — before its refs are cleared and
- * before it is unfiled — so its slot is still reachable.
+ * Call it while the association is still wired, before its refs are cleared and
+ * before it is unfiled, so its slot is still reachable.
  */
 export function pruneDataAssociation(model: StudyModel, association: Element, activity: Element | undefined): void {
   if (!activity) return;
@@ -146,7 +134,7 @@ export function pruneDataAssociation(model: StudyModel, association: Element, ac
   if (listOf(io, 'dataInputs').length > 0) return;
   if (listOf(io, 'dataOutputs').length > 0) return;
   // An `ioSpecification` declaring neither inputs nor outputs is noise the compact
-  // form has no room for; core's own inlining drops it for exactly this reason.
+  // form has no room for; core's own inlining drops it for the same reason.
   model.unfile(io);
 }
 
@@ -187,7 +175,7 @@ function idSlug(name: string): string {
 
 /**
  * Mint the `bpmn:DataInput` an association's `targetRef` points at, named after the
- * data shape it is fed from — the same slot name (and id shape) core's
+ * data shape it is fed from: the slot name (and id shape) core's
  * `expandIoSpecification` would have produced for the compact form.
  */
 function mintDataInput(model: StudyModel, io: Element, activity: Element, data: Element, ids: IdGenerator): Element {
@@ -200,7 +188,7 @@ function mintDataInput(model: StudyModel, io: Element, activity: Element, data: 
 
 /**
  * The `bpmn:DataOutput` an association's `sourceRef` points at. Core folds every
- * implicit output of an activity onto ONE `result` slot, so an existing one is
+ * implicit output of an activity onto one `result` slot, so an existing one is
  * reused rather than duplicated.
  */
 function mintDataOutput(model: StudyModel, io: Element, activity: Element, ids: IdGenerator): Element {

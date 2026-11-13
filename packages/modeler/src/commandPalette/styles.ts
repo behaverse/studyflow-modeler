@@ -3,7 +3,7 @@ import { ICONS } from '@modeler/icons';
 
 export const commandPalette = {
   root: 'relative z-[250] focus:outline-none',
-  backdrop: 'fixed inset-0 z-10 backdrop-blur',
+  backdrop: 'fixed inset-0 z-10 bg-black/[0.20]',
   layout: 'fixed inset-0 z-20 flex items-start justify-center pt-[15vh] p-4 overflow-y-auto',
   panel: `w-full max-w-lg ${radius.capsule} ${surface.sheet} border border-black/[0.06] ${shadow.sheet}
           duration-200 ease-out closed:transform-[scale(98%)] closed:opacity-0 overflow-hidden`,

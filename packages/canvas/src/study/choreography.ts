@@ -36,13 +36,13 @@ export function participantRefs(task: Element): string[] {
   return idsIn(task.participantRef);
 }
 
-/** What a band write did, and which depictions of it went stale. */
+/** The result of a band write, and which depictions of it went stale. */
 export interface BandWrite {
   /** The `bpmn:Participant` the band renders. */
   participant: Element;
   /** Whether the participant pair had to be minted (a study edit in itself). */
   minted: boolean;
-  /** Whether the participant's `name` actually changed. */
+  /** Whether the participant's `name` changed. */
   renamed: boolean;
 }
 
@@ -50,8 +50,8 @@ export interface BandWrite {
  * Write a band's text: ensure the participant pair exists, then set that participant's `name`. A typed task's top
  * band reads from the task itself, so it is not written (`undefined`).
  *
- * A `name` that already matches reports `renamed: false` — but a pair that had to be
- * minted is still a study edit, which is why {@link BandWrite} reports both.
+ * A `name` that already matches reports `renamed: false`, but a pair that had to be
+ * minted is still a study edit, so {@link BandWrite} reports both.
  */
 export function applyBandName(
   model: StudyModel,

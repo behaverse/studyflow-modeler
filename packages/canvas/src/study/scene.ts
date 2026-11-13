@@ -24,7 +24,7 @@ interface Base {
   readonly id: string;
   /** The BPMN element it is (`bpmn:Task`); a schema's type of it is its element's. */
   type: string;
-  /** What it draws, as the study model holds it. */
+  /** The element it draws, as the study model holds it. */
   element: Element;
   /** Containing node, or `undefined` at the top level. */
   parent?: SceneNode;
@@ -78,7 +78,7 @@ export interface SceneLabel extends Base {
 
 export type SceneElement = SceneNode | SceneEdge | SceneLabel;
 
-/** What draws an element of its own: nodes and edges, not the labels that caption them. */
+/** The scene elements that draw an element of their own: nodes and edges, not the labels that caption them. */
 export type Drawable = SceneNode | SceneEdge;
 
 /** The document root (process / collaboration) projected onto an element shape. */

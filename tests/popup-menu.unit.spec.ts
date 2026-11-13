@@ -38,12 +38,12 @@ test('the menu lists the palette\'s groups, then the appendable types of each sc
   const all = groups.flatMap((group) => group.entries);
   // Every row can be acted on: a BPMN type to mint, an id, a label.
   expect(all.every((e) => !!e.bpmnType && !!e.id && !!e.label)).toBe(true);
-  // Ids are unique — they are React keys and e2e handles.
+  // Ids are unique: they are React keys and e2e handles.
   expect(new Set(all.map((e) => e.id)).size).toBe(all.length);
   // The palette half is keyed by label (variants share a BPMN type); the schema half by extension type.
   expect(all.find((e) => e.id === 'create-Service')?.label).toBe('Service');
   expect(all.some((e) => e.id.startsWith('append-cognitive:'))).toBe(true);
-  // Search matches the label AND the type, so "usertask" finds "User".
+  // Search matches the label and the type, so "usertask" finds "User".
   expect(all.find((e) => e.id === 'create-User')?.keywords).toContain('usertask');
 
   // A schema type is listed when it is concrete, has a BPMN type to mint, and is not one the palette groups offer.

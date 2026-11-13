@@ -1,5 +1,5 @@
 /**
- * What every document of this skill is drawn with: the canvas's ink, written into the picture so a saved SVG carries
+ * The drawing tools every document of this skill uses: the canvas's ink, written into the picture so a saved SVG carries
  * its own paint, and text measured without a DOM, so a document is drawn the same in the page, in Node and in a spec.
  */
 

@@ -1,5 +1,5 @@
 /**
- * What a study makes, as data an AI reads to spell `add`, `append` and `replace`: the BPMN types it adds as shapes,
+ * The things a study can make, as data an AI reads to spell `add`, `append` and `replace`: the BPMN types it adds as shapes,
  * the schema types extending them, and the templates the installed schemas offer.
  */
 

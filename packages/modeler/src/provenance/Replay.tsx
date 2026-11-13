@@ -34,7 +34,7 @@ function elementsOf(record: ProvenanceRecord, study: Study): ElementRecord[] {
   return [scope, mentioned].filter((element): element is ElementRecord => element !== undefined);
 }
 
-/** The view the replay fades through a plane change: the element the canvas is mounted in, the app's own. */
+/** The element the replay fades during a plane change: the one the canvas is mounted in, which the app owns. */
 function viewOf(canvas: Canvas): HTMLElement {
   return canvas.getContainer();
 }
@@ -46,7 +46,7 @@ function resetFade(canvas: Canvas): void {
   view.style.opacity = '';
 }
 
-/** Stop the token's glide, and a plane change on its way, whose fade snaps back. */
+/** Stops the token's glide and any plane change in progress, whose fade snaps back. */
 function stopMotion(canvas: Canvas, glideFrame: RefObject<number | null>, planeShift: RefObject<number | null>): void {
   if (glideFrame.current) cancelAnimationFrame(glideFrame.current);
   glideFrame.current = null;
@@ -91,7 +91,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
       }
       if (!r.isDocument && r.action === 'executed') newest.set(r.scopeId, r);
     }
-    // A flow between two lit elements is part of the story even when no record names it.
+    // A flow between two lit elements is lit too, even when no record names it.
     const flows = study.list({ kind: 'edge' });
     for (const flow of flows) {
       if (flow.source && flow.target && touched.has(flow.source) && touched.has(flow.target)) touched.add(flow.id);
@@ -182,8 +182,8 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
         const height = vb.outer.height / scale;
         return { x: shape.x + shape.width / 2 - width / 2, y: shape.y + shape.height / 2 - height / 2, width, height };
       };
-      // The camera glides as the canvas moves it; the view fades over the same time. A step that comes first stops the
-      // glide, and what was to follow it does not happen.
+      // The camera glides as the canvas moves it; the view fades over the same time. A step that arrives before the
+      // glide ends stops it, and the callback that was to follow does not run.
       const fly = (dest: any, ms: number, fade: 'out' | 'in', then?: () => void) => {
         void view.getBoundingClientRect();
         view.style.transition = `opacity ${ms}ms ease-in-out`;
@@ -337,8 +337,8 @@ function ReplayTimeline({ onClose }: Props) {
     if (rect) jump(Math.round(((clientX - rect.left) / rect.width) * total));
   };
 
-  // The animation-tool staples: space plays, arrows step, Home/End jump to the ends. Heard once, from mount to unmount,
-  // with this render's handlers read from a ref.
+  // The usual keys of an animation tool: space plays, arrows step, Home/End jump to the ends. One listener lives
+  // from mount to unmount and reads this render's handlers from a ref.
   const keys = useRef<Record<string, () => void>>({});
   useEffect(() => {
     keys.current = {
@@ -368,9 +368,9 @@ function ReplayTimeline({ onClose }: Props) {
 
   return (
     <div className="fixed bottom-2 inset-x-2 z-[220]" data-testid="provenance-replay" data-covers="bottom">
-      {/* Over the bar's right end, where the inspector stood: the whole study, the step's element ringed. */}
+      {/* Over the bar's right end, in the inspector's place: the whole study, with the step's element ringed. */}
       <Minimap focus={focus} className="absolute bottom-full right-0 mb-2" covers="right" />
-      <div className={`${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat} text-stone-900 px-3 py-2`}>
+      <div className={`${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panel} text-stone-900 px-3 py-2`}>
         <div className="flex items-center gap-1">
           <h1
             className="text-base font-semibold text-stone-900 tracking-tight pr-2"

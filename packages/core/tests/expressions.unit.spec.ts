@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { checkExpressions } from '@core/checks/expressions';
 import { studyModel } from '@tests/schemas';
 
-/** What a study writes to be evaluated is checked before any run: a condition is FEEL, a timer's time ISO 8601. */
+/** An expression a study writes to be evaluated is checked before any run: a condition is FEEL, a timer's time ISO 8601. */
 
 const study = (gate: string, timer: string): string => `id: expressions
 definitions:

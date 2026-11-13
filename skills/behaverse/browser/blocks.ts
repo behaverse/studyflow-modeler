@@ -1,5 +1,5 @@
 /**
- * What a played task's trials came to, block by block, as the build's own records say: the `blocks` of a Behaverse
+ * The outcome of a played task's trials, block by block, as the build's own records say: the `blocks` of a Behaverse
  * task's result (`behaverse:TaskResult`, `BlockCounts` in behaverse.moddle.yaml), counted by the rule the local runner
  * counts them by (`block_counts` in local.py), so a study reads the same result whichever runtime plays the task.
  */

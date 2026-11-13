@@ -45,7 +45,7 @@ export type ReplaceElementCommand = {
   attributes?: Record<string, unknown>;
 };
 
-/** Retype the selected shape in place, keeping its name, position and flows, and select it: its new id, when it took. */
+/** Retype the selected shape in place, keeping its name, position and flows, and select it. Returns its new id when the change took. */
 export function runReplaceElement(modeler: Editor, command: ReplaceElementCommand): string | undefined {
   const { id } = modeler.study.replace({ id: command.id, ...newShape(command.bpmnType, command.extensionType, command.attributes) });
   if (id !== undefined) modeler.canvas.select(id);
@@ -66,7 +66,7 @@ export type ToggleDefaultFlowCommand = {
   id: string;
 };
 
-/** Mark a sequence flow as its source's `default`, or unmark it. The slash moves, never multiplies. */
+/** Mark a sequence flow as its source's `default`, or unmark it. A source has one default at most, so marking another flow moves the slash. */
 export function runToggleDefaultFlow(modeler: Editor, command: ToggleDefaultFlowCommand): void {
   const { study } = modeler;
   const flow = study.get(command.id);

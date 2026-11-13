@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { viewOf } from '@runner/nodes/message/view';
 
-/** What a person is shown of a message, and answers with. */
+/** The parts of a message a person is shown and answers with. */
 test('a message shows its text, the fields of what it carries, and the options to answer by', () => {
   // A step's data inputs, by source id: a trial, the instruction, and a prompt with no value this run.
   expect(viewOf({

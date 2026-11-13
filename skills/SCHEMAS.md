@@ -1,6 +1,6 @@
 # Schema reference
 
-Every key a `<name>/<name>.moddle.yaml` can carry, and what reads it. [README.md](README.md) says what a skill is.
+Every key a skill's `*.moddle.yaml` can carry, and what reads it. [README.md](README.md) says what a skill is.
 
 ## Schemas
 
@@ -16,15 +16,15 @@ The first line, `# yaml-language-server: $schema=https://unpkg.com/moddle/resour
 editor check moddle's own keys as you type. That schema requires `name`, `prefix`, `uri` and `types` (`types: []`
 when there are none) and allows any other key, so the app's keys pass.
 
-**Copying a file to start?** `eeg/eeg.moddle.yaml` is the domain pack to copy
-from: inheritance from core types, wrappers, enums, roles, and templates.
+To start a schema, copy `eeg/eeg.moddle.yaml`, the domain pack: it shows
+inheritance from core types, wrappers, enums, roles, and templates.
 `studyflow/studyflow.moddle.yaml` is the vocabulary every diagram uses. It alone
 declares app-wide powers (the inspector tab set, `bpmn:*` redefines, expression
 traits), which a domain pack must not copy; its `Scheduling` is the plainest trait.
 
 ## Conventions
 
-- A `description` is one sentence the inspector shows in a 256px tooltip; keep it under about 90 characters. Rationale, engine notes, and endpoint details go in YAML comments beside the key, never in the description.
+- A `description` is one sentence the inspector shows in a 256px tooltip, of 90 characters at most; the schema's own, the Settings blurb, may run longer. Rationale, engine notes, and endpoint details go in YAML comments beside the key, never in the description.
 - A plain YAML scalar cannot contain a colon followed by a space; quote a description that does.
 - Attribute names are camelCase nouns. Put a unit in the attribute's meta (`samplingRate` → `meta.unit: Hz`). Do not put units in the attribute name (`samplingRateHz` is wrong).
 - An enum attribute that allows values outside its list is `meta.editable: true`.
@@ -48,13 +48,13 @@ traits), which a domain pack must not copy; its `Scheduling` is the plainest tra
 | `required` | `true`: the schema always loads, and the modeler's settings mark it with a lock and cannot switch it off. Left out, it is `false`: a skill the user can switch off. |
 | `xml.tagAlias` | `lowerCase`, in every schema: moddle writes each element's tag in lowerCamelCase (`<eeg:session>`). |
 | `version` | `'YY.M.N'`, quoted, like the app's own version. |
-| `categories` | Inspector tabs, **studyflow schema only** (the tab set is app-wide and pinned by `tests/schemas.unit.spec.ts`): each a `name`, an `order`, a `description`, and `synthetic: true` for a tab drawn by its own section. An attribute joins one in its `meta.categories`. Every other schema gets a tab of its own `name`, right after General, where its attributes file by default. |
+| `categories` | Inspector tabs, in the studyflow schema only (the tab set is app-wide and pinned by `tests/schemas.unit.spec.ts`): each a `name`, an `order`, a `description`, and `synthetic: true` for a tab drawn by its own section. An attribute joins one in its `meta.categories`. Every other schema gets a tab of its own `name`, right after General, where its attributes file by default. |
 | `enumerations`, `types`, `templates` | The content; below. |
 
 `templates` come last in the file: what the schema is, then what it declares, then what the palette offers.
 `tests/schemas.unit.spec.ts` checks the forms: a lowercase `prefix`, an http(s) `uri` no other schema shares, a
-quoted `YY.M.N` `version`, a `lowerCase` `xml.tagAlias`, a blurb that fits a Settings row, and PascalCase type
-and enumeration names that no other schema declares.
+quoted `YY.M.N` `version`, a `lowerCase` `xml.tagAlias`, a blurb that fits a Settings row, PascalCase type and
+enumeration names that no other schema declares, and descriptions that fit the tooltip.
 
 ## Types
 
@@ -80,7 +80,7 @@ types point at (`prov:Activity`), and writes `superClass: [Element]`, moddle's r
 | Key | Consumer |
 | --- | --- |
 | `icon` | Canvas + palette + append-menu glyph (Iconify class). |
-| `editor` (on a value type or any other type) | Default editor for every attribute *of that type* (see editor names below). |
+| `editor` (on a value type or any other type) | Default editor for every attribute of that type (see editor names below). |
 | `roles` | What the type stands for to exporters, the data-operation marker and the reporting documents (`instrument`, `signal`, `acquisition`, `screening`, …). `data-element` alone follows from the BPMN attach point; don't restate it. |
 | `presenter` | The upper band of a typed choreography task: a template naming the extension's attributes in angle brackets (`"Behaverse · <instrument>"`), never a run's `{placeholder}`. Empty or absent, the band reads "Task software". |
 | `glyph` | The attribute whose value is drawn as text over the type icon (`instrument`). |
@@ -147,7 +147,7 @@ types:
 | `editor` | Named editor override. Known names (checked at compile): `csvw-table`, `code`, `markdown`, `checklist`; the list lives in `packages/core/src/notation/types.ts` (`EDITOR_NAMES`) and the inspector registry is typed off it. |
 | `expression` | With `type: bpmn:Expression`: the inspector edits it as a string of FEEL, and flags one that does not parse ([Expressions](../docs/reference.qmd#expressions)). |
 | `languageAttr` | Sibling attribute holding the code editor's language (e.g. `bpmn:scriptFormat`). |
-| `icon` | Event overlay glyph drawn when the attribute has a value (a *different* meaning than a type's `icon`). |
+| `icon` | Event overlay glyph drawn when the attribute has a value. A type's `icon` means something else. |
 | `unit` | Unit of a numeric attribute (`Hz`, `s`, `rad`); shown after the field label. Never part of the name. |
 
 ## Attribute precedence
@@ -215,7 +215,9 @@ exercises. The gallery draws an example's card when it opens: the main canvas, w
 Iconify classes must use a prefix enabled in `assets/css/app.css`
 (`@plugin "@iconify/tailwind4"` block); an unlisted prefix renders an empty
 box, and is left out of PNG/SVG exports; every listed icon is inlined from the
-stylesheet, so exports need no network.
+stylesheet, so exports need no network. A glyph is Phosphor's (`ph`). The block
+also lists `bpmn`, for BPMN's own shapes, and `tabler`, for a skill's lettered
+hexagon, which Phosphor does not have.
 
 ## Reserved local names
 

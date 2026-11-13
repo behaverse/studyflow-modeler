@@ -23,10 +23,10 @@ const navbar = {
   brandWordmarkBold: 'font-semibold',
 
   /* Centred in the gap the brand and the inspector leave, at every width and
-     every UI scale -- see the `--navbar-*` note in `assets/css/app.css`. */
+     every UI scale; see the `--navbar-*` note in `assets/css/app.css`. */
   shell: `fixed top-2 z-50 flex items-center h-10
           left-[var(--navbar-left)] -translate-x-1/2 max-w-[var(--navbar-max-width)]
-          ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat}
+          ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panel}
           px-1.5`,
 
   diagramSlot: 'flex items-center min-w-0 flex-shrink',
@@ -52,7 +52,7 @@ function SimulateButton() {
   return (
     <button
       type="button"
-      title={isSimulating ? 'Stop simulation' : 'Simulate the studyflow'}
+      title={isSimulating ? 'Stop simulation' : 'Simulate the study'}
       className={`${SIMULATE_BASE} ${isSimulating ? SIMULATE_ACTIVE : SIMULATE_IDLE}`}
       onClick={() => executeCommand(modeler, { type: 'ToggleSimulation' })}
     >
@@ -90,7 +90,7 @@ function RunButton() {
   return (
     <button
       type="button"
-      title="Open this studyflow in the  runner"
+      title="Open this study in the runner"
       disabled={busy}
       className={RUN_BUTTON_CLS}
       onClick={handleClick}
@@ -128,7 +128,7 @@ export function NavBar() {
           <CommandPalette ref={paletteRef} />
           <button
             type="button"
-            title={`Menu (${OPEN_PALETTE_SHORTCUT_LABEL})`}
+            title={`Menu (${OPEN_PALETTE_SHORTCUT_LABEL} or /)`}
             aria-label="Open command palette"
             className={navBurgerBtnCls}
             onClick={() => paletteRef.current?.open()}
@@ -153,7 +153,7 @@ export function NavBar() {
             ) : (
               <span
                 className={navbar.diagramName}
-                title="Click to edit diagram name"
+                title="Click to rename the study"
                 onClick={startEditingDiagramName}
               >
                 {diagramName}

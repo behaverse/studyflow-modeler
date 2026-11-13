@@ -8,7 +8,7 @@ description: >-
   Each record is a `prov:Activity` entry on the element it is about; the study's own (created, modified, and one
   `executed` per run) are on its root.
 uri: https://w3id.org/studyflow/prov
-icon: iconify tabler--history
+icon: iconify ph--clock-counter-clockwise
 order: 2
 required: true
 xml:
@@ -26,7 +26,8 @@ types:
       - Element
     properties:
       - name: action
-        description: What happened (`created`, `modified`, `imported`, `executed`, `invalidated`, `reused`; on a data edge, `read` or `wrote`).
+        # `created`, `modified`, `imported`, `executed`, `invalidated`, `reused`; on a data edge, `read` or `wrote`.
+        description: What happened (`created`, `executed`, ...); on a data edge, `read` or `wrote`.
         isAttr: true
         type: String
       - name: when
@@ -46,8 +47,9 @@ types:
         meta:
           optional: true
       - name: what
-        # For `invalidated` and `reused`, the `when` of the entry it refers to; for `read` and `wrote`, the commit.
-        description: Element ids the action touched, space-separated; on a data edge, the commit holding the data as read or written.
+        # For `invalidated` and `reused`, the `when` of the entry it refers to; for `read` and `wrote`, the commit
+        # holding the data as read or written.
+        description: Element ids the action touched, space-separated; on a data edge, the commit of the data.
         isAttr: true
         type: String
         meta:
@@ -65,36 +67,32 @@ types:
         meta:
           optional: true
       - name: allocationSeed
-        description: >-
-          For `executed` on a random gateway that conceals its allocation, the seed it drew from, which the run
-          reveals once it has drawn; its SHA-256 is the gateway's `seedDigest`.
+        # The run reveals the seed once it has drawn; its SHA-256 is the gateway's `seedDigest`.
+        description: For `executed` on a random gateway that conceals its allocation, the seed it drew from.
         isAttr: true
         type: String
         meta:
           optional: true
       - name: plan
-        description: >-
-          For `executed`, the digest of the protocol the run walked (`sha256:…`): the study without its
-          state, its provenance and its drawing. `studyflow validate` recomputes it, so a protocol edited
-          after the run no longer matches the record.
+        # The protocol is the study without its state, its provenance and its drawing. `studyflow validate` recomputes
+        # the digest, so a protocol edited after the run no longer matches the record.
+        description: For `executed`, the digest of the protocol the run walked (`sha256:...`).
         isAttr: true
         type: String
         meta:
           optional: true
       - name: clock
-        description: >-
-          For `executed`, the clock the run's timers waited on, when it was not the machine's: `virtual`, a clock
-          that jumps ahead to the next timer whenever the run is idle (`studyflow run --clock virtual`), so the
-          times the run recorded are virtual ones.
+        # `virtual` is a clock that jumps ahead to the next timer whenever the run is idle (`studyflow run --clock
+        # virtual`), so the times the run recorded are virtual ones.
+        description: For `executed`, the clock the run's timers waited on when not the machine's (`virtual`).
         isAttr: true
         type: String
         meta:
           optional: true
       - name: commit
-        description: >-
-          For `executed`, the commit of the run repository that holds the step as it ran: its own
-          drawing, and every artifact it read or made. A run re-runs a step whose files or drawing
-          differ from what that commit holds.
+        # The commit holds the step's own drawing and every artifact it read or made. A run re-runs a step whose files
+        # or drawing differ from what that commit holds.
+        description: For `executed`, the commit of the run repository that holds the step as it ran.
         isAttr: true
         type: String
         meta:

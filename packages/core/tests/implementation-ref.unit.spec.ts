@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { parseImplementationRef, type ImplementationRef } from '@core/implementation';
 
-/** Grammar: `<scheme>://<ref>[@<version-or-digest>][#<fragment>]`, ref/version split at the LAST `@` before any `#`. */
+/** Grammar: `<scheme>://<ref>[@<version-or-digest>][#<fragment>]`, ref/version split at the last `@` before any `#`. */
 
 test('parseImplementationRef accepts a scheme, a ref, and an optional version', () => {
   const CASES: [label: string, input: string, value: ImplementationRef][] = [

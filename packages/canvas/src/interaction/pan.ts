@@ -6,7 +6,7 @@
 import type { Point } from '@canvas/study/scene.ts';
 import type { Viewport } from '@canvas/view/viewport.ts';
 
-/** What one zoom step multiplies the scale by. */
+/** The factor one zoom step multiplies the scale by. */
 export const ZOOM_STEP = 1.25;
 const WHEEL_ZOOM = 0.002;
 

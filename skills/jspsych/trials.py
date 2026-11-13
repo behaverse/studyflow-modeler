@@ -1,8 +1,8 @@
 """A jsPsych trial as the study's actor is sent it and as the run records it (SKILL.md beside this file, "Local runs").
 
 The local runner (`local.py`) plays a `jspsych://` step's timeline in jsPsych's data-only simulation mode, each trial's
-response coming from the actor along the task's message flows. What it decides apart from the walk, the page and the
-network is here: which jsPsych builds a reference plays, the timeline the Parameters make, what a trial offers the actor
+response coming from the actor along the task's message flows. This module holds what it decides apart from the walk, the page and
+the network: which jsPsych builds a reference plays, the timeline the Parameters make, what a trial offers the actor
 and what each option presses, the message the actor is sent, the response its reply makes, and the trial's record.
 """
 
@@ -24,12 +24,12 @@ RUNNER_KEYS = ("ResponseOptions", "Bot")
 # Seconds the actor has for a trial that waits however long it takes (no `trial_duration`) when the task settings give
 # it no deadline: as long as the SDK's exchange waits for a message that gives no time (`exchange.WAIT`).
 WAIT = 30.0
-# What a trial's record says it is, as a record of the Behaverse Data Model says (`record_of`).
+# The types a trial's record gives itself, as a record of the Behaverse Data Model does (`record_of`).
 TYPES = ["TaskEvent", "BlockEvent", "TrialEvent", "TrialEnd"]
 
 
 def builds_of(implementation: str) -> dict[str, Any]:
-    """What a `jspsych://<plugin>@<version>` reference plays, read as the browser runtime reads it (`browser/trial.ts`,
+    """The builds a `jspsych://<plugin>@<version>` reference plays, read as the browser runtime reads it (`browser/trial.ts`,
     `trialOf`): the plugin, jsPsych's version, each build as its npm package, version and file (jsPsych's sets
     `jsPsychModule`), and the global the plugin's build sets (`jsPsychHtmlKeyboardResponse`)."""
     scheme, _, rest = str(implementation or "").partition("://")
@@ -58,7 +58,7 @@ def unpkg(build: dict[str, str]) -> str:
 
 
 def played(parameters: dict[str, Any]) -> dict[str, Any]:
-    """What of the Parameters wired into a step jsPsych plays: all but the runner's keys (`RUNNER_KEYS`). The plan hands
+    """The part of the Parameters wired into a step that jsPsych plays: all but the runner's keys (`RUNNER_KEYS`). The plan hands
     a runner every Parameters object wired into a step merged into one (packages/runtime-local/CONTRACT.md, "The plan"),
     so the protocol and the task settings are told apart by their keys, never by the object they came from."""
     return {key: value for key, value in parameters.items() if key not in RUNNER_KEYS}
@@ -160,7 +160,7 @@ def response_options(parameters: dict[str, Any], element_id: str) -> dict[str, s
 
 
 def offered(choices: Any, keys: bool, mapping: dict[str, str] | None) -> dict[str, Any]:
-    """What a trial offers the actor, each option with the response it makes in jsPsych's data: a key the trial takes,
+    """The options a trial offers the actor, each with the response it makes in jsPsych's data: a key the trial takes,
     as its `choices` spell it, or, for a plugin of buttons, the button's place among them. With `ResponseOptions`, its
     options whose key or button the trial lists, in any case (as jsPsych compares keys); without, the trial's choices
     themselves. A trial that lists none (`NO_KEYS`, `ALL_KEYS`, or no `choices`) offers nothing: no trial the actor
@@ -206,8 +206,8 @@ class _Text(HTMLParser):
 
 
 def text_of(markup: Any) -> Any:
-    """A stimulus as text: the text its markup shows, blanks collapsed, one line per block (`<p>A</p>` is `A`). What is
-    no text is itself."""
+    """A stimulus as text: the text its markup shows, blanks collapsed, one line per block (`<p>A</p>` is `A`). A value that
+    is not text is returned as it is."""
     if not isinstance(markup, str):
         return markup
     parser = _Text()
@@ -227,7 +227,7 @@ def message_of(index: int, parameters: dict[str, Any], options: dict[str, Any], 
 
 
 def answer_of(label: str | None, options: dict[str, Any], latency: float, window: Any = None) -> dict[str, Any]:
-    """What jsPsych is told the participant did: the response the option the actor's answer names makes (a key, or a
+    """The response jsPsych is told the participant made: the one the option the actor's answer names makes (a key, or a
     button's place) and its time in ms, from the message to the answer. An answer that names no option, or none in time
     (the exchange's None), is no response: both null. jsPsych's own check drops a response later than the trial's
     `trial_duration`, which is the actor's deadline unless the task settings give it longer; then `window` is that

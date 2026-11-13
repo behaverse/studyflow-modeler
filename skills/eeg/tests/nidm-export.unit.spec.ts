@@ -77,7 +77,7 @@ test.describe('NIDM export', () => {
     expect(turtle).toMatch(statement('rdfs:label', ' ', '"Raw EEG"'));
     expect(turtle).toMatch(statement('nidm:format', ' ', '"edf"'));
     expect(turtle).toMatch(statement('dct:title', ' ', '"EEG study"'));
-    // What the activity read, and what it wrote.
+    // The entity the activity read, and the one it wrote.
     expect(turtle).toMatch(statement('prov:used', ' ', 'core:EEG_1'));
     expect(turtle).toMatch(statement('core:Table_1', ' ', 'prov:wasGeneratedBy', ' ', 'core:Filter_1'));
   });

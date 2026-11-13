@@ -37,7 +37,8 @@ categories:
 
 enumerations:
   - name: DatasetFormatEnum
-    description: Data standard the dataset is organized by. A skill adds the standards its domain keeps data in.
+    # A skill adds the standards its domain keeps data in.
+    description: Data standard the dataset is organized by.
     literalValues: []
   - name: TableFormatEnum
     description: On-disk format of a table.
@@ -110,7 +111,8 @@ enumerations:
         description: The earlier messages from the same instance of the asking pool, and the answers to them.
       - name: Window
         value: window
-        description: The conversation, as `conversation` keeps it, cut to the instructions (the prompts a step sends once) and the last `memoryWindow` exchanges.
+        # The conversation is the one `conversation` keeps; the instructions are the prompts a step sends once.
+        description: The conversation cut to the instructions and the last `memoryWindow` exchanges.
   # Coarse on purpose: a skill adds the kinds it knows with `extends: studyflow:ActorTypeEnum` (agentic adds `llm`).
   - name: ActorTypeEnum
     description: What kind of actor a pool is.
@@ -214,8 +216,9 @@ types:
       - bpmn:Process
     properties:
       - name: seed
-        # Pinned in the plan, read by both runners, echoed on the archived copy.
-        description: Root seed for the study's random gateways, handed to partial runners in the plan (the python runner seeds each step with it). A browser link's seed replaces it; unset, a local run is unseeded.
+        # Pinned in the plan, read by both runners, echoed on the archived copy. Partial runners get it in the plan
+        # (the python runner seeds each step with it). A browser link's seed replaces it.
+        description: Root seed for the study's random gateways; unset, a local run is unseeded.
         isAttr: true
         type: Integer
         meta:
@@ -289,7 +292,7 @@ types:
   # BPMN gives a choreography task no data of its own. A cognitive task is one (the study's software presents,
   # the actor on the lower band responds), and it reads settings and writes records, so here it may.
   - name: ChoreographyData
-    description: A choreography task that reads and writes data through data associations, as a cognitive task does.
+    description: A choreography task that reads and writes data through data associations.
     extends:
       - bpmn:ChoreographyTask
     isAbstract: true
@@ -308,14 +311,15 @@ types:
 
   # A property lives for one instance of what declares it; a data store, for the whole study.
   - name: InitialValue
-    description: The initial value of a property or a data store; names starting with `_` are reserved for the runner.
+    # Names starting with `_` are reserved for the runner.
+    description: The initial value of a property or a data store.
     extends:
       - bpmn:Property
       - bpmn:DataStore
     isAbstract: true
     properties:
       - name: value
-        description: Initial value, as a literal; a property takes it when its scope starts, a data store when the study has none.
+        description: A literal a property takes when its scope starts, a data store when the study has none.
         isAttr: true
         type: String
   - name: StartEvent
@@ -426,7 +430,9 @@ types:
     isAbstract: true
     properties:
       - name: memory
-        description: What a pool a runner plays remembers of the messages the steps inside this sub-process send it, in place of its actor's own `memory` (an arm of a study whose actor keeps the conversation, and one whose actor does not). Unset, the actor's own.
+        # In place of the actor's own `memory` (an arm of a study whose actor keeps the conversation, and one whose
+        # actor does not). Unset, the actor's own.
+        description: What a pool a runner plays remembers of the messages this sub-process's steps send it.
         isAttr: true
         type: MemoryEnum
         meta:
@@ -470,12 +476,12 @@ types:
           pinned: true
 
   - name: Actor
-    description: 'One actor, who or what takes part in the study: a person, a program, or a device, drawn as a pool or named on a band.'
+    description: A person, a program or a device that takes part, drawn as a pool or named on a band.
     superClass:
       - bpmn:Participant
     meta:
       icon: iconify ph--users-three
-      # What an actor that only takes bands can be: one kind per literal of this enum attribute.
+      # The kinds an actor that only takes bands can be: one per literal of this enum attribute.
       participantKind: actorType
     properties:
       - name: actorType
@@ -492,7 +498,12 @@ types:
             actorType:
               $not: human
       - name: memory
-        description: What a pool with no process remembers between the messages it is sent, when a runner plays it (a model). `none`, each message on its own. `conversation`, the earlier messages from the same instance of the pool that asks, with its answers to them, so a model answering one participant sees that participant's earlier trials and no other's. `window`, that conversation cut to the instructions and the last `memoryWindow` exchanges, so what it is sent stays the same size however long the session.
+        # For a pool with no process, when a runner plays it (a model). `none`, each message on its own. `conversation`,
+        # the earlier messages from the same instance of the pool that asks, with its answers to them, so a model
+        # answering one participant sees that participant's earlier trials and no other's. `window`, that conversation
+        # cut to the instructions and the last `memoryWindow` exchanges, so what it is sent stays the same size however
+        # long the session.
+        description: What a pool a runner plays (a model) remembers between the messages it is sent.
         isAttr: true
         type: MemoryEnum
         default: none
@@ -501,7 +512,7 @@ types:
             actorType:
               $not: human
       - name: memoryWindow
-        description: Under `memory` `window`, how many of the latest exchanges the pool remembers beside the instructions.
+        description: How many of the latest exchanges a `window` memory keeps, beside the instructions.
         isAttr: true
         type: Integer
         default: 20
@@ -621,7 +632,8 @@ types:
     isAbstract: true
     properties:
       - name: bpmn:implementation
-        description: Software to run, as `<scheme>://<ref>[@<version>][#<fragment>]` (`python://`, `shell://`, `docker://`).
+        # Schemes such as `python://`, `shell://`, `docker://`.
+        description: Software to run, as `<scheme>://<ref>[@<version>][#<fragment>]`.
         isAttr: true
         type: String
         # One ref is enough: moddle resolves it per extended type.
@@ -793,7 +805,8 @@ types:
     isAbstract: true
     properties:
       - name: uri
-        description: Where the data lives (`data/raw/`, `results/model.joblib`, `s3://bucket/study`, a DOI or URL); unset stays in memory.
+        # `data/raw/`, `results/model.joblib`, `s3://bucket/study`, a DOI or URL.
+        description: Where the data lives (a path such as `data/raw/`, a DOI or URL); unset stays in memory.
         isAttr: true
         type: String
         meta:

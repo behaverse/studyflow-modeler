@@ -19,7 +19,7 @@ import { straightRoute } from '@canvas/study/orthogonal.ts';
 import type { Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { isHidden, visibleEndpointOf } from '@canvas/study/tree.ts';
 
-/** What a `schema` attribute names, to be drawn joined to the element holding it. */
+/** The type a `schema` attribute names, drawn joined to the element holding it. */
 const SCHEMA = 'studyflow:Schema';
 
 export interface ImpliedLink {

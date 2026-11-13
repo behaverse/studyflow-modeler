@@ -2,7 +2,7 @@ export type ImplementationRef = {
   scheme: string;
   ref: string;
   version?: string;
-  /** What `#` names inside the ref: a plugin in a repository (`…@v0.4.0#flanker`). */
+  /** The part after `#` in the ref: a plugin in a repository (`…@v0.4.0#flanker`). */
   fragment?: string;
 };
 

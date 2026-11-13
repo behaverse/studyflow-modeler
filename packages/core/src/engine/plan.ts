@@ -9,8 +9,8 @@ import { expandInline, splitBinding } from '@core/model/spelling';
 const isMapping = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 
 /**
- * The plan: a study as one JSON document, what a partial runner reads instead of the diagram (packages/runtime-local/CONTRACT.md,
- * "The plan") and what the walk walks. Everything is spelled as the XML spells it: an element by its tag's local name
+ * The plan: a study as one JSON document, which a partial runner reads instead of the diagram (packages/runtime-local/CONTRACT.md,
+ * "The plan") and which the walk walks. Everything is spelled as the XML spells it: an element by its tag's local name
  * (`task`, `sequenceFlow`), its attributes under their local names as text, a reference as the id it names. Nothing
  * is inferred: an attribute the diagram omits is absent.
  */
@@ -82,7 +82,7 @@ export type PlanElement = {
 
 export type Plan = {
   protocol: number;
-  /** What the person running the study asked the runners for (`--option sim`): each runner reads what it knows. */
+  /** The options the person running the study gave the runners (`--option sim`): each runner reads the ones it knows. */
   options: Record<string, unknown>;
   study: { id: string | null; name: string | null; seed: string | null; dependencies: string[] };
   /** Directories a boundary input may be staged from. */

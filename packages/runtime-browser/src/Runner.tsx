@@ -15,8 +15,8 @@ import { getRunObservers, type RunObserver } from '@runner/observers';
 export const layout = {
   page: 'flex flex-col h-screen',
   title: 'font-semibold text-stone-900 text-sm leading-tight',
-  badge: 'text-[10px] uppercase bg-stone-200 text-stone-700 rounded px-2 py-0.5',
-  meta: 'text-[10px] uppercase tracking-wide text-stone-500',
+  badge: 'text-[0.6875rem] uppercase bg-stone-200 text-stone-700 rounded px-2 py-0.5',
+  meta: 'text-[0.6875rem] uppercase tracking-wide text-stone-500',
   body: 'relative flex flex-1 min-h-0',
   stage: 'relative flex-1 bg-black',
   cover: 'absolute inset-0 flex items-center justify-center bg-black/85 text-white text-sm transition-opacity duration-300',
@@ -25,7 +25,7 @@ export const layout = {
   terminalTitle: 'text-lg font-semibold',
   terminalBody: 'max-w-prose text-sm text-white/70 text-center',
   terminalList: 'max-w-prose w-full text-xs text-white/60 space-y-1 font-mono',
-  logsToggle: 'absolute top-3 right-3 z-20 text-[11px] uppercase tracking-wide bg-black/70 hover:bg-black/85 text-white rounded px-2.5 py-1 backdrop-blur transition-colors shadow-md',
+  logsToggle: 'absolute top-3 right-3 z-20 text-[0.6875rem] uppercase tracking-wide bg-black/70 hover:bg-black/85 text-white rounded px-2.5 py-1 transition-colors shadow-md',
   sidebar: 'absolute top-0 right-0 bottom-0 w-80 bg-stone-100 border-l border-stone-300 flex flex-col p-3 text-sm shadow-lg transition-transform duration-200 z-10',
   sidebarOpen: 'translate-x-0',
   sidebarClosed: 'translate-x-full',
@@ -173,10 +173,10 @@ export function Runner() {
       if (stored) {
         setXml(stored);
       } else {
-        addLog('error', `No studyflow was handed over for diagram=${source.id}.`);
+        addLog('error', `No study was handed over for diagram=${source.id}.`);
         setRunError(
           'This link has expired or was already used. Ask for a new one, or open the '
-          + 'studyflow in the modeler and press Run again.',
+          + 'study in the modeler and press Run again.',
         );
         setPhase('error');
       }
@@ -185,7 +185,7 @@ export function Runner() {
     fetch(source.url).then((r) => r.text()).then(setXml).catch((err) => {
       addLog('error', `Could not fetch ${source.url}: ${err}`);
       setRunError(
-        `The studyflow at ${source.url} could not be loaded. `
+        `The study at ${source.url} could not be loaded. `
         + 'Check that the address is right and reachable from this browser.',
       );
       setPhase('error');
@@ -233,13 +233,13 @@ export function Runner() {
           addLog('info', `The link sets '${name}' to ${parameters[name]}, replacing the study's own value.`);
         }
         for (const name of undeclared) {
-          addLog('skip', `'${name}' is not a declared parameter of this studyflow; its value is bound anyway.`);
+          addLog('skip', `'${name}' is not a declared parameter of this study; its value is bound anyway.`);
         }
 
         // A value the link leaves unset is the first thing to fix, before the checks read a study missing it.
         const them = unbound.length === 1 ? 'it' : 'them';
         const issues: ValidationIssue[] = unbound.length > 0
-          ? [{ message: `This studyflow expects ${unbound.join(', ')} to be set, and this link does not set ${them}. Add ${them} to the address, e.g. &${unbound[0]}=...` }]
+          ? [{ message: `This study expects ${unbound.join(', ')} to be set, and this link does not set ${them}. Add ${them} to the address, e.g. &${unbound[0]}=...` }]
           : await validate(studyflow, addLog);
         for (const issue of issues) {
           addLog(issue.severity === 'warning' ? 'skip' : 'error', named(issue));
@@ -351,7 +351,7 @@ export function Runner() {
         >
           <div className={layout.sidebarHeader}>
             <div className={layout.sidebarInfo}>
-              <span className={layout.title}>{studyflowName ?? 'Untitled studyflow'}</span>
+              <span className={layout.title}>{studyflowName ?? 'Untitled study'}</span>
               <div className={layout.sidebarInfoMetaRow}>
                 <span className={layout.badge}>{phase}</span>
                 {seed != null && <span className={layout.meta}>seed={seed}</span>}
@@ -399,7 +399,7 @@ function ObserverToggle({ toggle }: { toggle: NonNullable<RunObserver['toggle']>
   );
 }
 
-/** An issue as the screen and the log say it: after the step it is about, when it is about one. */
+/** An issue's text for the screen and the log, prefixed with the step it is about when it has one. */
 function named(issue: ValidationIssue): string {
   return issue.nodeId ? `${issue.nodeId}: ${issue.message}` : issue.message;
 }
@@ -423,10 +423,10 @@ function Help({ onFileLoaded }: { onFileLoaded: (xml: string) => void }) {
 
   return (
     <div className={layout.helpPage}>
-      <h1 className={layout.helpTitle}>Run a studyflow</h1>
+      <h1 className={layout.helpTitle}>Run a study</h1>
       <p className={layout.helpText}>
         Choose a <code>.studyflow.yaml</code> file, or open this page with a <code>diagram</code>{' '}
-        parameter — a URL to fetch, or the id of a studyflow the modeler handed over. Everything
+        parameter: a URL to fetch, or the id of a study the modeler handed over. Everything
         else in the address sets a parameter of the study.
       </p>
       <label className={layout.uploadButton}>

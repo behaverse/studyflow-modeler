@@ -1,4 +1,4 @@
-/** What the jspsych skill gives the modeler: opening a timeline as a studyflow. */
+/** The jspsych skill's contribution to the modeler: opening a timeline as a studyflow. */
 import type { ModelerModule } from '@modeler/skillModules';
 
 import { buildStudyflowYaml } from './studyflowDocument';

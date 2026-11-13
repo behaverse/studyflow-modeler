@@ -16,7 +16,7 @@ const PROV_ACTIVITY = 'prov:Activity';
 
 const FIELDS = ['action', 'when', 'who', 'with', 'what', 'run', 'seed', 'note'] as const;
 
-/** Whether `value` is the record `entry` is: the same entry, as another revision of the study holds it. */
+/** Whether `value` is the same record as `entry`, as another revision of the study holds it. */
 function sameRecord(value: Value, entry: Element): value is Element {
   return isElement(value) && value.type === PROV_ACTIVITY && FIELDS.every((field) => String(value[field] ?? '') === String(entry[field] ?? ''));
 }

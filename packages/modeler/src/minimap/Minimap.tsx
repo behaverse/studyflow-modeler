@@ -1,13 +1,14 @@
 /**
  * The minimap: the whole diagram small, with the elements `focus` names ringed on it, so a view that walks the
- * canvas elsewhere (the provenance replay) shows where it is. It is a second, read-only view of the same study, so it
- * draws each edit as the canvas does, and fits itself to it after each change. It shows the main diagram only, never
- * a sub-process drilled into: an element inside a collapsed one is found by the outermost collapsed container it lies
- * in, which it rings instead. Presses on it are its own and go nowhere. It draws in a closed shadow root, so its second drawing of
- * each element stays out of whatever looks the page's elements up; `data-focus` on it says what it rings.
+ * canvas elsewhere (the provenance replay) shows where it is. It is a second, read-only view of the same study, so
+ * it draws each edit as the canvas does and fits itself after each change. It shows the main diagram only, never a
+ * drilled-into sub-process: an element inside a collapsed container is ringed as the outermost collapsed container
+ * it lies in. It swallows pointer and wheel events, so the map itself never selects, pans or zooms. It draws in a
+ * closed shadow root, which keeps its second copy of each element out of the page's element lookups; `data-focus`
+ * on it says what it rings.
  *
- * Where it stands is its host's: `className` places it, and `covers` names the edge of the canvas it covers, so a fit
- * keeps the diagram clear of it (`mount.ts coveredEdges`).
+ * Its host places it: `className` positions it, and `covers` names the edge of the canvas it covers, so a fit keeps
+ * the diagram clear of it (`mount.ts coveredEdges`).
  */
 
 import { useEffect, useRef } from 'react';
@@ -18,7 +19,7 @@ import { FOCUS_RING, MAP_CSS, minimap as s } from '@modeler/minimap/styles';
 type Props = {
   /** The ids of the elements to ring. */
   focus: readonly string[];
-  /** Where it stands, as classes its host gives it. */
+  /** Classes from its host that position it. */
   className?: string;
   /** The edge of the canvas it covers. */
   covers?: 'top' | 'right' | 'bottom' | 'left';
@@ -27,7 +28,7 @@ type Props = {
 const SVG_NS = 'http://www.w3.org/2000/svg';
 /** The map's own layer, over the diagram it draws. */
 const LAYER = 'minimap-focus';
-/** What the map would otherwise do itself: select, pan, zoom, hover. */
+/** The events the map would otherwise act on: select, pan, zoom, hover. */
 const PRESSES = ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'wheel', 'dblclick'] as const;
 /** How far a ring stands off what it rings, and how small it may be, in screen pixels. */
 const RING_GAP = 3;
@@ -35,14 +36,14 @@ const RING_MIN = 10;
 /** A host takes one shadow root for good: a remount (React's strict mode runs each effect twice) reuses it. */
 const shadowRoots = new WeakMap<HTMLElement, ShadowRoot>();
 
-/** What the main diagram draws for `id`: the element itself, or the outermost collapsed container it lies in. */
+/** The element the main diagram draws for `id`: the element itself, or the outermost collapsed container it lies in. */
 function onMainPlane(study: Study, id: string): ElementRecord | undefined {
   let element = study.get(id);
   while (element?.plane) element = study.get(element.plane);
   return element;
 }
 
-/** The box an element takes: a shape's own, a flow's round its route. */
+/** An element's box: a shape's own bounds, or the box round a flow's route. */
 function boxOf(element: ElementRecord): Bounds | undefined {
   if (element.bounds) return element.bounds;
   const points = element.waypoints ?? [];
@@ -55,7 +56,7 @@ function boxOf(element: ElementRecord): Bounds | undefined {
 export function Minimap({ focus, className = '', covers }: Props) {
   const modeler = useModeler();
   const host = useRef<HTMLDivElement>(null);
-  /** Ring these ids: the map's own, once it draws. */
+  /** Rings these ids; a no-op until the map has drawn. */
   const ring = useRef<(ids: readonly string[]) => void>(() => {});
   const focused = useRef<readonly string[]>([]);
 
@@ -71,7 +72,7 @@ export function Minimap({ focus, className = '', covers }: Props) {
     shadow.replaceChildren(style, view);
     const map = new Canvas(view, modeler.study, { editable: false, iconResolver: () => null });
 
-    // A view drawn afresh (a load, an undo) lets its host layers go: asked for again, the layer comes back.
+    // A redraw (a load, an undo) drops the host's layers, so the layer is asked for on every call.
     ring.current = (ids) => {
       focused.current = ids;
       const layer = map.layer(LAYER);
@@ -96,7 +97,7 @@ export function Minimap({ focus, className = '', covers }: Props) {
     fit();
     const stopHearing = [modeler.study.on('change', fit)];
 
-    // Caught on the way down, so the map's own gestures never hear them.
+    // Caught in the capture phase, so the map's own gestures never receive them.
     const swallow = (event: Event): void => {
       event.stopPropagation();
       if (event.type === 'wheel' || event.type === 'pointerdown') event.preventDefault();
@@ -111,7 +112,7 @@ export function Minimap({ focus, className = '', covers }: Props) {
     };
   }, [modeler]);
 
-  // What it rings: each element as the main diagram draws it, once.
+  // The ids to ring: each element as the main diagram draws it, without duplicates.
   const key = [...new Set(focus.flatMap((id) => onMainPlane(modeler.study, id)?.id ?? []))].join(' ');
   useEffect(() => {
     ring.current(key ? key.split(' ') : []);

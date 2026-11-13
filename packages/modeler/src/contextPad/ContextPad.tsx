@@ -1,20 +1,17 @@
 /**
- * The per-shape context pad.
+ * The per-shape context pad: the floating box beside the selection, with append, change, delete, style, connect and
+ * the choreography task's `choreography.swap-initiator`.
  *
- * The floating box beside the selection: append-anything, the colour picker, the
- * wrench, the trash, connect, and studyflow's own `choreography.swap-initiator`.
+ * `contextPad/entries.ts` decides what is offered (pure, unit-tested). This file positions the box and wires each
+ * `action` to a command on the bus, or to `openPopupMenu` for the three menus its entries open. Its gates are the
+ * study's rules, asked by id (`study.can`).
  *
- * `contextPad/entries.ts` decides what is offered (pure, unit-tested); this file positions
- * the box and wires each `action` to a command on the bus, or to `openPopupMenu` for the
- * three menus its entries open. Its gates are the study's rules, asked by id (`study.can`).
+ * An entry that appends one known element previews it on hover: a ghost of the shape at its auto-place position,
+ * with the connection that would reach it (`canvas.previewAppend`). Nothing is committed. The ghost and the click
+ * place the shape the same way, so the click lands where the hover showed it.
  *
- * **Hover preview**: an entry that appends one known element previews it, a ghost of the
- * shape at its auto-place position with the connection that would reach it
- * (`canvas.previewAppend`). Nothing is committed, and the ghost and the click place the
- * shape the same way, so what the hover shows is where the click lands.
- *
- * The canvas places the pad (`canvas.anchor`): beside the selection's outline as the camera
- * and the edits move it, out of the way of a gesture.
+ * The canvas places the pad (`canvas.anchor`): beside the selection's outline as the camera and the edits move it,
+ * out of the way of a gesture.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
@@ -51,7 +48,7 @@ const ICON_CLASSES: Record<ContextPadIcon, string> = {
   annotation: ICONS.note,
   connect: ICONS.arrowUpRight,
   append: ICONS.threeDots,
-  wrench: ICONS.arrowRepeat,
+  wrench: ICONS.replace,
   trash: ICONS.trash,
   palette: ICONS.paintBrush,
   'default-flow': ICONS.slash,
@@ -61,7 +58,7 @@ const ICON_CLASSES: Record<ContextPadIcon, string> = {
   open: ICONS.drilldown,
 };
 
-/** Heading each pad entry that opens a popup gives the menu it opens. */
+/** The heading of the menu each pad entry opens. */
 const MENU_TITLES: Record<string, string> = {
   [APPEND_MENU]: 'Append element',
   [REPLACE_MENU]: 'Change element',
@@ -100,8 +97,8 @@ export function ContextPad() {
   const label = element?.kind === 'label' ? element : undefined;
   const visible = !isSimulating
     && records.length > 0
-    // A caption gets the pad only on its OWN: mixed with real elements there is no
-    // one meaning for "delete" to have.
+    // A caption gets the pad only when it is the whole selection: mixed with real elements,
+    // "delete" has no single meaning.
     && (!records.some((record) => record.kind === 'label') || !!label);
 
   /** Drop the ghost and the tooltip whenever the pad goes away or the selection moves. */
@@ -112,10 +109,9 @@ export function ContextPad() {
   }, [modeler]);
 
   /**
-   * Arm the tooltip for the entry the pointer just entered: after a beat, at the pointer, as a
-   * native `title` bubble does. The delay matters: the same hover puts up an append ghost right
-   * of the pad, where a caption at the cursor would land, so the ghost shows first and the words
-   * only if the pointer stays.
+   * Arms the tooltip for the entry the pointer just entered. It appears after a delay, at the pointer, as a native
+   * `title` bubble does. The same hover puts up an append ghost right of the pad, where an immediate caption would
+   * cover it, so the ghost shows first and the caption only if the pointer stays.
    */
   const armTooltip = useCallback((text: string, x: number, y: number) => {
     clearTimeout(tooltipTimer.current);
@@ -136,13 +132,13 @@ export function ContextPad() {
     // A pool is drawn open or closed too (closed, BPMN's black box, when it holds no flow), but has no plane to open.
     const expandable = single?.kind === 'node' && isExpandable(single.type) ? single : undefined;
     const pool = single?.kind === 'node' && single.type === 'bpmn:Participant' && (single.expanded === false || study.list({ within: single.id }).length === 0) ? single : undefined;
-    // A sequence flow leaving a source BPMN gives a `default` (an exclusive, inclusive or complex gateway, an
-    // activity) gets the toggle-default entry: the metamodel says which, not a list here.
+    // A sequence flow gets the toggle-default entry when BPMN gives its source a `default` (an exclusive, inclusive or
+    // complex gateway, an activity). The metamodel says which sources those are.
     const flow = single?.kind === 'edge' && single.type === 'bpmn:SequenceFlow' ? single : undefined;
     const flowSource = flow?.source === undefined ? undefined : study.get(flow.source);
     const canToggleDefault = flowSource?.default !== undefined;
     const isDefault = canToggleDefault && !!flow && flowSource?.default === flow.id;
-    // What the rules let the one selected element take part in.
+    // Asks the study's rules whether the one selected element can take part in `tool`.
     const can = (tool: 'append' | 'connect' | 'replace', args: Record<string, unknown>): boolean => !!single && study.can(tool, args).ok;
     return contextPadEntries({
       count: records.length,
@@ -185,10 +181,8 @@ export function ContextPad() {
 
   /** Show the transient ghost of what this entry would append. */
   const preview = useCallback((append: ContextPadAppend | undefined) => {
-    // An entry that appends nothing still ENDS the previous ghost. `mouseleave`
-    // already fires before the neighbour's `mouseenter`, so this is belt-and-braces
-    // — but it is the belt that survives a pointer jumping between entries without
-    // ever crossing the gap between them.
+    // An entry that appends nothing still ends the previous ghost. `mouseleave` normally does that before the
+    // neighbour's `mouseenter`; this covers a pointer that jumps between entries without crossing the gap between them.
     if (!append || !element || element.kind === 'label') {
       modeler.canvas.clearAppendPreview();
       return;
@@ -256,7 +250,7 @@ export function ContextPad() {
     }
   }, [modeler, element, ids, label, openMenu, clearPreview]);
 
-  /** The connect entry is DRAGGED out of the pad, so it acts on press, not on click. */
+  /** The connect entry is dragged out of the pad, so it acts on press, not on click. */
   const startConnect = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     clearPreview();
     if (!element) return;
@@ -279,9 +273,8 @@ export function ContextPad() {
         onMouseLeave={clearPreview}
       >
         {entries.map((entry) => {
-          /* `entries.ts` stays a pure table of English keys — it is unit-tested
-             against exactly those strings — so the locale is applied HERE, at render
-             time, the way every other piece of chrome does it. */
+          /* `entries.ts` stays a pure table of English keys, which its unit spec pins, so the locale is
+             applied here, at render time, as for the rest of the chrome. */
           const title = t(entry.title);
           return (
             <button

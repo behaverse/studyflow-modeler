@@ -26,7 +26,7 @@ export function StateSection() {
 
   const properties = getStateProperties(model, element);
   const types = itemTypeOptions(model);
-  // What the Parameters wired into a sub-process set: properties of it like the declared ones, but read-only.
+  // The properties that the Parameters wired into a sub-process set: listed like the declared ones, but read-only.
   const wired = wiredPropertiesIn(model, element);
 
   const dispatch = (command: any) =>
@@ -84,7 +84,7 @@ export function StateSection() {
                 onClick={() => dispatch({ action: 'remove', propertyId: property.id })}
                 className={s.stateRemoveBtn}
               >
-                <i className={`${ICONS.closeSmall} text-sm`} />
+                <i className={`${ICONS.close} text-sm`} />
               </button>
             </div>
           ))}
@@ -176,7 +176,7 @@ export function DataStoresSection() {
                 onClick={() => dispatch({ action: 'remove', storeId: store.id })}
                 className={s.stateRemoveBtn}
               >
-                <i className={`${ICONS.closeSmall} text-sm`} />
+                <i className={`${ICONS.close} text-sm`} />
               </button>
             </div>
           ))}
@@ -243,7 +243,7 @@ type SuggestFieldProps = {
   testId: string;
   label: string;
   placeholder: string;
-  /** What the empty choice reads. */
+  /** The label of the empty choice. */
   none: string;
   value: string;
   options: string[];
@@ -252,7 +252,7 @@ type SuggestFieldProps = {
   wide?: boolean;
 };
 
-/** A text field that suggests `options` and takes any text typed, which then is new. */
+/** A text field that suggests `options` and also takes new text. */
 function SuggestField({ testId, label, placeholder, none, value, options, onCommit, wide }: SuggestFieldProps) {
   const [query, setQuery] = useState('');
 

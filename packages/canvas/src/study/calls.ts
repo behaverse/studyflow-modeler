@@ -1,6 +1,7 @@
 /**
- * A study's tools as `Study.call` runs them, by name, on an argument its tool's schema admits: each write a verb of
- * the study, each read a record of it; and what the reads answer beyond the records, what an element type takes.
+ * A study's tools as `Study.call` runs them, by name, on an argument its tool's schema admits: each write is a verb
+ * of the study, each read a record of it. It also holds what the reads answer beyond the records: the attributes an
+ * element type takes.
  */
 
 import { getAttributeSpec } from '@core/element/index.ts';
@@ -57,7 +58,7 @@ export function runStep(study: Study, tool: string, args: unknown): StudyResult 
 
 /** A tool that is no step of a batch, on an argument its schema admits: a read, a batch, undo or redo. */
 export function runRead(study: Study, name: string, args: unknown): ToolResult {
-  // What passed a tool's schema is what its schema admits.
+  // An argument that passed a tool's schema has the type its schema admits.
   const as = <Tool extends ToolName>(_tool: Tool): ArgsOf<Tool> => args as ArgsOf<Tool>;
   switch (name as Exclude<ToolName, StepTool>) {
     case 'document': return { ok: true, yaml: study.toYaml() };
@@ -94,7 +95,7 @@ function undrawn({ bounds: _bounds, waypoints: _waypoints, fill: _fill, stroke: 
 }
 
 /**
- * What an element of `type` takes, before one exists: its schema's attributes (with `extension`, that schema type's
+ * The attributes an element of `type` takes, before one exists: its schema's (with `extension`, that schema type's
  * too), and the properties BPMN gives it, which `set` takes as the file spells them.
  */
 export function describeType(model: StudyModel, args: { type: string; extension?: string }): ToolResult {
@@ -105,7 +106,7 @@ export function describeType(model: StudyModel, args: { type: string; extension?
   return { ok: true, attributes: attributesOf(model, made), structure: structureOf(model, made) };
 }
 
-/** What BPMN declares and a schema does not re-declare, which no file writes by hand. */
+/** The properties BPMN declares and a schema does not re-declare, which no file writes by hand. */
 const UNSET = new Set(['id', 'incoming', 'outgoing', 'extensionElements', 'extensionDefinitions', 'lanes', 'categoryValueRef', 'auditing', 'monitoring']);
 
 /** The properties BPMN gives the element `made`, as `set` takes them: each with the concrete types it may hold. */

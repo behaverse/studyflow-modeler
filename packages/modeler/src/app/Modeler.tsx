@@ -23,7 +23,7 @@ const s = {
   root: 'relative flex flex-1 h-full',
   loading: `absolute inset-0 z-10 flex text-center ${surface.canvas}`,
   loadingSpinner: 'm-auto animate-spin',
-  loadingIcon: `${ICONS.arrowRepeat} text-stone-500 text-[3rem]`,
+  loadingIcon: `${ICONS.spinner} text-stone-500 text-[3rem]`,
   bootError: `absolute inset-0 z-10 flex items-center justify-center p-8 ${surface.canvas}`,
   bootErrorText: `max-w-prose text-sm ${text.muted}`,
   canvas: `grow ${surface.canvas}`,
@@ -64,7 +64,7 @@ async function openStudy(autosaved: string | undefined, metamodel: Metamodel): P
     try {
       return await Study.open(autosaved, { metamodel, onWarning });
     } catch (err) {
-      console.warn('Could not open the autosaved diagram; starting a new one, and the autosave is cleared.', err);
+      console.warn('Could not open the autosaved study; starting a new one, and the autosave is cleared.', err);
       clearAutosavedDiagram();
     }
   }

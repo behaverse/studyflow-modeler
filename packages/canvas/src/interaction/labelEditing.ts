@@ -1,7 +1,6 @@
 /**
- * Inline label editing: a `<textarea>` overlay over the text being edited —
- * transparent over a shape's own name, a small box over an external caption or a
- * choreography band. Enter commits, Escape abandons.
+ * Inline label editing: a `<textarea>` overlay over the text being edited, transparent over a shape's own name and
+ * a small box over an external caption or a choreography band. Enter commits, Escape abandons.
  */
 
 import { isPastedImage } from '@core/model/pastedImages.ts';
@@ -22,8 +21,7 @@ export type LabelPlacement = 'internal' | 'external';
 export interface LabelEditingOptions {
   container: HTMLElement;
   viewport: Viewport;
-  /** Writes the text; its commit redraws what the text changes. */
-  /** Write the edited text through the study: the element's name, or the participant its `top` or `bottom` band shows. */
+  /** Writes the edited text through the study: the element's name, or the participant its `top` or `bottom` band shows. Its commit redraws what the text changes. */
   rename: (element: SceneNode | SceneEdge, band: LabelBand, text: string) => boolean;
   /** The study model the edited elements are in, which says what a band shows. */
   model: () => StudyModel;

@@ -38,7 +38,7 @@ in_pool = {"Play": task(), "Subject": {"type": "subProcess", "parent": "Study"},
            "Participant_Subject": {"type": "participant", "attributes": {"processRef": "Study"}}}
 fourth = {"state": {"_meta": {"reached": {"Play": 3}, "instance": {"Participant_Subject": 4}}}}
 assert exchange.record_context(task(), in_pool, fourth)["subject"] == 4
-# What a record carries under `context.state` is the study's to say: the properties the schema of the dataset the step
+# The study says what a record carries under `context.state`: the properties the schema of the dataset the step
 # writes names as `context.state.<name>` columns; all of them in scope when no dataset it writes has a schema.
 SCHEMA = "tableSchema:\n  columns:\n    - {name: context.subject}\n    - {name: context.state.arm}\n"
 declared = {"Play": task(outputs=[{"target": "Trials"}]), "Subject": {"type": "subProcess", "parent": "Study"},

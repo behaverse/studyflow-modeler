@@ -2,9 +2,9 @@
  * File System Access: Chromium ships the pickers and the per-handle permission methods, but
  * TypeScript's DOM lib (5.9) declares only the half the origin-private file system needs.
  *
- * These are global augmentations, so this file must never gain a top-level `import` or `export` —
- * one would make it a module and every declaration below would quietly stop applying. It holds
- * nothing else so that constraint stays obvious.
+ * These are global augmentations, so this file must never gain a top-level `import` or `export`: one would make
+ * it a module, and every declaration below would stop applying without an error. It holds nothing else, to keep
+ * that constraint obvious.
  *
  * Every member is optional: the feature check is not something a cast can skip.
  */
@@ -41,7 +41,7 @@ interface FileSystemHandle {
 }
 
 interface DataTransferItem {
-  /** A dropped file, as a handle rather than a snapshot — which is what makes it writable. */
+  /** A dropped file as a handle rather than a snapshot, which is what makes it writable. */
   getAsFileSystemHandle?(): Promise<FileSystemHandle | null>;
 }
 

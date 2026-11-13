@@ -18,7 +18,7 @@ const CLEARANCE = 20;
 const STRAIGHT_TOLERANCE = 10;
 
 export interface RouteOptions {
-  /** Boxes to steer around; advisory — a pair with no clean candidate keeps its route. */
+  /** Boxes to steer around; advisory: a pair with no clean candidate keeps its route. */
   obstacles?: readonly Bounds[];
 }
 
@@ -130,7 +130,7 @@ function routeEdge(edge: SceneEdge, options?: RouteOptions): Point[] | undefined
   return routeFor(edge.type, source, target, options);
 }
 
-/** A route off by at most this much still reads as the router's: what a file stores is rounded. */
+/** A route off by at most this much still reads as the router's, since a file stores rounded numbers. */
 const ROUTED_TOLERANCE = 1;
 
 /**
@@ -162,7 +162,7 @@ const ORTHOGONAL_TOLERANCE = 3;
 
 /**
  * Square `points` up: a near-aligned run is flattened by moving an interior joint, never
- * a dock, and redundant points go. A genuinely diagonal run is left as it is.
+ * a dock, and redundant points go. A diagonal run is left as it is.
  */
 export function orthogonalize(points: readonly Point[]): Point[] {
   const out = points.map((p) => ({ x: p.x, y: p.y }));

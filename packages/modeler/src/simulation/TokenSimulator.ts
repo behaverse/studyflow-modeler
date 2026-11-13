@@ -1,7 +1,7 @@
 /**
  * Token simulation: dry runs of the study (core's walk, the engine every runtime hosts, executing nothing), each
- * shown as tokens gliding along the flows it takes. A token is one pool's walk, so what a simulation shows is what a
- * run does: it waits where a run waits for a message, and it stops where a run would stop.
+ * shown as tokens gliding along the flows it takes. A token is one pool's walk, so a simulation shows what a run
+ * does: it waits where a run waits for a message, and it stops where a run would stop.
  */
 
 import { Walk, dryHost, planOf, type Plan } from '@core/engine';
@@ -12,9 +12,9 @@ import { computeSegLengths, dedupePoints, samplePolyline, smootherstep, tokenAnc
 
 export interface SimulationHost {
   events: Pick<EventBus, 'on' | 'off' | 'fire'>;
-  /** What the tokens walk. */
+  /** The study the tokens walk. */
   study: Pick<Study, 'get' | 'model'>;
-  /** Where they are drawn, and whether the view shows where they are. */
+  /** The canvas they are drawn on, which also says whether the view shows them. */
   canvas: Pick<Canvas, 'layer' | 'draws' | 'scope'>;
 }
 

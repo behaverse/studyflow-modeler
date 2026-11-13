@@ -40,12 +40,12 @@ export type StudyflowSource = {
   image?: { width: number; height: number; resolution?: { x: number; y: number } };
 };
 
-/** This CLI, as a run's record names what ran it (`with`) and a TIFF what wrote it. */
+/** This CLI's name, as a run's record gives it for what ran the run (`with`) and a TIFF for what wrote it. */
 export const TOOL = `studyflow-cli/${import.meta.env?.APP_VERSION ?? 'dev'}`;
 
 let metamodelPromise: Promise<Metamodel> | undefined;
 
-/** One metamodel per process, over every installed skill's schema: what a study model reads its types by. */
+/** One metamodel per process, over every installed skill's schema; a study model reads its types from it. */
 export function schemaMetamodel(): Promise<Metamodel> {
   metamodelPromise ??= loadAllSchemas(installedSkills().flatMap((skill) => skill.schemas)).then(metamodelOf);
   return metamodelPromise;
@@ -80,7 +80,7 @@ export function sourceOf(bytes: Uint8Array, container: StudyflowSource['containe
   return { text, kind: looksLikeXml(text) ? 'xml' : 'yaml', container, pastedImages, image };
 }
 
-/** What a `.studyflow.tif` says of the study it carries, beside the text: its id and name, its protocol digest, this CLI. */
+/** The facts a `.studyflow.tif` states about the study it carries, beside the text: its id and name, its protocol digest, and this CLI. */
 export async function tiffAbout(model: StudyModel): Promise<StudyflowTiffAbout> {
   const root = model.primaryRoot();
   return { id: root?.id, name: typeof root?.name === 'string' && root.name.trim() ? root.name : undefined, digest: await protocolDigest(model), creatorTool: TOOL };

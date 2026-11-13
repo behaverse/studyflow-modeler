@@ -15,141 +15,176 @@ Reachy_Session:
       - {action: modified, when: "2026-08-21T15:29:15+02:00", with: studyflow-modeler/26.0615}
   documentation: >-
     A Reachy Mini collects data from a human participant. The participant's verbal feedback stores as the interaction
-    recording.
+    recording. A robot action that fails, a line it cannot say or a move it cannot play, ends the session with the robot
+    at the error boundary event.
   elements:
     Enrolled:
       type: StartEvent
       name: Enrolled and consented
       consentFormUri: https://example.org/protocols/reachy-session/consent.md
 
-    Wake:
-      type: IntermediateCatchEvent
-      name: Wake word
-      extensions:
-        reachy:SenseEvent:
-          wakeWord: Hey Reachy
+    With_Robot:
+      type: SubProcess
+      name: Session with the robot
+      elements:
+        Robot_Start:
+          type: StartEvent
 
-    Seated:
-      type: ExclusiveGateway
-      name: Anyone there?
-      default: $Flow_Seated_Greet
-      extensions:
-        reachy:PerceptionGateway: {}
+        Wake:
+          type: IntermediateCatchEvent
+          name: Wake word
+          extensions:
+            reachy:SenseEvent:
+              wakeWord: Hey Reachy
 
-    Ask_To_Sit:
-      type: ServiceTask
-      name: Ask them to sit down
-      extensions:
-        reachy:Interact:
-          text: Please take a seat in front of me and say my wake word again.
+        Seated:
+          type: ExclusiveGateway
+          name: Anyone there?
+          default: $Flow_Seated_Greet
+          extensions:
+            reachy:PerceptionGateway: {}
 
-    Greet:
-      type: ServiceTask
-      name: Greet & instruct
-      extensions:
-        reachy:Interact:
-          text: >-
-            Hello! I'm Reachy. You'll now see a short memory task on the screen; press the key whenever the current
-            letter matches the one before it.
+        Ask_To_Sit:
+          type: ServiceTask
+          name: Ask them to sit down
+          extensions:
+            reachy:Interact:
+              text: Please take a seat in front of me and say my wake word again.
 
-    Watch:
-      type: ServiceTask
-      name: Face the participant
-      extensions:
-        reachy:LookAt: {}
+        Greet:
+          type: ServiceTask
+          name: Greet & instruct
+          extensions:
+            reachy:Interact:
+              text: >-
+                Hello! I'm Reachy. You'll now see a short memory task on the screen; press the key whenever the current
+                letter matches the one before it.
 
-    NBack:
-      type: Task
-      name: N-Back
-      extensions:
-        behaverse:Task:
-          instrument: NB
-      inputs:
-        In_NBack_Parameters:
-          source: $NBack_Parameters
+        Watch:
+          type: ServiceTask
+          name: Face the participant
+          extensions:
+            reachy:LookAt: {}
 
-    NBack_Parameters:
-      type: DataObjectReference
-      name: Parameters
-      extensions:
-        studyflow:Parameters:
-          values:
-            timeline: XCIT_NB_01
+        NBack:
+          type: Task
+          name: N-Back
+          extensions:
+            behaverse:Task:
+              instrument: NB
+          inputs:
+            In_NBack_Parameters:
+              source: $NBack_Parameters
 
-    Celebrate:
-      type: ServiceTask
-      name: Celebrate completion
-      extensions:
-        reachy:Interact:
-          move: cheerful1
+        NBack_Parameters:
+          type: DataObjectReference
+          name: Parameters
+          extensions:
+            studyflow:Parameters:
+              values:
+                timeline: XCIT_NB_01
 
-    Feedback:
-      type: ReceiveTask
-      name: Verbal feedback
-      extensions:
-        reachy:Listen:
-          timeout: 20
-      outputs:
-        Feedback_To_Recording:
-          target: $Recording
+        Celebrate:
+          type: ServiceTask
+          name: Celebrate completion
+          extensions:
+            reachy:Interact:
+              move: cheerful1
 
-    Recording:
-      type: DataStoreReference
-      name: Interaction recording
-      extensions:
-        reachy:InteractionRecording:
-          streams:
-            - audio
-            - transcript
+        Feedback:
+          type: ReceiveTask
+          name: Verbal feedback
+          extensions:
+            reachy:Listen:
+              timeout: 20
+          outputs:
+            Feedback_To_Recording:
+              target: $Recording
+
+        Recording:
+          type: DataStoreReference
+          name: Interaction recording
+          extensions:
+            reachy:InteractionRecording:
+              streams:
+                - audio
+                - transcript
+
+        Flow_Wake_Seated:
+          source: $Wake
+          target: $Seated
+
+        Flow_Ask_Wake:
+          source: $Ask_To_Sit
+          target: $Wake
+
+        Flow_Seated_Ask:
+          name: no one seated
+          condition: face_count = 0
+          source: $Seated
+          target: $Ask_To_Sit
+
+        Flow_Seated_Greet:
+          source: $Seated
+          target: $Greet
+
+        Flow_Greet_Watch:
+          source: $Greet
+          target: $Watch
+
+        Flow_Watch_NBack:
+          source: $Watch
+          target: $NBack
+
+        Flow_NBack_Celebrate:
+          source: $NBack
+          target: $Celebrate
+
+        Flow_Celebrate_Feedback:
+          source: $Celebrate
+          target: $Feedback
+
+        Robot_End:
+          type: EndEvent
+
+        Flow_Start_Wake:
+          source: $Robot_Start
+          target: $Wake
+
+        Flow_Feedback_End:
+          source: $Feedback
+          target: $Robot_End
+
+    Robot_Failed:
+      type: BoundaryEvent
+      name: The robot failed
+      error: true
+      attachedTo: $With_Robot
 
     Done:
       type: EndEvent
       name: Done
 
-    Flow_Enrolled_Wake:
+    Stopped:
+      type: EndEvent
+      name: Stopped
+
+    Flow_Enrolled_Session:
       source: $Enrolled
-      target: $Wake
+      target: $With_Robot
 
-    Flow_Wake_Seated:
-      source: $Wake
-      target: $Seated
-
-    Flow_Seated_Ask:
-      name: no one seated
-      condition: face_count = 0
-      source: $Seated
-      target: $Ask_To_Sit
-
-    Flow_Ask_Wake:
-      source: $Ask_To_Sit
-      target: $Wake
-
-    Flow_Seated_Greet:
-      source: $Seated
-      target: $Greet
-
-    Flow_Greet_Watch:
-      source: $Greet
-      target: $Watch
-
-    Flow_Watch_NBack:
-      source: $Watch
-      target: $NBack
-
-    Flow_NBack_Celebrate:
-      source: $NBack
-      target: $Celebrate
-
-    Flow_Celebrate_Feedback:
-      source: $Celebrate
-      target: $Feedback
-
-    Flow_Feedback_Done:
-      source: $Feedback
+    Flow_Session_Done:
+      source: $With_Robot
       target: $Done
 
+    Flow_Failed_Stopped:
+      source: $Robot_Failed
+      target: $Stopped
+
 layout:
-  Enrolled: 57 52 36 36
+  Enrolled: 20 52 36 36
+  With_Robot: {bounds: 110 0 1181 390, expanded: true}
+  Robot_Start: 140 52 36 36
   Wake: 207 52 36 36
   Seated: {bounds: 350 45 50 50, markerVisible: true}
   Ask_To_Sit: 475 30 100 80
@@ -162,17 +197,23 @@ layout:
   Feedback: 1075 170 100 80
   Feedback_To_Recording: 1125,250 1125,300
   Recording: 1100 300 50 50
-  Done: 1257 192 36 36
-  Flow_Enrolled_Wake: 93,70 207,70
   Flow_Wake_Seated: 243,70 350,70
-  Flow_Seated_Ask: 400,70 475,70
   Flow_Ask_Wake: 525,110 525,140 225,140 225,88
+  Flow_Seated_Ask: 400,70 475,70
   Flow_Seated_Greet: 375,95 375,210 475,210
   Flow_Greet_Watch: 575,210 625,210
   Flow_Watch_NBack: 725,210 775,210
   Flow_NBack_Celebrate: 875,210 925,210
   Flow_Celebrate_Feedback: 1025,210 1075,210
-  Flow_Feedback_Done: 1175,210 1257,210
+  Robot_End: 1221 192 36 36
+  Flow_Start_Wake: 176,70 207,70
+  Flow_Feedback_End: 1175,210 1221,210
+  Robot_Failed: {bounds: 682 372 36 36, label: 710 414 104 15}
+  Done: 1347 192 36 36
+  Stopped: 682 452 36 36
+  Flow_Enrolled_Session: 56,70 110,70
+  Flow_Session_Done: 1291,210 1347,210
+  Flow_Failed_Stopped: 700,408 700,452
 
 state:
   _meta:

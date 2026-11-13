@@ -48,9 +48,9 @@ const RGB = 2;
 const INCH = 2;
 const CENTIMETRE = 3;
 
-/** The study's namespace in the packet: what `studyflow:format`, `studyflow:digest` and `studyflow:study` are under. */
+/** The study's namespace in the packet, for `studyflow:format`, `studyflow:digest` and `studyflow:study`. */
 const XMP_NAMESPACE = 'http://behaverse.org/schemas/studyflow/xmp/1.0/';
-/** What `studyflow:study` holds, the MIME type the PNG keys its chunk by. */
+/** The format of the text `studyflow:study` holds: the MIME type the PNG keys its chunk by. */
 const FORMAT = 'application/vnd.studyflow+yaml';
 
 /* --- reading --- */
@@ -249,7 +249,7 @@ function textOf(tiff: Tiff, dir: Directory, tag: number): string | undefined {
 
 /* --- the study, in XMP --- */
 
-/** What the packet says of the study besides its text. */
+/** The facts the packet states about the study besides its text. */
 export type StudyflowTiffAbout = {
   id?: string;
   name?: string;

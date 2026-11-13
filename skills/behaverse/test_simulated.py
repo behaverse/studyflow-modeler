@@ -262,7 +262,7 @@ assert assessment.perceived({"TrialIndex": 0, "Stimulus": "A", "ResponseOptions"
 assert seen_as(digits("47471", 2)) == [("BurnIn", "NonMatch"), ("BurnIn", "NonMatch"), ("2-back", "Match"),
                                        ("2-back", "Match"), ("2-back", "NonMatch")]
 assert seen_as(digits("33", 1, start=1)) == [("BurnIn", "NonMatch"), ("1-back", "Match")]
-# What a simulated actor plants is the study's: a table by instrument and condition, a default, and what a prompt calls up.
+# The study says what a simulated actor plants: a table by instrument and condition, a default, and what a prompt calls up.
 actor = assessment.SimulatedActor({"accuracy": "default: 0.5\nWO: {Congruent: 0.95, Incongruent: 0.6}",
                           "prompted": '"Remember:": {WO: {Incongruent: 0.95}}', "missRate": "0"})
 assert actor.probability("WO", "Congruent", []) == 0.95 and actor.probability("RE", "AX", []) == 0.5

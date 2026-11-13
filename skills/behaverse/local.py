@@ -95,7 +95,7 @@ def implementation_of(element: dict[str, Any]) -> str:
 
 
 def claimed_tasks(plan: dict[str, Any], check_build: Callable[[], Any]) -> list[str]:
-    """What this runner plays: the `behaverse:Task`s and the pools typed `behaverse:SimulatedActor`. The Unity build is
+    """The elements this runner plays: the `behaverse:Task`s and the pools typed `behaverse:SimulatedActor`. The Unity build is
     checked here when a task plays on it, so a run fails before the walk starts rather than after another pool's robot
     has greeted; a study whose tasks all go to a simulated actor needs none. A task set to the Godot build stops the
     run here too: no runner plays that build yet, and a task nothing runs would only be skipped. A task whose
@@ -219,7 +219,7 @@ class Trials:
 
 
 def block_counts(trials: Trials) -> list[dict[str, Any]]:
-    """What the task's trials came to, block by block in the order the build played them: `{block, trials, answered,
+    """The outcome of the task's trials, block by block in the order the build played them: `{block, trials, answered,
     unanswered, correct}`, the block's name and how many of its trials the build presented, recorded a valid response
     for, recorded none for, and scored correct (None when its records say nothing of correctness). Data, not policy:
     which blocks count, and what a study does about them, it writes in FEEL over this list, reading the properties it
@@ -248,7 +248,7 @@ def block_counts(trials: Trials) -> list[dict[str, Any]]:
     return list(blocks.values())
 
 
-# The stage: the build in a frame, exactly as the browser runner embeds it, and the template's
+# The stage: the build in a frame, as the browser runner embeds it, and the template's
 # forwarded `studyflow:*` events relayed to the runner over plain HTTP.
 STAGE_HTML = """<!doctype html>
 <meta charset="utf-8">

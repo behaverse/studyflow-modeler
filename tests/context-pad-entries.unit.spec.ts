@@ -9,12 +9,12 @@ import {
 } from '@modeler/contextPad/entries';
 
 /**
- * WHAT the per-shape context pad offers, as a table. The pad's other half, where the
- * box floats and what a click does, needs a browser and lives in
+ * The entries the per-shape context pad offers, as a table. The pad's other half,
+ * where the box floats and what a click does, needs a browser and lives in
  * `tests/modeler.contextpad.spec.ts`; this pins the decision that can be made without
- * a DOM, which is the one that goes silently wrong: an entry offered for a selection
- * whose rules refuse it is a button that does nothing, and an entry order that drifts
- * re-flows the 98px box into different rows.
+ * a DOM, which is the one that goes wrong without an error: an entry offered for a
+ * selection whose rules refuse it is a button that does nothing, and an entry order
+ * that drifts re-flows the 98px box into different rows.
  */
 
 /** A selection description with everything refused, to be widened per case. */
@@ -37,7 +37,7 @@ const actionsOf = (ctx: ContextPadContext): ContextPadAction[] =>
   contextPadEntries(ctx).map((entry) => entry.action);
 
 test('the entries a selection gets, in the order they wrap into rows', () => {
-  // The order IS the layout: the 98px box wraps its 22px entries three to a row, so a
+  // The order is the layout: the 98px box wraps its 22px entries three to a row, so a
   // task's first row is the two fixed successors and append-anything, the second the
   // wrench and the two edits, the third `connect` alone.
   const task: ContextPadAction[] = ['append.end-event', 'append.text-annotation', 'append', 'replace', 'delete', 'set-color', 'connect'];
@@ -52,7 +52,7 @@ test('the entries a selection gets, in the order they wrap into rows', () => {
     // A data input association may start at a data shape, so it gets connect but no successor.
     ['a data shape', context({ canConnect: true }), ['delete', 'set-color', 'connect']],
     ['a multi-selection: only what means something for a set', context({ count: 2, canAppend: true, canAnnotate: true }), ['delete', 'set-color']],
-    // A note may hang off a flow; the entries that need a shape to flow OUT of stay away,
+    // A note may hang off a flow; the entries that need a shape to flow out of stay away,
     // and the wrench is withheld by the shape test even when the rule would allow it.
     ['a connection', context({ isShape: false, isConnection: true, canAnnotate: true, canReplace: true }), ['append.text-annotation', 'delete', 'set-color', 'flow.reroute']],
     ['a connection the rules give no note', context({ isShape: false, isConnection: true }), ['delete', 'set-color', 'flow.reroute']],
@@ -91,7 +91,7 @@ test('exactly the two fixed-successor entries carry an append, and it is the one
   const entries = contextPadEntries(context({ canAppend: true, canAnnotate: true }));
   const withAppend = entries.filter((entry) => entry.append);
 
-  // `append` (the searchable menu) must NOT carry one: it has no single successor to
+  // `append` (the searchable menu) must not carry one: it has no single successor to
   // ghost, and a ghost that disagrees with the commit is the bug addendum 5 §3 names.
   expect(withAppend.map((entry) => entry.action)).toEqual([
     'append.end-event',

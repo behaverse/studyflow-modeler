@@ -1,0 +1,101 @@
+id: spoken_instructions
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+Spoken_Instructions:
+  type: Process
+  name: Spoken instructions
+  extensions:
+    studyflow:Study: {}
+  documentation: |
+    Renders a session's instructions to an audio file with a command-line tool, and prints them where the tool fails.
+
+    The first step runs `date`, and what the command prints is the step's result. The second runs macOS's `say`:
+    `args` holds the line, every other key of its arguments is a flag, and `{Today}` in a flag cites the date, so
+    the file is named after the day it was made. The line is the study's `line` property, written once and cited
+    by both steps that use it.
+
+    A command that exits with an error, or is not on the machine, fails its step. The error boundary event on
+    `Render` catches that failure, and the session goes on by printing the line instead.
+  properties:
+    line:
+      name: line
+      value: Welcome. Press the space bar when you are ready.
+  elements:
+    Start:
+      type: StartEvent
+      name: Session opens
+
+    Today:
+      type: ServiceTask
+      name: Today's date
+      additionalArguments:
+        args:
+          - +%Y-%m-%d
+      implementation: shell://date
+
+    Render:
+      type: ServiceTask
+      name: Render the instructions
+      additionalArguments:
+        args:
+          - "{line}"
+        o: instructions-{Today}.aiff
+        rate: 180
+      implementation: shell://say
+
+    Say_Failed:
+      type: BoundaryEvent
+      name: say failed
+      error: true
+      attachedTo: $Render
+
+    Print:
+      type: ServiceTask
+      name: Print the instructions
+      additionalArguments:
+        args:
+          - "{line}"
+      implementation: shell://echo
+
+    Rendered:
+      type: EndEvent
+      name: Rendered
+
+    Printed:
+      type: EndEvent
+      name: Printed
+
+    Flow_Start_Today:
+      source: $Start
+      target: $Today
+
+    Flow_Today_Render:
+      source: $Today
+      target: $Render
+
+    Flow_Render_Rendered:
+      source: $Render
+      target: $Rendered
+
+    Flow_Failed_Print:
+      source: $Say_Failed
+      target: $Print
+
+    Flow_Print_Printed:
+      source: $Print
+      target: $Printed
+
+layout:
+  Start: 200 182 36 36
+  Today: 296 160 100 80
+  Render: 456 160 100 80
+  Say_Failed: {bounds: 506 222 36 36, label: 454 262 62 15}
+  Print: 596 290 100 80
+  Rendered: 616 182 36 36
+  Printed: 756 312 36 36
+  Flow_Start_Today: 236,200 296,200
+  Flow_Today_Render: 396,200 456,200
+  Flow_Render_Rendered: 556,200 616,200
+  Flow_Failed_Print: 524,258 524,330 596,330
+  Flow_Print_Printed: 696,330 756,330

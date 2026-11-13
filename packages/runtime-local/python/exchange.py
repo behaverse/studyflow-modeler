@@ -1,6 +1,6 @@
 """A step's exchange with the actor along message flows, and the records it writes, for a runner written in Python.
 
-What CONTRACT.md beside this folder says of messages ("Messages") and of the plan, worked out once for every runner:
+The rules CONTRACT.md beside this folder gives for messages ("Messages") and for the plan, worked out once for every runner:
 which flows a step talks along and who is at their other end, what rides with each message, the option an answer
 names, where a step's records go, and the stamp each record carries. A skill names the messages its steps exchange,
 as a message flow's `messageRef` → `itemRef` → `structureRef` names them (`structures`, the one sent and the one that
@@ -22,7 +22,7 @@ from typing import Any
 
 from runner import Cancelled, Step
 
-# What a step's message flows and data outputs may be drawn on instead of the step: a sub-process around it.
+# The element a step's message flows and data outputs may be drawn on instead of the step: a sub-process around it.
 CONTAINERS = {"subprocess", "adhocsubprocess", "transaction"}
 # The seconds an answer is waited for when the message gives no time to answer.
 WAIT = 30.0
@@ -43,7 +43,7 @@ def pool_participants(process_id: str, plan: dict[str, dict[str, Any]]) -> list[
 
 
 def message_structure(flow: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
-    """What a message flow carries: its message's item definition (`structureRef`), '' when it names none."""
+    """The structure a message flow carries: its message's item definition (`structureRef`), '' when it names none."""
     message = plan.get(str((flow.get("attributes") or {}).get("messageRef") or "")) or {}
     item = plan.get(str((message.get("attributes") or {}).get("itemRef") or "")) or {}
     return str((item.get("attributes") or {}).get("structureRef") or "")
@@ -123,7 +123,7 @@ def exchange_flows(element: dict[str, Any], plan: dict[str, dict[str, Any]], str
 
 
 def data_inputs(element: dict[str, Any], state: dict[str, Any], plan: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
-    """What rides with every message the step sends beside its own content: its data inputs by source id, each with
+    """The data that rides with every message the step sends beside its own content: its data inputs by source id, each with
     the value this run bound for it, else null, as an unclaimed activity sends its own (CONTRACT.md, "Messages"). That
     is how the `agentic:Prompt` wired into a task reaches the pool that answers. A `studyflow:Parameters` wired in is
     left out: it configures the tool, and says nothing to whoever answers."""
@@ -137,7 +137,7 @@ def data_inputs(element: dict[str, Any], state: dict[str, Any], plan: dict[str, 
 
 
 def memory_of(element: dict[str, Any], flow: str, elements: dict[str, dict[str, Any]]) -> str:
-    """What the pool at the end of `flow` remembers of the messages `element` sends it: the innermost sub-process around
+    """How much the pool at the end of `flow` remembers of the messages `element` sends it: the innermost sub-process around
     the element that says (`memory`), else the actor's own, else `none` (CONTRACT.md, "Messages")."""
     scope = element.get("parent")
     while scope:
@@ -276,7 +276,7 @@ def recorded_state(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> 
 
 
 def record_context(element: dict[str, Any], plan: dict[str, dict[str, Any]], state: dict[str, Any]) -> dict[str, Any]:
-    """What this run knows about the step's records beside what its tool records, stamped on each as `context`: which
+    """The context this run adds to the step's records beside what its tool records, stamped on each as `context`: which
     subject, and the properties in scope at the hand-off, innermost last, as many of them as the schema of the dataset
     the step writes names under `context.state` (`recorded_state`), or all of them when it has none. The subject is the
     instance the nearest repeating scope around the step is on (`state._meta.instance`, 1-based): an enclosing

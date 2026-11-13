@@ -24,7 +24,7 @@ const DATA_ASSOCIATIONS = ['dataInputAssociations', 'dataOutputAssociations'];
 /** How far a drafted note stands from what it annotates. */
 const NOTE_GAP = 20;
 
-/** What a draft draws: the shapes, and the flows between them. */
+/** The elements a draft draws: the shapes, and the flows between them. */
 interface Draft {
   shapes: Element[];
   edges: Element[];
@@ -130,7 +130,7 @@ function place(model: StudyModel, { shapes, edges }: Draft): void {
     const [at, beside] = [note && boxes.get(note), other && boxes.get(other)];
     if (note && typeOf(note) === 'bpmn:TextAnnotation' && at && beside) boxes.set(note, { ...at, x: beside.width + NOTE_GAP, y: -at.height - NOTE_GAP });
   }
-  // What sits on an activity sits on its lower edge, spread along it.
+  // The elements that sit on an activity are placed on its lower edge, spread along it.
   const onHost = new Map<Element, Element[]>();
   for (const shape of shapes) {
     const host = refOf(model, shape, 'attachedToRef');

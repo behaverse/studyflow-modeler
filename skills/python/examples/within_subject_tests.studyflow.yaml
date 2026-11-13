@@ -4,7 +4,7 @@ schemas:
 
 within_subject_tests:
   type: Process
-  name: within_subject_tests
+  name: Within-subject tests
   extensions:
     studyflow:Study:
       dependencies:

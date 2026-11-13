@@ -94,7 +94,7 @@ ${attributes}
   flowElements:
     Start:`);
 
-/** What a run leaves: its state (on a Study extension the file did not have), and a record on each element it ran. */
+/** A run leaves its state (on a Study extension the file did not have), and a record on each element it ran. */
 const RUN = (text: string): string => [
   swap('      documentation: Thirty', '      extensionElements:\n        - type: prov:Activity\n          action: executed\n          run: r1\n      documentation: Thirty'),
   swap('            trials: 30\n', '            trials: 30\n        - type: prov:Activity\n          action: created\n          run: r1\n'),

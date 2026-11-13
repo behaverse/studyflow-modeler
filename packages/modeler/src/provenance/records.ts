@@ -6,7 +6,7 @@ import { ICONS } from '@modeler/icons';
 /** Icons standing in for the `recordDetails` labels, in the dialog and the replay alike. */
 export const DETAIL_ICONS: Record<string, string> = {
   who: ICONS.person,
-  with: ICONS.cog,
+  with: ICONS.gear,
   run: ICONS.play,
   seed: ICONS.asterisk,
   what: ICONS.script,
@@ -56,7 +56,7 @@ export type ProvenanceRecord = {
   standing?: boolean;
 };
 
-/** A marker without `what` voids by run, or by a none run. */
+/** Whether `marker` voids `record`. A marker with `what` voids the record stamped at that time; one without voids its run's records, or every record when it names no run. */
 export function voids(
   marker: { what?: string; run?: string },
   record: { when?: string; run?: string },
@@ -79,7 +79,7 @@ function toRecord(
     with: activity.with || undefined,
     what: activity.what || undefined,
     run: activity.run || undefined,
-    // `!= null` rather than truthiness: 0 is a perfectly good seed.
+    // `!= null` rather than truthiness: 0 is a valid seed.
     seed: activity.seed != null ? activity.seed : undefined,
     note: activity.note || undefined,
     scopeId: scope.id,
@@ -247,7 +247,7 @@ export type GraphInfo = {
   pendingBranch?: boolean;
 };
 
-/** `git log --graph` derived from the document: no repository here. */
+/** The graph `git log --graph` would draw, derived from the document; no repository is read. */
 export function assignLanes(records: ProvenanceRecord[]): Map<ProvenanceRecord, GraphInfo> {
   const stamps = records.filter((r) => r.isDocument && r.action === 'executed');
   const branchMarker = new Map<ProvenanceRecord, ProvenanceRecord>();
@@ -315,7 +315,7 @@ export function recordDetails(record: ProvenanceRecord): Array<[string, string]>
   if (record.who) pairs.push(['who', record.who]);
   if (record.with) pairs.push(['with', record.with]);
   if (record.run) pairs.push(['run', record.run]);
-  // `!= null` rather than truthiness: 0 is a perfectly good seed.
+  // `!= null` rather than truthiness: 0 is a valid seed.
   if (record.seed != null) pairs.push(['seed', String(record.seed)]);
   if (record.what) pairs.push(['what', record.what]);
   return pairs;

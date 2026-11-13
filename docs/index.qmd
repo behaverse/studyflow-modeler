@@ -38,7 +38,7 @@ Here is the same diagram as above, projected into three different views: a timel
 ::: {layout-ncol=3}
 ![Timeline: when each part happens](assets/img/views/schedule.png){#figs-timeline fig-alt="A Schedule View dialog with rows grouped under Enrolment, Post-allocation, and Close-out, each a labelled bar on a shared horizontal time axis."}
 
-![Checklist: what is reported, and what is still open](assets/img/views/checklist.png){#figs-checklist fig-alt="A dialog titled Checklist View reading 0 of 52 items complete, with one card per element listing unticked SPIRIT reporting items."}
+![Checklist: what is reported, and what is still open](assets/img/views/checklist.png){#figs-checklist fig-alt="A dialog titled Checklist View reading 3 of 30 items complete, with one card per element listing its SPIRIT reporting items, most of them unticked."}
 
 ![Provenance: what ran, when, by whom](assets/img/views/provenance.png){#figs-provenance fig-alt="A dialog titled Provenance View listing entries across three runs, each row naming an action, an element, an actor, a tool, and a timestamp."}
 :::

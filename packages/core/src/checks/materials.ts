@@ -13,7 +13,7 @@ const DIGEST = /^sha256:[0-9a-f]{64}$/;
  */
 type Material = { elementId?: string; label: string; uri: string; digest: string; attributes: [uri: string, digest: string] };
 
-/** What reading a material gave: its bytes, or why there are none and whether that is an error (no such file) or a
+/** The result of reading a material: its bytes, or why there are none and whether that is an error (no such file) or a
  * warning (an address that did not answer, a scheme the reader does not read). */
 export type MaterialContent = Uint8Array<ArrayBuffer> | { unread: string; severity: Issue['severity'] };
 

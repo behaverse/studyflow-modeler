@@ -347,7 +347,7 @@ test('an event\'s centre takes its own type\'s glyph, else its definition\'s sym
 /**
  * Data glyphs (`renderer.drawDataIcons`): a data store draws the icon its dataset
  * format's literal declares, a typed data object its type's glyph, and a plain data
- * reference none — the shape is the notation.
+ * reference none (the shape is the notation).
  */
 const DATA_YAML = `id: Defs_D
 definitions:

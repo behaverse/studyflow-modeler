@@ -4,8 +4,8 @@ The simulated build plays a `behaverse:Task` whose trials go to a simulated acto
 Parameters wired into the task define, block by block. It sends each trial along the task's message flows as the Unity
 build's runner relays the build's, scores the answer as the build does, and writes the battery contract's records: one
 `<TASK>.TrialEnd` per trial presented, its block and trial ids counted as the build counts them, between a
-`<TASK>.TaskStart` and a `<TASK>.TaskEnd`. What it shares with that runner (the payload checks, the exchange, the
-records' file and stamp, the block counts) it takes from `local.py`, so both builds are run and scored by one rule.
+`<TASK>.TaskStart` and a `<TASK>.TaskEnd`. It takes what it shares with that runner (the payload checks, the exchange, the
+records' file and stamp, the block counts) from `local.py`, so both builds are run and scored by one rule.
 Three instruments are played: the AX-CPT (`RE`), Which One (`WO`, a Simon task) and the N-back (`NB`).
 
 The simulated actor is a pool typed `behaverse:SimulatedActor`. It answers each trial it is sent as a person reads it,
@@ -29,7 +29,7 @@ import local as behaverse  # the Unity build's runner, beside this file
 from exchange import Exchange, data_inputs, exchange_flows, message_partners, opened_this_run, record_context, records_uri  # noqa: E402 - the SDK, which local.py puts on the path
 from runner import Cancelled, fill  # noqa: E402 - the runner SDK
 
-# What a block may say beside its `Parameters`; anything else would change the trials in a way this build does not.
+# The keys a block may have beside its `Parameters`; anything else would change the trials in a way this build does not.
 BLOCK_KEYS = {"Name", "Parameters", "Trials", "TrialOrder", "ExitRules", "MinAccuracyRequired", "MaxRepeats", "Adapt",
               "Description", "RulesName"}
 # How often a failed block is played again, unless it says (the build's `BlockMaxRepeats`).
@@ -95,7 +95,7 @@ class Page:
         self.again = "Instructions" in entry and bool(entry.get("ShowAgainOnNextBlockFailure"))
 
 
-# What a timeline's entry is, by the first of these keys it has, as the build reads it.
+# The kind of a timeline's entry, by the first of these keys it has, as the build reads it.
 ENTRY_KEYS = ("Instructions", "Blocks", "Name", "WaitMessage", "Timeline")
 
 
@@ -441,7 +441,7 @@ def play(step: Any) -> dict[str, Any]:
 
 # --- the simulated actor ---
 
-# What each conversation (one per subject, when the pool remembers) has shown of the block so far: the build sends a
+# The part of the block each conversation (one per subject, when the pool remembers) has shown so far: the build sends a
 # letter or a digit alone, and it is answered against those before it. It lasts the run, as the conversation does.
 MEMORY: dict[str, dict[str, Any]] = {}
 
@@ -463,7 +463,7 @@ def flanker_arrows(stimulus: Any) -> list[str] | None:
 
 
 def perceived(trial: dict[str, Any], memory: dict[str, Any]) -> dict[str, Any]:
-    """What a simulated actor tells from a trial as the build sends it, by the task's rule, as a person would: the instrument,
+    """The facts a simulated actor reads from a trial as the build sends it, by the task's rule, as a person would: the instrument,
     the trial's condition and the right answer; never the build's own key.
 
     One trial is one message, so the actor keeps in `memory` (one per conversation) what the block has shown so far: a
@@ -532,7 +532,7 @@ def written_out(message: dict[str, Any], plan: dict[str, Any], values: dict[str,
 
 
 class SimulatedActor:
-    """What the study plants on a `behaverse:SimulatedActor` pool: the probability of a right answer by instrument and
+    """The settings the study plants on a `behaverse:SimulatedActor` pool: the probability of a right answer by instrument and
     condition (`accuracy`, `default` for any other), what holds instead when a text sent with the trial has a line
     beginning with a key of `prompted`, what holds instead when it keeps the conversation the trial belongs to
     (`remembering`), the share of trials left unanswered (`missRate`), and, by step, the share of subjects who never

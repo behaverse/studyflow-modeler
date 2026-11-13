@@ -36,7 +36,7 @@ declare global {
 
 /**
  * One file, in the page, behind a handle that behaves like the real thing. Playwright cannot drive
- * the native pickers, so the pickers are what gets replaced — everything below them is the app.
+ * the native pickers, so the pickers are replaced, and everything below them is the app.
  */
 async function installFakeDisk(page: Page, name: string, content: string): Promise<void> {
   await page.addInitScript(({ name, content }) => {
@@ -61,7 +61,7 @@ async function installFakeDisk(page: Page, name: string, content: string): Promi
           async close() {
             const buffer = new Uint8Array(await new Blob(parts).arrayBuffer());
             disk.content = btoa(String.fromCharCode(...buffer));
-            // Every commit moves the timestamp, exactly as a real write does.
+            // Every commit moves the timestamp, as a real write does.
             disk.lastModified += 1000;
             disk.writes += 1;
           },

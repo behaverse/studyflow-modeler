@@ -3,7 +3,7 @@
  * entered, who left before allocation, the arms, who left each arm or the path the arms share, and who reached the
  * end. A guideline's participant flow (CONSORT's) words and draws this; none of it is CONSORT's own.
  *
- * What it reads, and nothing else:
+ * It reads only these:
  * - the allocation gateway is the one whose schema type draws its branch (`meta.branching: random`), and each flow
  *   out of it is an arm;
  * - an eligibility screen is a gateway whose schema type has the `screening` role;
@@ -20,7 +20,7 @@ import { idOf, isElement, type Element, type StudyModel, type Value } from '@cor
 import { resolvePlaceholdersIn, resolveStateIn } from '@core/model/state';
 import { sentenceCase, withoutCount } from '@skills/reporting-guidelines/modeler/svg';
 
-/** What leaving counts as: an exclusion before allocation, one of the vocabulary's four after it. */
+/** The kind of attrition a leaving counts as: an exclusion before allocation, one of the vocabulary's four after it. */
 export type Attrition = 'excluded' | 'not-received' | 'lost-to-follow-up' | 'discontinued' | 'excluded-from-analysis';
 
 const STATED: ReadonlySet<string> = new Set(['not-received', 'lost-to-follow-up', 'discontinued', 'excluded-from-analysis']);

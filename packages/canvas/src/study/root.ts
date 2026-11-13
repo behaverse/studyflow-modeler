@@ -1,7 +1,7 @@
 /**
  * The study is the diagram's root, whichever kind it is. The first pool turns a process root into a
- * collaboration (`study/mutator.ts`) and deleting the last pool turns it back (`study/remove.ts`). What
- * that means for the study is core's `handOverStudyIn`; the scene only changes which root it depicts.
+ * collaboration (`study/mutator.ts`) and deleting the last pool turns it back (`study/remove.ts`). Core's
+ * `handOverStudyIn` does the hand-over in the study; the scene only changes which root it depicts.
  */
 
 import type { Element } from '@core/model/index.ts';

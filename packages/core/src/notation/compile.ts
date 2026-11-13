@@ -355,7 +355,7 @@ class Compiler {
   }
 
   private compileAttribute(prefix: string, raw: SchemaPropertyModel): AttributeSpec {
-    // An explicitly prefixed property (`bpmn:loopCondition`) keeps that namespace, which is how a redefine stays a *bpmn* element on the wire.
+    // An explicitly prefixed property (`bpmn:loopCondition`) keeps that namespace, which is how a redefine stays a `bpmn` element on the wire.
     const sep = raw.name.indexOf(':');
     const nsPrefix = sep > 0 ? raw.name.slice(0, sep) : prefix;
     const nsLocal = sep > 0 ? raw.name.slice(sep + 1) : raw.name;

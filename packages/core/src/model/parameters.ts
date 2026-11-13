@@ -1,6 +1,6 @@
 /**
- * What a step reads from the `studyflow:Parameters` wired into it: a key that names one of the step's attributes sets
- * that attribute, the rest is the step's configuration. Only a wire makes a Parameters object take effect. The plan
+ * How a step reads the `studyflow:Parameters` wired into it: a key that names one of the step's attributes sets
+ * that attribute, and the rest is the step's configuration. Only a wire makes a Parameters object take effect. The plan
  * a run walks applies this (`@core/engine/plan`), and so does the browser runtime, once a link's values are bound.
  */
 import * as yaml from 'js-yaml';
@@ -25,7 +25,7 @@ export function hasPath(node: unknown, path: string[]): boolean {
   return true;
 }
 
-/** What a reader reads from several Parameters, merged. Mappings merge key by key; a value two of them set is an
+/** The values a reader reads from several Parameters, merged. Mappings merge key by key; a value two of them set is an
  * error, since nothing drawn orders the wires. */
 export function mergeParameters(readerId: string, sources: [string, Mapping][]): Mapping {
   const into = (target: Mapping, source: Mapping, id: string, path: string[]): void => {
@@ -83,8 +83,8 @@ export function wiredSourcesIn(model: StudyModel, element: Element): [string, Ma
   return sources;
 }
 
-/** `values`, what `element` reads from its Parameters, split: the keys naming one of its attributes set it, the rest
- * is its configuration. An attribute takes one value, never a mapping or a list. */
+/** Splits `values`, the values `element` reads from its Parameters: a key naming one of its attributes sets it, and
+ * the rest is its configuration. An attribute takes one value, never a mapping or a list. */
 export function splitIn(model: StudyModel, element: Element, values: Mapping): { attributes: Mapping; rest: Mapping } {
   const names = overridableIn(model, element);
   const attributes: Mapping = {};

@@ -125,7 +125,7 @@ Study:
     F_Compared: Compare -> Done
 `;
 
-/** What one run of ten subjects counts: two excluded, one discontinued, two below criterion, five completed. */
+/** The counts of one run of ten subjects: two excluded, one discontinued, two below criterion, five completed. */
 const REACHED = {
   Start: 10, F_Start: 10, Eligible: 10, F_Yes: 8, F_No: 2, Excluded: 2,
   Play: 8, F_Played: 7, Failed: 1, F_Failed: 1, Discontinued: 1,
@@ -143,7 +143,7 @@ const digest = async (text: string): Promise<string> => protocolDigest(studyMode
 /** `sha256:` and the first 12 hex digits, as the seal quotes a digest. */
 const short = (sha: string): string => `${sha.slice(0, 19)}…`;
 
-/** What `studyflow validate` prints of a file, but for its OK line: the reader's warnings or error, then the checks. */
+/** The lines `studyflow validate` prints of a file, but for its OK line: the reader's warnings or error, then the checks. */
 async function validate(text: string): Promise<string[]> {
   const lines: string[] = [];
   let definitions: any;
