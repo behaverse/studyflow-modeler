@@ -59,7 +59,7 @@ export function PublishPanel() {
           <a href={previewUrl} target="_blank" rel="noreferrer" className={`shrink-0 ${d.previewBtn}`}>Preview</a>
         ) : (
           <Button type="submit" disabled={busy} data-testid="save-submit" className={s.primaryBtn}>
-            <i className={ICONS.broadcast}></i>
+            <i className={ICONS.cloudUpload}></i>
             {busy ? 'Working...' : 'Publish'}
           </Button>
         )}

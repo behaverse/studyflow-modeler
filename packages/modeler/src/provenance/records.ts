@@ -6,9 +6,9 @@ import { ICONS } from '@modeler/icons';
 /** Icons standing in for the `recordDetails` labels, in the dialog and the replay alike. */
 export const DETAIL_ICONS: Record<string, string> = {
   who: ICONS.person,
-  with: ICONS.gear,
-  run: ICONS.play,
-  seed: ICONS.asterisk,
+  with: ICONS.tool,
+  run: ICONS.run,
+  seed: ICONS.seed,
   what: ICONS.script,
 };
 

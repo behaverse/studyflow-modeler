@@ -169,7 +169,7 @@ export function AccountSection() {
                 title={revealKey ? 'Hide key' : 'Show key'}
                 className="absolute inset-y-0 right-0 flex items-center justify-center w-9 text-stone-500 hover:text-stone-900 cursor-pointer"
               >
-                <i className={`iconify ${revealKey ? 'ph--eye-slash' : 'ph--eye'}`} aria-hidden="true" />
+                <i className={`iconify ${revealKey ? 'tabler--eye-off' : 'tabler--eye'}`} aria-hidden="true" />
               </button>
             </div>
           }

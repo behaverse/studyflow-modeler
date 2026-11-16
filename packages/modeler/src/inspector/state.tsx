@@ -91,7 +91,7 @@ export function StateSection() {
           {wired.map(({ name, value, source }) => (
             <div key={`wired:${name}`} data-testid={`wired-property-${name}`}>
               <div className={s.stateLocked}>
-                <i className={`${ICONS.lock} text-xs text-stone-500`} aria-hidden="true" />
+                <i className={`${ICONS.wired} text-xs text-stone-500`} aria-hidden="true" />
                 {name}
                 <span className={s.stateLockedValue}>{typeof value === 'string' ? value : JSON.stringify(value)}</span>
               </div>

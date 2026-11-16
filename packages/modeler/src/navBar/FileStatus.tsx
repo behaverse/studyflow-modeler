@@ -8,9 +8,10 @@ import { ICONS } from '@modeler/icons';
 import { radius, text } from '@modeler/ui/styles';
 
 const s = {
-  chip: `inline-flex items-center gap-1.5 max-w-[40vw] md:max-w-[220px] px-2 py-1 ${radius.field}
-         text-xs ${text.muted} hover:bg-black/[0.05] transition-colors cursor-pointer`,
-  name: 'font-mono truncate',
+  /* The nav bar's title while a file is linked, so it reads like the study's name it stands in for. */
+  chip: `inline-flex items-center gap-1.5 max-w-[40vw] md:max-w-[260px] px-2 py-1 ${radius.field}
+         text-sm font-medium ${text.secondary} hover:bg-black/[0.05] transition-colors cursor-pointer`,
+  name: 'truncate',
   icon: 'shrink-0 text-[0.6875rem]',
   spinner: 'shrink-0 text-[0.6875rem] animate-spin',
   dot: 'shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500',
@@ -58,7 +59,7 @@ export function FileStatus() {
       {link.state === 'saving' && <i className={`${ICONS.spinner} ${s.spinner}`} aria-hidden="true" />}
       {link.state === 'clean' && <i className={`${ICONS.check} ${s.icon}`} aria-hidden="true" />}
       {link.state === 'dirty' && <span className={s.dot} aria-hidden="true" />}
-      {link.state === 'blocked' && <i className={`${ICONS.unlock} ${s.icon}`} aria-hidden="true" />}
+      {link.state === 'blocked' && <i className={`${ICONS.fileBlocked} ${s.icon}`} aria-hidden="true" />}
       {needsAttention && link.state !== 'blocked' && <i className={`${ICONS.warning} ${s.icon}`} aria-hidden="true" />}
       <span className="sr-only">{explanation}</span>
     </button>

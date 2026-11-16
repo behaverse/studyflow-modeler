@@ -22,7 +22,7 @@ function Header({ element, model }: { element: Element; model: StudyModel }) {
 
 function ToggleButton({ isInspectorVisible, onClick }: { isInspectorVisible: boolean; onClick: () => void }) {
   const title = isInspectorVisible ? 'Hide Inspector' : 'Show Inspector';
-  const icon = isInspectorVisible ? ICONS.sidebarShown : ICONS.sidebar;
+  const icon = isInspectorVisible ? ICONS.inspectorHide : ICONS.inspectorShow;
 
   return (
     <button onClick={onClick} className={s.toggleButton} title={title}>

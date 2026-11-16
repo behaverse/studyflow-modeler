@@ -153,7 +153,7 @@ function ExtensionsSection() {
       {dirty && (
         <div className={`${s.group} sticky top-1 z-10`}>
           <p className={`${s.rowHelp} flex items-center gap-1.5`}>
-            <i className={`${ICONS.arrowClockwise} text-sm`} aria-hidden="true" />
+            <i className={`${ICONS.reload} text-sm`} aria-hidden="true" />
             Reload the page to apply changes.
             <button
               type="button"
@@ -263,11 +263,11 @@ function PrivacySection() {
 
 // A skill's pages (an account it signs in to) sit between the app's own and Privacy and About.
 const SECTIONS: SettingsSection[] = [
-  { id: 'editor', label: 'Editor', icon: 'ph--pencil-simple', Component: EditorSection },
-  { id: 'extensions', label: 'Extensions', icon: 'ph--puzzle-piece', Component: ExtensionsSection },
+  { id: 'editor', label: 'Editor', icon: 'tabler--pencil', Component: EditorSection },
+  { id: 'extensions', label: 'Extensions', icon: 'lucide--blocks', Component: ExtensionsSection },
   ...SKILL_SETTINGS_SECTIONS,
-  { id: 'privacy', label: 'Privacy', icon: 'ph--shield-check', Component: PrivacySection },
-  { id: 'about', label: 'About', icon: 'ph--info', Component: AboutSection },
+  { id: 'privacy', label: 'Privacy', icon: 'tabler--shield-check', Component: PrivacySection },
+  { id: 'about', label: 'About', icon: 'tabler--info-circle', Component: AboutSection },
 ];
 
 export function SettingsView({ onClose }: { onClose: () => void }) {

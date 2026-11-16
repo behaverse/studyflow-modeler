@@ -207,7 +207,7 @@ types:
     superClass:
       - bpmn:ServiceTask
     meta:
-      icon: iconify ph--robot
+      icon: iconify mdi--hand-wave-outline
     properties:
       - name: text
         description: What the robot says; `{name}` placeholders are filled in at run time.
@@ -256,7 +256,7 @@ types:
     superClass:
       - bpmn:ServiceTask
     meta:
-      icon: iconify ph--arrows-out-cardinal
+      icon: iconify tabler--arrows-move
     properties:
       # Head orientation.
       - name: roll
@@ -361,7 +361,7 @@ types:
     superClass:
       - bpmn:ServiceTask
     meta:
-      icon: iconify ph--eye
+      icon: iconify tabler--eye
     properties:
       - name: target
         # A `screen` look searches only with a message flow to a model's pool, and remembers where it found the screen;
@@ -389,7 +389,7 @@ types:
     superClass:
       - bpmn:ReceiveTask
     meta:
-      icon: iconify ph--ear
+      icon: iconify tabler--ear
     properties:
       - name: timeout
         description: Give up when no speech starts within this long.
@@ -408,14 +408,14 @@ types:
     superClass:
       - bpmn:ServiceTask
     meta:
-      icon: iconify ph--camera
+      icon: iconify tabler--camera
 
   - name: Teleoperation
     description: An operator drives the robot by hand, the Wizard-of-Oz condition.
     superClass:
       - bpmn:UserTask
     meta:
-      icon: iconify ph--joystick
+      icon: iconify lucide--joystick
     properties:
       - name: instructions
         description: What the operator does at this step, in markdown.
@@ -431,7 +431,7 @@ types:
     superClass:
       - bpmn:ExclusiveGateway
     meta:
-      icon: iconify ph--binoculars
+      icon: iconify tabler--binoculars
     properties:
       - name: channel
         description: Perception feed the branch conditions read.
@@ -446,7 +446,7 @@ types:
     superClass:
       - bpmn:IntermediateCatchEvent
     meta:
-      icon: iconify ph--person-simple-walk
+      icon: iconify tabler--access-point
     properties:
       - name: trigger
         description: What the robot listens or watches for; a custom trigger is also accepted.
@@ -471,7 +471,7 @@ types:
     superClass:
       - studyflow:Dataset
     meta:
-      icon: iconify ph--record
+      icon: iconify tabler--video
     properties:
       - name: streams
         description: Streams captured.
@@ -487,7 +487,7 @@ templates:
       Conversation:
         type: SubProcess
         name: Conversation
-        icon: iconify ph--chats
+        icon: iconify tabler--messages
         documentation: |
           Turn after turn: listen, ask the model what to say, and say it, until the speaker says goodbye or ten
           turns pass. Draw a message flow from Ask the model to the model's pool and one back, and wire a Prompt
@@ -549,7 +549,7 @@ templates:
       Each_trial:
         type: SubProcess
         name: Each trial
-        icon: iconify ph--game-controller
+        icon: iconify tabler--repeat
         documentation: |
           The robot's side of a task another pool presents. Next trial waits for whichever comes first: a trial goes
           round the loop and back, the task's end leaves it. Expand it and draw the task's trial flow into Receive the

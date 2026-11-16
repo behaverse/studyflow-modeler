@@ -37,7 +37,7 @@ A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the 
 - A new short form in `.studyflow.yaml` must be reversible, and the long form must still load. `packages/core/tests/studyflow-yaml.unit.spec.ts` pins the spelling.
 - A docs figure is a Studyflow diagram, never Mermaid: a `.studyflow.yaml` in `docs/assets/img/diagrams/`, and the `.studyflow.svg` beside it that `node packages/cli/dist/studyflow.mjs convert <figure>.studyflow.yaml <figure>.studyflow.svg --modeler` draws after `npm run build`.
 - The canvas is its own design, not a bpmn-js copy: remove rather than add, no bpmn-js class names, colours from `INK` (`view/theme.ts`).
-- Icons are Tailwind iconify classes read from the stylesheet; element glyphs are Phosphor (`iconify ph--<name>`), or another prefix `assets/css/app.css` loads when Phosphor has none that fits. Nothing fetches an icon.
+- Icons are Tailwind iconify classes read from the stylesheet, chosen for what they say from any set `assets/css/app.css` loads: a glyph drawn at a 2px line where one fits (Tabler, Lucide, MDI's outline), else Phosphor's regular weight; never a weight variant or a thickened glyph. A BPMN element keeps BPMN's notation: chrome draws its ring or diamond around the canvas's symbol (`bpmn-start`, `bpmn-gateway`, … in `app.css`).
 - The one version is in the root `package.json`, and only `npm run release` writes it (with `Formula/studyflow.rb`).
 
 ## Tests

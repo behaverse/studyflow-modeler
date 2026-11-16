@@ -8,7 +8,7 @@ description: >-
   Each record is a `prov:Activity` entry on the element it is about; the study's own (created, modified, and one
   `executed` per run) are on its root.
 uri: https://w3id.org/studyflow/prov
-icon: iconify ph--clock-counter-clockwise
+icon: iconify tabler--history
 order: 2
 required: true
 xml:

@@ -1,5 +1,6 @@
 import logo_image from '#assets/img/logo.png';
-import { useState, useRef } from 'react';
+import { useState, useRef, useSyncExternalStore } from 'react';
+import { getLink, subscribeLink } from '@modeler/diagram/fileHandle';
 import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { openRunnerTab } from '@modeler/app/commands';
@@ -103,12 +104,14 @@ function RunButton() {
 export function NavBar() {
   const modeler = useModeler();
   const { diagramName, rename } = useDiagramName(modeler);
+  // A linked file is the title, its name and save state; without one, the study's name stands in.
+  const linkedFile = useSyncExternalStore(subscribeLink, getLink, getLink).file;
   // Local draft while editing; the model is written once on Enter/blur (one undo step).
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const isEditingDiagramName = nameDraft !== null;
-  const startEditingDiagramName = () => setNameDraft(diagramName);
+  const startEditingDiagramName = () => setNameDraft(diagramName ?? '');
   const finishEditingDiagramName = () => {
-    if (nameDraft !== null && nameDraft.length > 0) rename(nameDraft);
+    if (nameDraft !== null) rename(nameDraft.trim());
     setNameDraft(null);
   };
   const paletteRef = useRef<{ open: () => void; close: () => void }>(null);
@@ -137,9 +140,10 @@ export function NavBar() {
           </button>
 
           <div className={navbar.diagramSlot}>
-            {isEditingDiagramName ? (
+            {linkedFile ? <FileStatus /> : isEditingDiagramName ? (
               <input
                 type="text"
+                placeholder="Untitled"
                 value={nameDraft ?? ''}
                 onChange={(e) => setNameDraft(e.target.value)}
                 onBlur={finishEditingDiagramName}
@@ -147,7 +151,6 @@ export function NavBar() {
                 autoFocus
                 data-testid="diagram-name-input"
                 maxLength={120}
-                minLength={1}
                 className={navbar.diagramNameInput}
               />
             ) : (
@@ -156,10 +159,9 @@ export function NavBar() {
                 title="Click to rename the study"
                 onClick={startEditingDiagramName}
               >
-                {diagramName}
+                {diagramName ?? 'Untitled'}
               </span>
             )}
-            <FileStatus />
           </div>
 
           <div className="hidden sm:flex items-center flex-shrink-0">

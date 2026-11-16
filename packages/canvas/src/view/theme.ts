@@ -21,8 +21,11 @@ const CANVAS_CSS = `
 .sf-canvas {
   --sf-accent: ${INK.accent};
   --sf-accent-soft: rgba(192, 40, 176, 0.1);
+  /* A drag's verdict: green where a drop or a connection is taken, red where it is refused, never the accent. */
+  --sf-ok: #16a34a;
+  --sf-ok-soft: rgba(22, 163, 74, 0.14);
   --sf-danger: #dc2626;
-  --sf-danger-soft: rgba(220, 38, 38, 0.08);
+  --sf-danger-soft: rgba(220, 38, 38, 0.1);
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -67,6 +70,7 @@ const CANVAS_CSS = `
 .sf-canvas .sf-ghost { opacity: 0.55; pointer-events: none; }
 .sf-canvas .sf-preview { pointer-events: none; }
 .sf-canvas .sf-preview-line { fill: none; stroke: var(--sf-accent); stroke-width: 1.5px; stroke-linejoin: round; stroke-linecap: round; }
+.sf-canvas .sf-connect-preview[data-status="ok"] .sf-preview-line { stroke: var(--sf-ok); }
 .sf-canvas .sf-connect-preview[data-status="rejected"] .sf-preview-line { stroke: var(--sf-danger); }
 .sf-canvas[data-connect-status="rejected"], .sf-canvas[data-connect-status="rejected"] *,
 .sf-canvas[data-connect-status="pending"], .sf-canvas[data-connect-status="pending"] * { cursor: not-allowed; }
@@ -77,9 +81,9 @@ const CANVAS_CSS = `
 .sf-canvas .sf-marquee { fill: var(--sf-accent-soft); stroke: var(--sf-accent); stroke-width: 1px; pointer-events: none; }
 
 .sf-canvas .sf-drop-ok > :first-child:not(.sf-outline),
-.sf-canvas .sf-drop-ok > .sf-outline + * { fill: var(--sf-accent-soft); }
+.sf-canvas .sf-drop-ok > .sf-outline + * { fill: var(--sf-ok-soft); stroke: var(--sf-ok); }
 .sf-canvas .sf-drop-not-ok > :first-child:not(.sf-outline),
-.sf-canvas .sf-drop-not-ok > .sf-outline + * { fill: var(--sf-danger-soft); }
+.sf-canvas .sf-drop-not-ok > .sf-outline + * { fill: var(--sf-danger-soft); stroke: var(--sf-danger); }
 .sf-canvas .sf-drop-not-ok, .sf-canvas .sf-drop-not-ok * { cursor: not-allowed; }
 
 .sf-canvas .sf-label-hidden .sf-label { display: none; }

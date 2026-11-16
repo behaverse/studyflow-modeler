@@ -143,7 +143,7 @@ export function OverriddenInput({ attrDef, override }: { attrDef: AttributeSpec;
     <>
       <Label className={s.label}>
         <span className={s.overriddenLabel}>
-          <i className={`${ICONS.lock} text-xs text-stone-500`} aria-hidden="true" />
+          <i className={`${ICONS.wired} text-xs text-stone-500`} aria-hidden="true" />
           {t(name)}
           {attrDef.meta?.unit && <span className={s.unit}>{attrDef.meta.unit}</span>}
         </span>

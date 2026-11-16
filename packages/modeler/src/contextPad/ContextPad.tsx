@@ -45,16 +45,17 @@ const TOOLTIP_DELAY = 700;
  */
 const ICON_CLASSES: Record<ContextPadIcon, string> = {
   'end-event': ICONS.bpmnEndEvent,
-  annotation: ICONS.note,
-  connect: ICONS.arrowUpRight,
-  append: ICONS.threeDots,
+  annotation: ICONS.annotation,
+  connect: ICONS.connect,
+  append: ICONS.append,
   wrench: ICONS.replace,
   trash: ICONS.trash,
   palette: ICONS.paintBrush,
   'default-flow': ICONS.slash,
-  reroute: ICONS.route,
-  swap: ICONS.swapVertical,
-  subprocess: ICONS.expand,
+  reroute: ICONS.reroute,
+  swap: ICONS.switchInitiator,
+  expand: ICONS.expand,
+  collapse: ICONS.collapse,
   open: ICONS.drilldown,
 };
 

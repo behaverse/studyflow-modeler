@@ -27,7 +27,8 @@ export type ContextPadIcon =
   | 'default-flow'
   | 'reroute'
   | 'swap'
-  | 'subprocess'
+  | 'expand'
+  | 'collapse'
   | 'open';
 
 export type ContextPadAppend = {
@@ -95,7 +96,9 @@ export function contextPadEntries(context: ContextPadContext): ContextPadEntry[]
     entries.push({ action: 'choreography.swap-initiator', title: 'Switch initiator', icon: 'swap' });
   }
   if (shape && context.isExpandable) {
-    entries.push({ action: 'expand.toggle', title: context.isExpanded ? 'Collapse' : 'Expand', icon: 'subprocess' });
+    entries.push({ action: 'expand.toggle', ...(context.isExpanded
+      ? { title: 'Collapse', icon: 'collapse' as const }
+      : { title: 'Expand', icon: 'expand' as const }) });
     if (context.hasPlane) entries.push({ action: 'drilldown', title: 'Open contents', icon: 'open' });
   }
   return entries;

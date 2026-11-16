@@ -6,8 +6,49 @@
  * e.g. `icon: iconify ...` entries in skills/<name>/<name>.moddle.yaml. */
 @import "tailwindcss" source("../../");
 
+/* A glyph drawn at a 2px line (Tabler, Lucide, MDI) where one says it; Phosphor at its regular weight where none does. */
 @plugin "@iconify/tailwind4" {
- prefixes: ph, bpmn, tabler;
+ prefixes: ph, bpmn, tabler, lucide, mdi;
+}
+
+/*
+ * A BPMN element's own shape around its symbol, for chrome that shows an element type (the palette and its menus),
+ * drawn at Tabler's 2px line: `iconify tabler--bolt bpmn-intermediate` is an error boundary event, a double ring
+ * around the bolt. The shape is a second mask layer under the symbol's (`--svg`); `iconify bpmn-task` has no symbol.
+ */
+.iconify:is(.bpmn-start, .bpmn-intermediate, .bpmn-end, .bpmn-gateway, .bpmn-task, .bpmn-subprocess) {
+  -webkit-mask-image: var(--bpmn-shape), var(--svg, none);
+  mask-image: var(--bpmn-shape), var(--svg, none);
+  -webkit-mask-size: 100% 100%, var(--bpmn-symbol-size) var(--bpmn-symbol-size);
+  mask-size: 100% 100%, var(--bpmn-symbol-size) var(--bpmn-symbol-size);
+  -webkit-mask-position: center, var(--bpmn-symbol-at, center);
+  mask-position: center, var(--bpmn-symbol-at, center);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+.bpmn-start {
+  --bpmn-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10.5' fill='none' stroke='black' stroke-width='2'/%3E%3C/svg%3E");
+  --bpmn-symbol-size: 56%;
+}
+.bpmn-intermediate {
+  --bpmn-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10.75' fill='none' stroke='black' stroke-width='1.5'/%3E%3Ccircle cx='12' cy='12' r='8.25' fill='none' stroke='black' stroke-width='1.5'/%3E%3C/svg%3E");
+  --bpmn-symbol-size: 48%;
+}
+.bpmn-end {
+  --bpmn-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9.75' fill='none' stroke='black' stroke-width='3.5'/%3E%3C/svg%3E");
+  --bpmn-symbol-size: 46%;
+}
+.bpmn-gateway {
+  --bpmn-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 1.5 22.5 12 12 22.5 1.5 12Z' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --bpmn-symbol-size: 44%;
+}
+.bpmn-task, .bpmn-subprocess {
+  --bpmn-shape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='1.5' y='4.5' width='21' height='15' rx='3' fill='none' stroke='black' stroke-width='2'/%3E%3C/svg%3E");
+  --bpmn-symbol-size: 0%;
+}
+.bpmn-subprocess {
+  --bpmn-symbol-size: 32%;
+  --bpmn-symbol-at: center 70%;
 }
 
 /*

@@ -95,10 +95,11 @@ const disk = async (page: Page) => {
 // Document stamps are `prov:Activity` records on the study's root, one element each in the XML.
 const stamps = (xml: string): number => (xml.match(/<prov:activity\b/g) ?? []).length;
 
+/** Renames the study in the inspector: with a file linked, the nav bar's title is the file, not the study. */
 async function renameDiagram(page: Page, name: string): Promise<void> {
-  await diagramTitle(page).click();
-  await page.getByTestId('diagram-name-input').fill(name);
-  await page.getByTestId('diagram-name-input').press('Enter');
+  const field = page.locator('input[name="bpmn:name"]');
+  await field.fill(name);
+  await field.press('Tab');
 }
 
 test.describe('Saving back into the opened file', () => {
@@ -107,7 +108,8 @@ test.describe('Saving back into the opened file', () => {
     await gotoModeler(page, { pickers: true });
 
     await browseForDiagram(page);
-    await expect(diagramTitle(page)).toHaveText('demo');
+    // A linked file is the nav bar's title: its name, not the study's.
+    await expect(diagramTitle(page)).toHaveCount(0);
 
     const status = page.getByTestId('file-status');
     const writes = async () => (await disk(page)).writes;
@@ -155,6 +157,7 @@ test.describe('Saving back into the opened file', () => {
     await runPaletteCommand(page, /^New/);
     await page.getByTestId('new-diagram-blank').click();
     await expect(status).toHaveCount(0);
+    await expect(diagramTitle(page)).toHaveText('Untitled');
     await page.waitForTimeout(1500);
     const after = await disk(page);
     expect(after.writes).toBe(saved.writes);

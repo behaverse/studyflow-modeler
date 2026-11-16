@@ -229,7 +229,7 @@ types:
       - bpmn:DataObjectReference
     isAbstract: false
     meta:
-      icon: iconify ph--chart-line
+      icon: iconify lucide--chart-line
       roles:
         - signal
     properties:
@@ -282,7 +282,7 @@ types:
       - bpmn:DataObjectReference
     isAbstract: false
     meta:
-      icon: iconify ph--lightning
+      icon: iconify tabler--timeline-event
     properties:
       - name: eventTypes
         description: Kinds of event the table holds, one per entry (`stimulus`, `response`).
@@ -351,7 +351,7 @@ types:
     meta:
       roles:
         - acquisition
-      icon: iconify ph--waveform
+      icon: iconify lucide--audio-lines
     properties:
       # Same vocabulary as Session#modalities.
       - name: modalities
@@ -408,7 +408,6 @@ templates:
           eeg_baseline:
             type: cognitive:Rest
             name: Resting baseline
-            icon: iconify ph--brain
             eyes: closed
             eventDefinitions:
               eeg_baseline_timer:
@@ -418,7 +417,7 @@ templates:
           eeg_task:
             type: ChoreographyTask
             name: Cognitive task
-            icon: iconify ph--puzzle-piece
+            icon: iconify tabler--puzzle
             extensionElements:
               - type: cognitive:CognitiveTask
                 platform: psychopy
@@ -457,7 +456,7 @@ templates:
       EEGPrep:
         type: ServiceTask
         name: EEGPrep
-        icon: iconify ph--wave-sine
+        icon: iconify tabler--wave-sine
         documentation: Filters, cleans, and normalizes BIDS EEG data (EEGLAB clean_rawdata, ASR, ICA + ICLabel).
         implementation: docker://sccn/eegprep
         additionalArguments: |
@@ -472,7 +471,7 @@ templates:
       MNE_BIDS_Pipeline:
         type: ServiceTask
         name: MNE-BIDS-Pipeline
-        icon: iconify ph--wave-sine
+        icon: iconify tabler--wave-sine
         documentation: Filtering, epoching, SSP/ICA artifact removal, and evoked responses, driven by one config file.
         implementation: python://mne_bids_pipeline@1.9.0
         additionalArguments: |
@@ -484,7 +483,7 @@ templates:
       fMRIPrep:
         type: ServiceTask
         name: fMRIPrep
-        icon: iconify ph--brain
+        icon: iconify tabler--brain
         documentation: Preprocesses BIDS fMRI data into normalized, denoised images.
         implementation: docker://nipreps/fmriprep:23.2.0
         additionalArguments: |

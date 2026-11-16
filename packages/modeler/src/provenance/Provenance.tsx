@@ -89,7 +89,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                 Who changed this studyflow and who ran it, oldest first — marked by the modeler and the runner, and stored inside the studyflow diagram itself.
                 Invalidating a run record (<i className={ICONS.close} aria-hidden="true" />)
                 appends a marker rather than deleting anything, so the next run re-executes only that step and what depends on it.
-                The replay button (<i className={ICONS.playFill} aria-hidden="true" />) plays this timeline back on the canvas, step by step.
+                The replay button (<i className={ICONS.replay} aria-hidden="true" />) plays this timeline back on the canvas, step by step.
               </DialogHelp>}
       actions={(
         <>
@@ -100,7 +100,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
             title="Replay this timeline on the canvas — elements light up in order and a token marks each step"
             aria-label="Replay on the canvas"
           >
-            <i className={`${ICONS.playFill} size-4 block`}></i>
+            <i className={`${ICONS.replay} size-4 block`}></i>
           </button>
           <button
             type="button"

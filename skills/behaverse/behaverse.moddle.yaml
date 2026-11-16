@@ -22,7 +22,7 @@ enumerations:
     literalValues:
       - name: BDM (Behaverse Data Model)
         value: bdm
-        icon: iconify ph--hexagon
+        icon: iconify tabler--hexagon
   - name: InstrumentEnum
     description: A task of the Behaverse battery, by its id (BDM `instrument_id`).
     literalValues:
@@ -100,7 +100,7 @@ types:
     superClass:
       - cognitive:CognitiveTask
     meta:
-      icon: iconify ph--hexagon
+      icon: iconify tabler--hexagon
       presenter: "Behaverse - <instrument>"
       glyph: instrument
       # The result a played task hands back, which a data edge's `transformation` reads as `result`.
@@ -203,7 +203,7 @@ types:
     superClass:
       - studyflow:Actor
     meta:
-      icon: iconify ph--hexagon
+      icon: iconify tabler--user-cog
     properties:
       - name: actorType
         default: software
@@ -251,7 +251,7 @@ types:
     superClass:
       - studyflow:Dataset
     meta:
-      icon: iconify ph--hexagon
+      icon: iconify tabler--hexagon
     properties:
       - name: format
         default: bdm

@@ -389,7 +389,7 @@ function ReplayTimeline({ onClose }: Props) {
                 <i className={`${ICONS.chevronLeft} size-4 block`} aria-hidden="true" />
               </button>
               <button type="button" onClick={togglePlay} className={btn} title={playing ? 'Pause (space)' : 'Play the timeline'} aria-label={playing ? 'Pause' : 'Play'}>
-                <i className={`${playing ? ICONS.pause : ICONS.playFill} size-4 block`} aria-hidden="true" />
+                <i className={`${playing ? ICONS.pause : ICONS.play} size-4 block`} aria-hidden="true" />
               </button>
               <button type="button" onClick={() => step(1)} disabled={at >= total} className={btn} title="Forward" aria-label="Step forward">
                 <i className={`${ICONS.chevronRight} size-4 block`} aria-hidden="true" />

@@ -19,6 +19,14 @@ function styleOf(locator: Locator, property: 'cursor' | 'fill' | 'backgroundColo
   return locator.evaluate((el: any, name) => el.ownerDocument.defaultView.getComputedStyle(el)[name], property);
 }
 
+/** The tint a drag's verdict paints on a shape's body, by its strongest channel: green takes, red refuses. */
+async function verdictTint(shape: Locator): Promise<'green' | 'red' | 'none'> {
+  const fill = await styleOf(shape.locator(':scope > :first-child:not(.sf-outline), :scope > .sf-outline + *').first(), 'fill');
+  const [r, g] = (fill.match(/[\d.]+/g) ?? []).map(Number);
+  if (r === undefined || g === undefined) return 'none';
+  return g > r ? 'green' : 'red';
+}
+
 test('a drag shows its verdict under the pointer: a target that takes it, empty space, a target that refuses it', async ({ page }) => {
   await gotoModeler(page);
   await addPaletteElement(page, 'Activities', 'Task', { x: 300, y: 220 });
@@ -32,7 +40,7 @@ test('a drag shows its verdict under the pointer: a target that takes it, empty 
   const note = page.locator('g[data-element-id^="TextAnnotation_"]').first();
   await expect(note).toHaveCount(1);
 
-  // A connect drag over a shape the rules accept: the shape fills with the drop tint and
+  // A connect drag over a shape the rules accept: the shape takes the green tint and
   // the pointer wears the crosshair.
   await task.click();
   await page.getByTestId('context-pad-connect').hover();
@@ -42,7 +50,7 @@ test('a drag shows its verdict under the pointer: a target that takes it, empty 
   await page.mouse.move(over.x + over.width / 2, over.y + over.height / 2, { steps: 12 });
   await expect(canvasSvg(page)).toHaveAttribute('data-connect-status', 'ok');
   await expect(userTask).toHaveClass(/sf-drop-ok/);
-  expect(await styleOf(userTask.locator('rect:not(.sf-outline)').first(), 'fill')).not.toBe('none');
+  expect(await verdictTint(userTask)).toBe('green');
   expect(await styleOf(userTask, 'cursor')).toBe('crosshair');
 
   // Over empty space it wears ∅ and washes the whole canvas pale red, which is what makes
@@ -80,6 +88,7 @@ test('a drag shows its verdict under the pointer: a target that takes it, empty 
   await page.mouse.move(onto.x + onto.width / 2, onto.y + onto.height / 2, { steps: 12 });
   await expect(canvasSvg(page)).toHaveAttribute('data-connect-status', 'rejected');
   await expect(note).toHaveClass(/sf-drop-not-ok/);
+  expect(await verdictTint(note)).toBe('red');
   expect(await styleOf(note, 'cursor')).toBe('not-allowed');
   await page.mouse.up();
   await expect(line).toHaveAttribute('data-waypoints', points);

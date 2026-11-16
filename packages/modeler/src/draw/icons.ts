@@ -20,15 +20,15 @@ export const BPMN_ICON_OVERRIDES: Record<string, string> = {
   // Event-definition symbols, drawn centred on the event circle; the canvas asks
   // the resolver per definition $type (`render/renderer.ts drawEventIcons`).
   'bpmn:MessageEventDefinition':     ICONS.envelope,
-  'bpmn:TimerEventDefinition':       'iconify ph--clock',
-  'bpmn:ErrorEventDefinition':       'iconify ph--lightning',
-  'bpmn:ErrorEventDefinition:end':   'iconify ph--lightning-fill',   // the throwing form, filled
-  'bpmn:SignalEventDefinition':      'iconify ph--triangle',
-  'bpmn:EscalationEventDefinition':  'iconify ph--caret-double-up',
-  'bpmn:ConditionalEventDefinition': 'iconify ph--article',
-  'bpmn:LinkEventDefinition':        'iconify ph--arrow-right',
-  'bpmn:TerminateEventDefinition':   'iconify ph--circle-fill',
-  'bpmn:CompensateEventDefinition':  ICONS.rewind,
+  'bpmn:TimerEventDefinition':       'iconify tabler--clock',
+  'bpmn:ErrorEventDefinition':       'iconify tabler--bolt',
+  'bpmn:ErrorEventDefinition:end':   'iconify tabler--bolt-filled',   // the throwing form, filled
+  'bpmn:SignalEventDefinition':      'iconify tabler--triangle',
+  'bpmn:EscalationEventDefinition':  'iconify tabler--navigation',
+  'bpmn:ConditionalEventDefinition': 'iconify tabler--notes',
+  'bpmn:LinkEventDefinition':        'iconify tabler--arrow-right',
+  'bpmn:TerminateEventDefinition':   'iconify tabler--circle-filled',
+  'bpmn:CompensateEventDefinition':  ICONS.compensation,
   'bpmn:CancelEventDefinition':      ICONS.close,
 };
 
@@ -38,7 +38,7 @@ export const MARKER_ICONS: Record<string, string> = {
   'parallel':     `${ICONS.list} rotate-90`,
   'sequential':   ICONS.list,
   'loop':         ICONS.loop,
-  'compensation': ICONS.rewind,
+  'compensation': ICONS.compensation,
   'checklist':    ICONS.checkbox,
   'function':     ICONS.function,
 };

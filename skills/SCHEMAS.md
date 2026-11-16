@@ -31,7 +31,7 @@ traits), which a domain pack must not copy; its `Scheduling` is the plainest tra
 - A property a type adds to a BPMN element (a type that `extends` one) is an attribute, `isAttr: true`: BPMN's XML schema takes another namespace's attributes on any element, and no child element but `extensionElements`, so the file stays valid BPMN. A wrapper type, one that sits in `extensionElements`, may hold child elements.
 - A placeholder in a value is `{name}` (dotted paths allowed: `{Play.trials}`). Every reader resolves it by one rule, [Placeholders](../docs/reference.qmd#placeholders), and nothing reads `$name`, `${name}` or `{{name}}`.
 - A reference to software, a model, or a device is `<scheme>://<ref>` (`python://`, `shell://`), whatever attribute holds it.
-- Element icons are iconify's Phosphor set (`iconify ph--<name>`): its 1.5px line matches the element outline, where `mdi`/`tabler` read twice as bold. Verify a glyph exists in `node_modules/@iconify/json/json/<set>.json` before using it; an unknown name falls back to the BPMN ancestor's icon.
+- Element icons are Iconify classes, picked for what they say from any set `assets/css/app.css` loads: a glyph drawn at a 2px line where one fits (Tabler, Lucide, MDI's outline), else Phosphor's regular weight (`iconify ph--<name>`), never a weight variant. Verify a glyph exists in `node_modules/@iconify/json/json/<set>.json` before using it; an unknown name falls back to the BPMN ancestor's icon.
 - Reuse core types by inheritance rather than restating fields: a BIDS dataset is a `studyflow:Dataset`, a battery task a `cognitive:CognitiveTask`.
 - Name the schema's own types bare (`type: DeviceEnum`) and another schema's with its prefix (`superClass: [studyflow:Dataset]`, `type: studyflow:YAMLString`); moddle reads a bare name as the schema's own. The catalog also looks a bare name up in every schema and takes the first it finds, so no two schemas declare the same name.
 
@@ -200,7 +200,7 @@ templates:
       EEGPrep:
         type: ServiceTask
         name: EEGPrep
-        icon: iconify ph--wave-sine
+        icon: iconify tabler--wave-sine
         …
 ```
 
@@ -215,9 +215,10 @@ exercises. The gallery draws an example's card when it opens: the main canvas, w
 Iconify classes must use a prefix enabled in `assets/css/app.css`
 (`@plugin "@iconify/tailwind4"` block); an unlisted prefix renders an empty
 box, and is left out of PNG/SVG exports; every listed icon is inlined from the
-stylesheet, so exports need no network. A glyph is Phosphor's (`ph`). The block
-also lists `bpmn`, for BPMN's own shapes, and `tabler`, for a skill's lettered
-hexagon, which Phosphor does not have.
+stylesheet, so exports need no network. The block lists `tabler` (a skill's
+lettered hexagon among them), `lucide` and `mdi`, which draw a 2px line; `ph`,
+at its regular weight, for a glyph none of them has; and `bpmn`, bpmn-io's
+shapes, kept only where nothing else draws a BPMN element.
 
 ## Reserved local names
 

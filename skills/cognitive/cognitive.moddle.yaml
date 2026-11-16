@@ -18,7 +18,7 @@ enumerations:
     literalValues:
       - name: Psych-DS
         value: psych-ds
-        icon: iconify ph--flask
+        icon: iconify tabler--flask
   - extends: studyflow:MessageStructureEnum
     description: Adds a task's trial and its response to the message structures, whatever plays the task.
     literalValues:
@@ -153,7 +153,7 @@ types:
     superClass:
       - bpmn:ChoreographyTask
     meta:
-      icon: iconify ph--puzzle-piece
+      icon: iconify tabler--puzzle
       roles:
         - instrument
       # The upper band of the task: a template over its attributes, read raw.
@@ -191,7 +191,7 @@ types:
     superClass:
       - bpmn:IntermediateCatchEvent
     meta:
-      icon: iconify ph--armchair
+      icon: iconify mdi--meditation
       eventDefinition:
         type: bpmn:TimerEventDefinition
         timeDuration: PT1M
@@ -211,7 +211,7 @@ types:
     superClass:
       - bpmn:ChoreographyTask
     meta:
-      icon: iconify ph--clipboard-text
+      icon: iconify tabler--clipboard-text
       roles:
         - instrument
       # The upper band of the task: a template over its attributes, read raw.
@@ -229,7 +229,7 @@ types:
     superClass:
       - bpmn:Task
     meta:
-      icon: iconify ph--info
+      icon: iconify tabler--info-circle
     properties:
       - name: content
         description: What the participant reads, in markdown.
@@ -241,7 +241,7 @@ types:
     superClass:
       - bpmn:ExclusiveGateway
     meta:
-      icon: iconify ph--dice-five
+      icon: iconify tabler--dice-5
       # The runner reads this and picks a branch at random instead of evaluating conditions.
       branching: random
     properties:
@@ -302,7 +302,7 @@ types:
     superClass:
       - bpmn:ExclusiveGateway
     meta:
-      icon: iconify ph--funnel
+      icon: iconify tabler--filter
       # A participant flow reads this role: whoever takes no flow onward from here was assessed and excluded.
       roles:
         - screening
@@ -329,7 +329,7 @@ templates:
         documentation: |
           Randomizes within each stratum of `stratifyBy`, in permuted blocks,
           so arms stay balanced on the covariate. List the strata one per entry.
-        icon: iconify ph--stack
+        icon: iconify tabler--stack-2
         extensionElements:
           - type: cognitive:RandomGateway
             algorithm: block
@@ -347,7 +347,7 @@ templates:
         documentation: |
           Set the game engine in `platform`, and its levels, difficulty, and
           scoring in a Parameters object wired into the task.
-        icon: iconify ph--game-controller
+        icon: iconify tabler--device-gamepad-2
         extensionElements:
           - type: cognitive:CognitiveTask
             platform: unity

@@ -53,7 +53,7 @@ types:
     superClass:
       - bpmn:DataObjectReference
     meta:
-      icon: iconify ph--article
+      icon: iconify tabler--message-chatbot
     properties:
       - name: template
         description: The prompt text, in markdown.

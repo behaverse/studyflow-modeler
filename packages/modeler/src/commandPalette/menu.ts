@@ -107,7 +107,7 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       id: 'run',
       group: 'Run',
       label: 'Run',
-      icon: ICONS.playFill,
+      icon: ICONS.run,
       // `openRunnerTab()` first: the runner tab has to be claimed inside this gesture.
       action: () => executeCommand(modeler, { type: 'OpenRunner', target: openRunnerTab() }),
     },
@@ -115,7 +115,7 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       id: 'simulate',
       group: 'Run',
       label: isSimulating ? 'Stop Simulation' : 'Start Simulation',
-      icon: isSimulating ? ICONS.stop : ICONS.play,
+      icon: isSimulating ? ICONS.stop : ICONS.simulate,
       action: () => executeCommand(modeler, { type: 'ToggleSimulation' }),
     },
 
@@ -155,7 +155,7 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       id: 'view-manuscript',
       group: 'View',
       label: 'View as Manuscript...',
-      icon: ICONS.figure,
+      icon: ICONS.manuscript,
       keywords: 'figure svg png drawio paper export',
       action: () => openDialog('manuscript'),
     },
@@ -181,7 +181,7 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       id: 'replay-provenance',
       group: 'View',
       label: 'Replay Provenance',
-      icon: ICONS.playFill,
+      icon: ICONS.replay,
       action: openReplay,
     },
   ];

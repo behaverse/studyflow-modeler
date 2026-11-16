@@ -21,7 +21,7 @@ import { ICONS } from '@modeler/icons';
  * locally as a file the user places or as a download depends on the browser, so the dialog does not ask.
  */
 const DESTINATIONS = [
-  { id: 'local', label: 'Local', icon: ICONS.save, hint: '' },
+  { id: 'local', label: 'Local', icon: ICONS.thisMachine, hint: '' },
   ...SKILL_SAVE_DESTINATIONS,
 ];
 
@@ -48,7 +48,7 @@ export function SaveDialog({ isOpen, onClose }: Props) {
     : 'This browser can only put files in the downloads folder';
 
   const format = getExportFormat(formatId);
-  const filename = saveFilename(diagramName, format);
+  const filename = saveFilename(diagramName ?? 'diagram', format);
 
   // A TIFF needs its size on paper.
   const size = usePrintSize(modeler, isOpen && formatId === 'tif');

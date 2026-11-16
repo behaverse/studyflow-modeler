@@ -6,8 +6,8 @@ import { AccountSection } from '@skills/behaverse/modeler/AccountSection';
 import { PublishPanel } from '@skills/behaverse/modeler/PublishPanel';
 
 const module: ModelerModule = {
-  settings: [{ id: 'behaverse', label: 'Behaverse', icon: 'ph--user-circle', Component: AccountSection }],
-  destinations: [{ id: 'cloud', label: 'Cloud', icon: ICONS.broadcast, hint: 'Upload to the Behaverse server', Panel: PublishPanel }],
+  settings: [{ id: 'behaverse', label: 'Behaverse', icon: 'tabler--user-circle', Component: AccountSection }],
+  destinations: [{ id: 'cloud', label: 'Cloud', icon: ICONS.cloudUpload, hint: 'Upload to the Behaverse server', Panel: PublishPanel }],
 };
 
 export default module;

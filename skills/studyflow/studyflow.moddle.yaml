@@ -336,7 +336,7 @@ types:
         type: String
         meta:
           # Overlay icon drawn on the event when this attribute is set.
-          icon: iconify ph--shield-check
+          icon: iconify tabler--shield-check
           optional: true
       # The consent form's content in the registered protocol: `studyflow validate` fetches it and compares, and
       # `studyflow run` refuses to start on another text. BPMN has no content hash, so it sits beside the address.
@@ -376,7 +376,7 @@ types:
         meta:
           optional: true
           # Overlay icon drawn on the event when this attribute is set.
-          icon: iconify ph--sign-out
+          icon: iconify tabler--logout
       - name: completionCodeType
         description: How the completion code is produced.
         isAttr: true
@@ -444,7 +444,7 @@ types:
       - bpmn:ChoreographyTask
     isAbstract: true
     meta:
-      icon: iconify ph--users
+      icon: iconify mdi--account-switch-outline
   # A choreography task in a process is no BPMN: BPMN defines one only in a choreography, with no data of its own.
   # The BPMN XML writes one as the task it is, its bands as these two attributes, and reading the XML draws it back.
   - name: Exchange
@@ -480,7 +480,7 @@ types:
     superClass:
       - bpmn:Participant
     meta:
-      icon: iconify ph--users-three
+      icon: iconify tabler--layout-sidebar
       # The kinds an actor that only takes bands can be: one per literal of this enum attribute.
       participantKind: actorType
     properties:
@@ -530,7 +530,7 @@ types:
     superClass:
       - bpmn:DataObjectReference
     meta:
-      icon: iconify ph--brackets-curly
+      icon: iconify tabler--braces
       # An attribute that references a Schema (`Dataset#schema`) edits it as text.
       editor: code
     properties:
@@ -600,7 +600,7 @@ types:
       - bpmn:DataObjectReference
     isAbstract: false
     meta:
-      icon: iconify ph--table
+      icon: iconify tabler--table
     properties:
       - name: format
         description: On-disk format of the table.
@@ -842,7 +842,7 @@ types:
     superClass:
       - bpmn:DataObjectReference
     meta:
-      icon: iconify ph--sliders-horizontal
+      icon: iconify tabler--adjustments-horizontal
     properties:
       - name: values
         description: The configuration, as a YAML mapping.
