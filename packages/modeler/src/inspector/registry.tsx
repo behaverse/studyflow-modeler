@@ -40,7 +40,7 @@ function StringInput({ attrDef, isMarkdown }: { attrDef: AttributeSpec; isMarkdo
     <>
       <Label className={s.label}>
         <span>
-          {t(name)}
+          {t(attrDef)}
           {attrDef.meta?.unit && <span className={s.unit}>{attrDef.meta.unit}</span>}
         </span>
         <HelpTooltip name={name} description={attrDef?.description} />
@@ -67,7 +67,7 @@ function BooleanInput({ attrDef }: { attrDef: AttributeSpec }) {
         <Checkbox checked={value} onChange={commit} className={s.checkbox}>
           <CheckIcon />
         </Checkbox>
-        <Label className={s.label}>{t(name)}</Label>
+        <Label className={s.label}>{t(attrDef)}</Label>
       </span>
       <HelpTooltip name={name} description={attrDef?.description} wide={false} />
     </div>
@@ -100,7 +100,7 @@ function OptionalStringInput({ attrDef }: { attrDef: AttributeSpec }) {
           <Checkbox checked={isSet} onChange={handleToggle} className={s.checkbox}>
             <CheckIcon />
           </Checkbox>
-          <Label className={s.label}>{t(name)}</Label>
+          <Label className={s.label}>{t(attrDef)}</Label>
         </span>
         <HelpTooltip name={name} description={attrDef?.description} />
       </div>
@@ -144,7 +144,7 @@ export function OverriddenInput({ attrDef, override }: { attrDef: AttributeSpec;
       <Label className={s.label}>
         <span className={s.overriddenLabel}>
           <i className={`${ICONS.wired} text-xs text-stone-500`} aria-hidden="true" />
-          {t(name)}
+          {t(attrDef)}
           {attrDef.meta?.unit && <span className={s.unit}>{attrDef.meta.unit}</span>}
         </span>
         <HelpTooltip name={name} description={attrDef?.description} />

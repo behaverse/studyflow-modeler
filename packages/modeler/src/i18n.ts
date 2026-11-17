@@ -1,4 +1,5 @@
 import en from '#assets/locales/en.json';
+import type { AttributeSpec } from '@core/notation';
 import { toLocalName } from '@core/naming';
 
 const translations: Record<string, string> = en;
@@ -12,7 +13,9 @@ function humanize(name: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
-export function t(key: string) {
+/** A key's label; an attribute's is the one its schema gives it (`meta.label`), else the one shared by its name. */
+export function t(key: string | AttributeSpec): string {
+  if (typeof key !== 'string') return key.meta?.label ?? t(key.ns?.name ?? key.name);
   if (key in translations) return translations[key];
   const localName = toLocalName(key);
   if (!localName) return key;

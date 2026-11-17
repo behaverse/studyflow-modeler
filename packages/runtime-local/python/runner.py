@@ -374,13 +374,8 @@ def serve(claims: Callable[[dict[str, Any]], Any], execute: Callable[[Step], Any
     run: dict[str, Any] = {}
     steps: dict[str, Step] = {}
 
-    def perform(request_id: Any, params: dict[str, Any]) -> None:
-        element_id = str(params.get("element"))
-        step = Step(element_id, plan, params.get("values") or {}, params.get("message"),
-                    Path(run.get("dir") or "."), Path(run.get("cache") or ".cache"), wire, params.get("conversation"),
-                    params.get("attributes"), params.get("asker"), request_id)
-        steps[str(request_id)] = step
-        current.element = element_id
+    def perform(request_id: Any, step: Step) -> None:
+        current.element = step.id
         started = time.perf_counter()
         try:
             result = execute(step)
@@ -399,7 +394,7 @@ def serve(claims: Callable[[dict[str, Any]], Any], execute: Callable[[Step], Any
 
     # Hand-offs run here, on the main thread, where a library may insist on being (a GUI toolkit, a signal handler);
     # one that arrives while another runs gets a thread of its own. The wire is read beside them.
-    work: "queue.Queue[tuple[Any, dict[str, Any]] | None]" = queue.Queue()
+    work: "queue.Queue[tuple[Any, Step] | None]" = queue.Queue()
     free = threading.Event()
     free.set()
 
@@ -425,11 +420,17 @@ def serve(claims: Callable[[dict[str, Any]], Any], execute: Callable[[Step], Any
                 answer = claimed if isinstance(claimed, dict) else {"elements": claimed, "live": live}
                 wire.send({"id": request_id, "result": {"protocol": PROTOCOL, "runner": name or Path(sys.argv[0]).resolve().parent.name, **answer}})
             elif method == "execute":
+                # Known from the moment it is asked for, so a message or a cancel the walk sends right after reaches
+                # it even before it starts to run.
+                step = Step(str(params.get("element")), plan, params.get("values") or {}, params.get("message"),
+                            Path(run.get("dir") or "."), Path(run.get("cache") or ".cache"), wire,
+                            params.get("conversation"), params.get("attributes"), params.get("asker"), request_id)
+                steps[str(request_id)] = step
                 if free.is_set():
                     free.clear()
-                    work.put((request_id, params))
+                    work.put((request_id, step))
                 else:
-                    threading.Thread(target=perform, args=(request_id, params), daemon=True).start()
+                    threading.Thread(target=perform, args=(request_id, step), daemon=True).start()
             elif method == "message":
                 step = steps.get(str(params.get("handoff")))
                 if step:

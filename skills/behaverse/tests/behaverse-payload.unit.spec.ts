@@ -99,6 +99,8 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
     payload?: Omit<BehaverseTaskPayload, 'scene' | 'timeline' | 'metadata'> & { scene?: string; timeline?: string };
     unityBot?: BehaverseBotPayload;
     error?: RegExp;
+    /** The task is another skill's to play, so the page builds nothing for it. */
+    none?: true;
   }[] = [
     {
       label: 'a timeline the task names runs the build\'s own, with no GameConfig to send, and a person with no one named takes it',
@@ -185,9 +187,19 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
       error: /ResponseSource/,
     },
     {
-      label: 'a task set to the Godot build is refused: the page plays the Unity one',
-      xml: taskXml('timeline: XCIT_NB_01\nruntime: godot'),
-      error: /Godot build/,
+      label: 'a task naming a release of the Unity build plays on the page',
+      xml: taskXml('timeline: XCIT_NB_01\nimplementation: behaverse://assessment-unity@26.10.1'),
+      payload: { agentType: 'human', configMode: 'builtin' },
+    },
+    {
+      label: 'a task naming the Godot build is refused: the page plays the Unity one',
+      xml: taskXml('timeline: XCIT_NB_01\nimplementation: behaverse://assessment-godot'),
+      error: /names the build assessment-godot/,
+    },
+    {
+      label: 'a task another skill\'s scheme implements is that skill\'s, not the page\'s',
+      xml: taskXml('timeline: XCIT_NB_01\nimplementation: jspsych://html-keyboard-response@8'),
+      none: true,
     },
     {
       label: 'a person on the lower band plays the task, with no bot',
@@ -202,9 +214,13 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
     },
   ];
 
-  for (const { label, xml, payload, unityBot, error } of CASES) {
+  for (const { label, xml, payload, unityBot, error, none } of CASES) {
     if (error) {
       await expect(payloadOf(xml), label).rejects.toThrow(error);
+      continue;
+    }
+    if (none) {
+      expect(await payloadOf(xml), label).toBeNull();
       continue;
     }
     const built = await payloadOf(xml);

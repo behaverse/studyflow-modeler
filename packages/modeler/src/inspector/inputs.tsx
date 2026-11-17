@@ -75,7 +75,7 @@ export function ExpressionInput({ attrDef }: { attrDef: AttributeSpec }) {
   return (
     <Field className={s.field}>
       <Label className={s.label}>
-        {t(attributeName)}
+        {t(attrDef)}
         <HelpTooltip name={attributeName} description={attrDef?.description} />
       </Label>
       <ExpressionRow
@@ -104,7 +104,7 @@ export function EnumListInput({ attrDef }: Props) {
   return (
     <>
       <Label className={s.label}>
-        {t(name)}
+        {t(attrDef)}
         <HelpTooltip name={name} description={attrDef?.description} wide={false} />
       </Label>
       <div className={s.arrayList}>
@@ -155,8 +155,9 @@ export function ArrayInput({ attrDef }: Props) {
   return (
     <>
       <Label className={s.label}>
-        {t(fullName)}
+        {t(attrDef)}
         <span className={s.labelActions}>
+          <HelpTooltip name={fullName} description={attrDef?.description} />
           <button
             type="button"
             aria-label="Add another item"
@@ -166,7 +167,6 @@ export function ArrayInput({ attrDef }: Props) {
           >
             <i className={`${ICONS.plus} text-base`} />
           </button>
-          <HelpTooltip name={fullName} description={attrDef?.description} />
         </span>
       </Label>
 
@@ -234,8 +234,9 @@ export function ChecklistInput({ attrDef }: { attrDef: AttributeSpec }) {
   return (
     <>
       <Label className={s.label}>
-        {t(name)}
+        {t(attrDef)}
         <span className={s.labelActions}>
+          <HelpTooltip name={name} description={attrDef?.description} />
           <button
             type="button"
             aria-label="Add checklist item"
@@ -244,7 +245,6 @@ export function ChecklistInput({ attrDef }: { attrDef: AttributeSpec }) {
           >
             <i className={`${ICONS.plus} text-base`} />
           </button>
-          <HelpTooltip name={name} description={attrDef?.description} />
         </span>
       </Label>
       {lines.length > 0 && (
@@ -300,12 +300,12 @@ export function EnumInput({ attrDef }: Props) {
   return (
     <>
       <Label className={s.label}>
-        {t(name)}
+        {t(attrDef)}
         <HelpTooltip name={name} description={attrDef?.description} wide={false} />
       </Label>
       <Picker
         name={name}
-        ariaLabel={t(name)}
+        ariaLabel={t(attrDef)}
         value={value}
         literalValues={literalValues}
         onCommit={commit}

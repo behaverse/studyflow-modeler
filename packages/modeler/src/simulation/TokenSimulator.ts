@@ -23,7 +23,37 @@ const TOKEN_SPEED = 200;
 const ACTIVITY_PAUSE_MS = 500;
 const SPAWN_INTERVAL_MS = 1000;
 const MAX_BOUNCING_PER_ELEMENT = 5;
-const TOKEN_COLORS = ['#e040fb', '#00bcd4', '#ff9800', '#4caf50', '#2196f3'];
+
+/** A token's outline, drawn around its centre; each shape's box is centred on it. */
+type Shape = (x: number, y: number) => string;
+
+const at2 = (value: number): number => Math.round(value * 100) / 100;
+
+/** A polygon, its corners given as offsets from the token's centre. */
+const polygon = (corners: [number, number][]): Shape => (x, y) =>
+  `M${corners.map(([dx, dy]) => `${at2(x + dx)} ${at2(y + dy)}`).join('L')}Z`;
+
+const circle: Shape = (x, y) =>
+  `M${at2(x - TOKEN_RADIUS)} ${at2(y)}a${TOKEN_RADIUS} ${TOKEN_RADIUS} 0 1 0 ${2 * TOKEN_RADIUS} 0a${TOKEN_RADIUS} ${TOKEN_RADIUS} 0 1 0 ${-2 * TOKEN_RADIUS} 0Z`;
+const square = polygon([[-7, -7], [7, -7], [7, 7], [-7, 7]]);
+const triangle = polygon([[0, -8.5], [9.5, 8.5], [-9.5, 8.5]]);
+const diamond = polygon([[0, -9.5], [9.5, 0], [0, 9.5], [-9.5, 0]]);
+/** Five points, nudged down 0.9 so its box is centred like the others'. */
+const star = polygon(Array.from({ length: 10 }, (_, i): [number, number] => {
+  const r = i % 2 === 0 ? 9.5 : 4;
+  const angle = -Math.PI / 2 + (i * Math.PI) / 5;
+  return [at2(r * Math.cos(angle)), at2(0.9 + r * Math.sin(angle))];
+}));
+
+/** What a run's tokens wear: a colour and a shape together, so two runs on screen differ in both, and one who cannot
+ * tell the colours apart still tells the shapes. */
+const TOKEN_LOOKS: { color: string; shape: Shape }[] = [
+  { color: '#e040fb', shape: circle },
+  { color: '#00bcd4', shape: square },
+  { color: '#ff9800', shape: triangle },
+  { color: '#4caf50', shape: diamond },
+  { color: '#2196f3', shape: star },
+];
 
 export const TOGGLE_SIMULATION_EVENT = 'TokenSimulationToggle';
 
@@ -32,7 +62,8 @@ const TOKEN_LAYER_INDEX = 1000;
 
 /** One pool's token in one dry run. */
 interface Token {
-  svg: SVGCircleElement;
+  svg: SVGPathElement;
+  shape: Shape;
   cx: number;
   cy: number;
   /** The path it is gliding along, and how far it has come. */
@@ -53,7 +84,7 @@ interface Token {
 
 /** One dry run: a walk, and a token for each pool it walks. */
 interface Run {
-  color: string;
+  look: (typeof TOKEN_LOOKS)[number];
   tokens: Map<string, Token>;
   /** Its walk has ended, or the simulation stopped it. */
   over: boolean;
@@ -68,7 +99,7 @@ export default class TokenSimulator {
   private frame: number | null = null;
   private spawning: number | null = null;
   private layer: SVGGElement | null = null;
-  private colorIndex = 0;
+  private looks = 0;
   private lastTimestamp = 0;
   private plan: Plan | undefined;
 
@@ -101,7 +132,7 @@ export default class TokenSimulator {
     this.readPlan();
     this.spawnRun();
     this.spawning = window.setInterval(() => {
-      if (this.tokens().filter((token) => !token.done && !token.hidden && !token.bouncing).length < TOKEN_COLORS.length) this.spawnRun();
+      if (this.tokens().filter((token) => !token.done && !token.hidden && !token.bouncing).length < TOKEN_LOOKS.length) this.spawnRun();
     }, SPAWN_INTERVAL_MS);
     this.lastTimestamp = performance.now();
     this.frame = requestAnimationFrame(this.tick);
@@ -165,7 +196,7 @@ export default class TokenSimulator {
     if (!this.plan) return;
     const { scope } = this.host.canvas;
     const plan = scope && this.plan.elements[scope] ? { ...this.plan, processes: [scope] } : this.plan;
-    const run: Run = { color: TOKEN_COLORS[this.colorIndex++ % TOKEN_COLORS.length], tokens: new Map(), over: false };
+    const run: Run = { look: TOKEN_LOOKS[this.looks++ % TOKEN_LOOKS.length], tokens: new Map(), over: false };
     let walk: Walk;
     try {
       // Unseeded: each run is another participant, so the tokens spread over what a random gateway may draw.
@@ -195,7 +226,7 @@ export default class TokenSimulator {
     let token = run.tokens.get(pool);
     // A pool's next instance takes a token of its own: the last one's may still be popping at its end event.
     if (!token || token.done) {
-      token = this.createToken(run.color, anchor, to);
+      token = this.createToken(run.look, anchor, to);
       run.tokens.set(pool, token);
       return Promise.resolve();
     }
@@ -259,15 +290,14 @@ export default class TokenSimulator {
   };
 
   /** The `studyflow-simulation-token` class is the selector e2e tests count tokens by. */
-  private createToken(color: string, at: Point, element: string): Token {
-    const svg = this.layer!.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    svg.setAttribute('r', String(TOKEN_RADIUS));
+  private createToken(look: Run['look'], at: Point, element: string): Token {
+    const svg = this.layer!.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'path');
     svg.setAttribute('class', 'studyflow-simulation-token');
-    svg.style.fill = color;
+    svg.style.fill = look.color;
     this.layer!.appendChild(svg);
     const token: Token = {
-      svg, cx: at.x, cy: at.y, path: [], segLengths: [], totalDist: 0, travelled: 0, pauseRemaining: 0,
-      at: element, hidden: false, bouncing: false, done: false,
+      svg, shape: look.shape, cx: at.x, cy: at.y, path: [], segLengths: [], totalDist: 0, travelled: 0,
+      pauseRemaining: 0, at: element, hidden: false, bouncing: false, done: false,
     };
     this.place(token, at.x, at.y);
     this.syncVisibility(token);
@@ -277,8 +307,7 @@ export default class TokenSimulator {
   private place(token: Token, x: number, y: number): void {
     token.cx = x;
     token.cy = y;
-    token.svg.setAttribute('cx', String(x));
-    token.svg.setAttribute('cy', String(y));
+    token.svg.setAttribute('d', token.shape(x, y));
   }
 
   private syncVisibility(token: Token): void {

@@ -67,7 +67,7 @@ export function CodeEditor({ attrDef }: { attrDef: AttributeSpec }) {
       <div className={s.modalBackdrop} onClick={closeModal} />
       <div role="dialog" aria-modal="true" className={s.modal}>
         <div className={s.modalHeader}>
-          <h3 className={s.modalTitle}>Edit {t(attributeName)}</h3>
+          <h3 className={s.modalTitle}>Edit {t(attrDef)}</h3>
           <button className={s.modalClose} onClick={closeModal}>
             <i className={`${ICONS.close} cursor-pointer`}></i>
           </button>
@@ -116,7 +116,7 @@ export function CodeEditor({ attrDef }: { attrDef: AttributeSpec }) {
   return (
     <>
       <Button className={s.openButton} onClick={showEditorModal}>
-        <i className={`${ICONS.pencil} pe-2`}></i> Edit {t(attributeName)}
+        <i className={`${ICONS.pencil} pe-2`}></i> Edit {t(attrDef)}
       </Button>
       {modalOpen && createPortal(modal, document.body)}
     </>
@@ -147,7 +147,7 @@ export function SchemaEditor({ attrDef }: { attrDef: AttributeSpec }) {
 }
 
 function ColumnEditor({ attrDef, edited }: { attrDef: AttributeSpec; edited: SchemaFormat }) {
-  const { value, attributeName, element, modeler } = useAttributeState<string>(attrDef, (raw) => raw || '');
+  const { value, element, modeler } = useAttributeState<string>(attrDef, (raw) => raw || '');
   const [modalOpen, setModalOpen] = useState(false);
   const [columns, setColumns] = useState<SchemaColumn[]>([]);
   const [format, setFormat] = useState<SchemaFormat>(edited);
@@ -191,7 +191,7 @@ function ColumnEditor({ attrDef, edited }: { attrDef: AttributeSpec; edited: Sch
       <div className={s.modalBackdrop} onClick={close} />
       <div role="dialog" aria-modal="true" className={s.modal}>
         <div className={s.modalHeader}>
-          <h3 className={s.modalTitle}>Edit columns; {t(attributeName)}</h3>
+          <h3 className={s.modalTitle}>Edit columns; {t(attrDef)}</h3>
           <button className={s.modalClose} onClick={close}>
             <i className={`${ICONS.close} cursor-pointer`}></i>
           </button>

@@ -24,6 +24,8 @@ export interface AttributeMeta {
   icon?: string;
   /** Unit of a numeric attribute (`Hz`, `s`, `rad`), shown after the field label; never part of the name. */
   unit?: string;
+  /** The field's label, where the one shared by every attribute of its name would mislead. */
+  label?: string;
   [key: string]: unknown;
 }
 

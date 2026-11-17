@@ -56,6 +56,8 @@ from exchange import (  # noqa: E402 - the SDK's exchange along message flows, a
 STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
 BEHAVERSE = "http://behaverse.org/schemas/studyflow/behaverse"
 BUILD_MOUNT = "/assessment-unity"
+# The build this runner plays, which a task's `implementation` names (`behaverse://assessment-unity@26.10.1`), or none.
+UNITY_BUILD = "assessment-unity"
 # Who answers a task is the drawing's to say, never `Bot:`'s (the browser runner's types.ts `WHO_ANSWERS_KEYS`).
 WHO_ANSWERS_KEYS = ("ResponseSource", "LLM", "Prompt")
 # The messages this runner's task exchanges, as a message flow's `messageRef` → `itemRef` → `structureRef` names them:
@@ -80,16 +82,16 @@ def simulated_actor_of(element: dict[str, Any]) -> dict[str, Any] | None:
 def build_of(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
     """Which build plays a task: the simulated build when the pool its trials go to is a `behaverse:SimulatedActor`
     (`message_partners`: along its own message flows, else those it inherits from a sub-process or its pool), whatever
-    its `runtime` says; else the Godot build when its `runtime` says so; else the Unity build."""
+    its `implementation` names; else the build that names, before its `@` release; else the Unity build."""
     if any(simulated_actor_of(plan.get(pool) or {}) for pool in message_partners(element, plan, STRUCTURES)):
         return "simulated"
-    runtime = ((behaverse_extension(element) or {}).get("attributes") or {}).get("runtime")
-    return "godot" if runtime == "godot" else "unity"
+    reference = implementation_of(element).split("://", 1)[-1]
+    return reference.split("#", 1)[0].rsplit("@", 1)[0] or UNITY_BUILD
 
 
 def implementation_of(element: dict[str, Any]) -> str:
-    """The task's `implementation`: the release it names is for the record, but one naming another skill's scheme
-    hands the task to that skill's runner."""
+    """The task's `implementation`: the build that plays it and its release (`behaverse://assessment-unity@26.10.1`),
+    or another skill's scheme, which hands the task to that skill's runner."""
     attributes = (behaverse_extension(element) or {}).get("attributes") or {}
     return str(attributes.get("implementation") or (element.get("attributes") or {}).get("implementation") or "")
 
@@ -97,18 +99,19 @@ def implementation_of(element: dict[str, Any]) -> str:
 def claimed_tasks(plan: dict[str, Any], check_build: Callable[[], Any]) -> list[str]:
     """The elements this runner plays: the `behaverse:Task`s and the pools typed `behaverse:SimulatedActor`. The Unity build is
     checked here when a task plays on it, so a run fails before the walk starts rather than after another pool's robot
-    has greeted; a study whose tasks all go to a simulated actor needs none. A task set to the Godot build stops the
-    run here too: no runner plays that build yet, and a task nothing runs would only be skipped. A task whose
-    `implementation` names another scheme than `behaverse://` is that skill's to play."""
+    has greeted; a study whose tasks all go to a simulated actor needs none. A task naming another build, such as the
+    Godot one (`behaverse://assessment-godot`), stops the run here too: no runner plays it yet, and a task nothing runs
+    would only be skipped. A task whose `implementation` names another scheme than `behaverse://` is that skill's to
+    play."""
     elements = plan.get("elements") or {}
     tasks = {eid: element for eid, element in elements.items() if behaverse_extension(element) is not None
              and implementation_of(element).split("://")[0] in ("", "behaverse")}
     builds = {eid: build_of(element, elements) for eid, element in tasks.items()}
-    godot = sorted(eid for eid, build in builds.items() if build == "godot")
-    if godot:
-        raise ValueError(f"{', '.join(godot)} {'is' if len(godot) == 1 else 'are'} set to the Godot build (runtime: godot), "
-                         "which no runner plays yet; set runtime: unity to play it on the Unity build")
-    if "unity" in builds.values():
+    unplayed = sorted(f"{eid} ({build})" for eid, build in builds.items() if build not in (UNITY_BUILD, "simulated"))
+    if unplayed:
+        raise ValueError(f"{', '.join(unplayed)} {'names a build' if len(unplayed) == 1 else 'name builds'} no runner "
+                         f"plays yet; name behaverse://{UNITY_BUILD}, or no build, to play on the Unity build")
+    if UNITY_BUILD in builds.values():
         check_build()
     actors = [eid for eid, element in elements.items() if element.get("type") == "participant"
               and not (element.get("attributes") or {}).get("processRef") and simulated_actor_of(element)]

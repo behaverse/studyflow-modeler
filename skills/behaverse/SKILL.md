@@ -40,7 +40,7 @@ Warmup_1Back:
 | --- | --- |
 | `instrument` | Which task of the battery runs (`NB`): the wire's `scene`, BDM's `instrument_id`. |
 | `timeline` | The one timeline that runs: one the build ships for the instrument, or one defined under `Timelines` in the Parameters wired into the task. |
-| `runtime` | Which build plays the task: `unity` (the default), or `godot`, the Godot build task_builder makes. |
+| `implementation` | The build that plays the task, and its release: `behaverse://assessment-unity@26.10.1`, the Unity build, which also plays a task naming none; or `behaverse://assessment-godot`, the Godot build task_builder makes. |
 
 - `instrument` and `timeline` are attributes of the task, and a wired Parameters key of the same name sets either.
 - The task's GameConfig is the rest of those Parameters, merged, which the runtime hands over as the task's
@@ -48,7 +48,7 @@ Warmup_1Back:
 - A task naming no timeline has no trials to run, and is refused. So is an empty `Timelines` entry, which defines
   nothing.
 - A task whose `implementation` names another skill's scheme is that skill's to play.
-- No runner plays the Godot build yet, so a local study with a task set to it stops before its first step, saying
+- No runner plays the Godot build yet, so a local study with a task naming it stops before its first step, saying
   so, and the browser runner refuses it. The instrument, the timeline and the Parameters wired in mean the same
   whichever build plays the task.
 

@@ -39,6 +39,11 @@ export function StateSection() {
         <div className={s.label}>
           Properties
           <span className={s.labelActions}>
+            <HelpTooltip
+              testId="state-scope-help"
+              name="bpmn:Property"
+              description={SCOPE_DESCRIPTION}
+            />
             <button
               type="button"
               data-testid="add-property"
@@ -49,11 +54,6 @@ export function StateSection() {
             >
               <i className={`${ICONS.plus} text-base`} />
             </button>
-            <HelpTooltip
-              testId="state-scope-help"
-              name="bpmn:Property"
-              description={SCOPE_DESCRIPTION}
-            />
           </span>
         </div>
 
@@ -135,6 +135,7 @@ export function DataStoresSection() {
         <div className={s.label}>
           Data stores
           <span className={s.labelActions}>
+            <HelpTooltip testId="data-stores-help" name="bpmn:DataStore" description={STORES_DESCRIPTION} />
             <button
               type="button"
               data-testid="add-data-store"
@@ -145,7 +146,6 @@ export function DataStoresSection() {
             >
               <i className={`${ICONS.plus} text-base`} />
             </button>
-            <HelpTooltip testId="data-stores-help" name="bpmn:DataStore" description={STORES_DESCRIPTION} />
           </span>
         </div>
 

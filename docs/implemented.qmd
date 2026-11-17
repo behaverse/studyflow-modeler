@@ -76,7 +76,7 @@ automated test in this repository, and the element types that the schemas declar
 | cognitive:Rest | bpmn:IntermediateCatchEvent | `eyes`; a timer event, its timer how long the rest lasts (a minute when it is made) |
 | cognitive:RandomGateway | bpmn:ExclusiveGateway | `algorithm` (simple, block, minimization, alternation), `allocationRatio`, `blockSize`, `stratifyBy`, `strata` |
 | cognitive:EligibilityGateway | bpmn:ExclusiveGateway | `inclusionCriteria`, `exclusionCriteria` |
-| behaverse:Task | `bpmn:ChoreographyTask`, through `cognitive:CognitiveTask` | `instrument`, `timeline`, `runtime` (unity, godot: the build that plays it); `platform` is behaverse |
+| behaverse:Task | `bpmn:ChoreographyTask`, through `cognitive:CognitiveTask` | `instrument`, `timeline`, `implementation` (the build that plays it and its release, `behaverse://assessment-unity@26.10.1`; none is the Unity build); `platform` is behaverse |
 | behaverse:BDMDataset | `bpmn:DataStoreReference`, through `studyflow:Dataset` | `dataLevel` (events, trials, models); `format` is bdm |
 | agentic:Prompt | bpmn:DataObjectReference | template |
 | eeg:Session | bpmn:Participant | `device`, `modalities`, `montage`, `reference`, `ground`, `lineFrequency`, `impedanceThreshold` |

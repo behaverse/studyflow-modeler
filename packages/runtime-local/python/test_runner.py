@@ -98,17 +98,26 @@ failed = next(answer for answer in map(json.loads, out.splitlines()) if answer.g
 assert failed["error"]["code"] == 1 and failed["error"]["data"]["errorCode"] == "quit", failed
 
 # Two hand-offs of one element at once (two instances of a pool walking at once): each message reaches the hand-off its
-# `handoff` names, and each answers with its own.
+# `handoff` names, and each answers with its own, even one that arrives before its hand-off has started to run (every
+# thread the runner starts here begins half a second late).
+late = ("import threading, time, runner\n"
+        "class Late(threading.Thread):\n"
+        "    def run(self):\n"
+        "        time.sleep(0.5)\n"
+        "        super().run()\n"
+        "threading.Thread = Late\n")
 served = subprocess.Popen(
-    [sys.executable, "-c", "import runner; runner.serve(lambda plan: [], lambda step: step.receive(5)['content'])"],
+    [sys.executable, "-c", late + "runner.serve(lambda plan: [], lambda step: step.receive(5)['content'])"],
     cwd=Path(__file__).parent, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
-out, _ = served.communicate('{"jsonrpc":"2.0","id":"w1","method":"execute","params":{"element":"Play"}}\n'
-                            '{"jsonrpc":"2.0","id":"w2","method":"execute","params":{"element":"Play"}}\n'
-                            '{"jsonrpc":"2.0","method":"message","params":{"element":"Play","handoff":"w2","message":{"content":"two"}}}\n'
-                            '{"jsonrpc":"2.0","method":"message","params":{"element":"Play","handoff":"w1","message":{"content":"one"}}}\n'
-                            '{"jsonrpc":"2.0","id":"w3","method":"shutdown"}\n', timeout=10)
-answered = {a["id"]: a.get("result", {}).get("result") for a in map(json.loads, out.splitlines()) if a.get("id") in ("w1", "w2")}
-assert answered == {"w1": "one", "w2": "two"}, out
+served.stdin.write('{"jsonrpc":"2.0","id":"w1","method":"execute","params":{"element":"Play"}}\n'
+                   '{"jsonrpc":"2.0","id":"w2","method":"execute","params":{"element":"Play"}}\n'
+                   '{"jsonrpc":"2.0","method":"message","params":{"element":"Play","handoff":"w2","message":{"content":"two"}}}\n'
+                   '{"jsonrpc":"2.0","method":"message","params":{"element":"Play","handoff":"w1","message":{"content":"one"}}}\n')
+served.stdin.flush()
+answers = [json.loads(served.stdout.readline()) for _ in range(2)]  # a hand-off whose message was lost answers in 5 s
+served.communicate('{"jsonrpc":"2.0","id":"w3","method":"shutdown"}\n', timeout=5)
+answered = {a["id"]: a.get("result", {}).get("result") for a in answers}
+assert answered == {"w1": "one", "w2": "two"}, answers
 
 # JSON has no NaN or Infinity, and the walk's parser refuses a line that holds one, which would lose the hand-back: a
 # non-finite number a step hands back (the p-value of a test that could not run) travels as null.

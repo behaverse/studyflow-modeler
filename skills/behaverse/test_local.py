@@ -116,16 +116,15 @@ assert argv[:2] == ["chrome", "--app=http://127.0.0.1:1/"], argv
 assert set(behaverse.chromium.UNTHROTTLED) <= set(argv), argv
 print("ok")
 
-# The Unity runner plays the tasks on the Unity build, checking the build first; one set to the Godot build stops
-# the run before its first step, since no runner plays that build yet.
+# The Unity runner plays the tasks on the Unity build, checking the build first; one naming the Godot build stops the
+# run before its first step, since no runner plays that build yet.
 checked = []
 unity_plan = {"elements": {"Play": task(), "Other": {"id": "Other", "type": "task"}}}
 assert behaverse.claimed_tasks(unity_plan, lambda: checked.append(True)) == ["Play"] and checked == [True]
-assert behaverse.claimed_tasks({"elements": {"Play": task(runtime="unity")}}, lambda: None) == ["Play"]
 # A task whose trials go to a pool typed `behaverse:SimulatedActor`, along its own flows or those it inherits, plays on
-# the simulated build whatever its `runtime` says, so a study of such tasks alone needs no Unity build; the pool is this
-# runner's too, which simulated.py answers for. The same task answered by a model plays on the Unity build. A task
-# another skill's scheme implements is that skill's to play.
+# the simulated build whatever its `implementation` names, so a study of such tasks alone needs no Unity build; the
+# pool is this runner's too, which simulated.py answers for. The same task answered by a model plays on the Unity
+# build. A task another skill's scheme implements is that skill's to play.
 assert behaverse.claimed_tasks({"elements": {"Play": task(implementation="behaverse://assessment-unity@26.10")}}, lambda: None) == ["Play"]
 
 def unchecked():
@@ -134,15 +133,17 @@ def unchecked():
 
 simulated = {**nested, "Model": {"id": "Model", "type": "participant", "attributes": {}, "extensions": [
     {"namespace": behaverse.BEHAVERSE, "type": "simulatedActor", "attributes": {"accuracy": "default: 0.9"}}]}}
-assert behaverse.build_of(task(), simulated) == "simulated" and behaverse.build_of(task(), nested) == "unity"
+godot = task(implementation="behaverse://assessment-godot@26.11.0")
+assert behaverse.build_of(task(), simulated) == "simulated" and behaverse.build_of(task(), nested) == "assessment-unity"
+assert behaverse.build_of(godot, nested) == "assessment-godot"
 assert behaverse.claimed_tasks({"elements": simulated}, unchecked) == ["Play", "Model"]
-assert behaverse.claimed_tasks({"elements": {**simulated, "Play": task(runtime="godot")}}, unchecked) == ["Play", "Model"]
+assert behaverse.claimed_tasks({"elements": {**simulated, "Play": godot}}, unchecked) == ["Play", "Model"]
 assert behaverse.claimed_tasks({"elements": {"Play": task(implementation="other://assessment")}}, unchecked) == []
 try:
-    behaverse.claimed_tasks({"elements": {"Play": task(runtime="godot")}}, lambda: None)
+    behaverse.claimed_tasks({"elements": {"Play": godot}}, lambda: None)
     raise AssertionError("a Godot task was claimed")
 except ValueError as error:
-    assert "Play is set to the Godot build" in str(error), error
+    assert "Play (assessment-godot) names a build no runner plays yet" in str(error), error
 
 # A task the walk stops answers at once, so the walk never has to end this runner, and its window closes behind the
 # answer. A sleeping process stands in for the browser, and an empty folder for the build.

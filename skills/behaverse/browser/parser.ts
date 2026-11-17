@@ -1,3 +1,4 @@
+import { parseImplementationRef } from '@core/implementation';
 import { idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
 import type { FlowNode } from '@runner/flow';
 import type { Session } from '@runner/session';
@@ -27,11 +28,28 @@ export function readBehaverseAttribute(model: StudyModel, element: Element, attr
   return undefined;
 }
 
+/** The build the page plays, and the one a task naming none plays. */
+const UNITY_BUILD = 'assessment-unity';
+
+/**
+ * The build a task's `implementation` names, before its `@` release (`behaverse://assessment-unity@26.10.1`): the
+ * Unity build when it names none, and null when it names another skill's scheme, whose task that skill plays.
+ */
+function buildOf(implementation: string | undefined): string | null {
+  if (!implementation) return UNITY_BUILD;
+  const parsed = parseImplementationRef(implementation);
+  if (!parsed.ok) return implementation;
+  return parsed.value.scheme === 'behaverse' ? parsed.value.ref : null;
+}
+
 export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | null {
   if (node.extensionType !== BEHAVERSE_TASK_TYPE) return null;
-  // The page plays the Unity build; the Godot one has no web export here yet.
-  if (readBehaverseAttribute(node.model, node.element, 'runtime') === 'godot') {
-    throw new Error(`behaverse:Task '${node.id}' is set to the Godot build (runtime: godot), which the browser runner cannot play yet. Set runtime to unity.`);
+  const build = buildOf(readBehaverseAttribute(node.model, node.element, 'implementation'));
+  if (build === null) return null;
+  // The page plays the Unity build; another, such as the Godot one, has no web export here yet.
+  if (build !== UNITY_BUILD) {
+    throw new Error(`behaverse:Task '${node.id}' names the build ${build}, which the browser runner cannot play yet. `
+      + `Name behaverse://${UNITY_BUILD}, or no build, to play it on the Unity build.`);
   }
 
   const instrument = readBehaverseAttribute(node.model, node.element, 'instrument') ?? '';

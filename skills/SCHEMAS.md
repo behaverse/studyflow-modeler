@@ -149,6 +149,7 @@ types:
 | `languageAttr` | Sibling attribute holding the code editor's language (e.g. `bpmn:scriptFormat`). |
 | `icon` | Event overlay glyph drawn when the attribute has a value. A type's `icon` means something else. |
 | `unit` | Unit of a numeric attribute (`Hz`, `s`, `rad`); shown after the field label. Never part of the name. |
+| `label` | The field's label, where the one every attribute of its name shares would say too little: a Behaverse task's `implementation` is its `Build`. |
 
 ## Attribute precedence
 

@@ -123,6 +123,10 @@ export function DataFlowSection({ direction }: { direction: Direction }) {
         <div className={s.label}>
           {label}
           <span className={s.labelActions}>
+            <HelpTooltip
+              name={`bpmn:Data${direction === 'input' ? 'Input' : 'Output'}Association`}
+              description={description}
+            />
             {available.length > 0 && (
               <Listbox
                 value=""
@@ -146,10 +150,6 @@ export function DataFlowSection({ direction }: { direction: Direction }) {
                 </ListboxOptions>
               </Listbox>
             )}
-            <HelpTooltip
-              name={`bpmn:Data${direction === 'input' ? 'Input' : 'Output'}Association`}
-              description={description}
-            />
           </span>
         </div>
         {neighbors[direction].length > 0 && (
