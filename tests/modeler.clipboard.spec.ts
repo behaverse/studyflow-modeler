@@ -3,7 +3,7 @@ import { expect, test } from './e2e';
 
 import { extractPastedImagesFromPng, extractStudyflowFromPng } from '@core/document/png';
 
-import { addPaletteElement, diagramTitle, exportDiagram, gotoModeler, labelEditor, pressOnCanvas, readDownload, readDownloadText } from './utils';
+import { addPaletteElement, exportDiagram, gotoModeler, labelEditor, pressOnCanvas, readDownload, readDownloadText, studyName } from './utils';
 
 /**
  * Copy and paste, end to end: the canvas answers the browser's clipboard events with `.studyflow.yaml` text. What a
@@ -105,7 +105,7 @@ test('a pasted PNG shows, is saved in a .studyflow.png, opens again from it, and
 
   // Back from a file that has it, and the same again after another save: the bytes, not the last drawing of them.
   await page.getByTestId('open-file-input').setInputFiles({ name: 'with-image.studyflow.png', mimeType: 'image/png', buffer: png });
-  await expect(diagramTitle(page)).toHaveText('with-image');
+  await expect(studyName(page)).toHaveValue('with-image');
   await expect(image).toHaveCount(1);
   await expect(image).toHaveAttribute('href', /^data:image\/png;base64,/);
   const again = await readDownload(await exportDiagram(page, 'png'));
@@ -113,6 +113,6 @@ test('a pasted PNG shows, is saved in a .studyflow.png, opens again from it, and
 
   // Opening a file that holds none leaves none behind.
   await page.getByTestId('open-file-input').setInputFiles({ name: 'plain.studyflow.yaml', mimeType: 'text/yaml', buffer: Buffer.from(yaml, 'utf8') });
-  await expect(diagramTitle(page)).toHaveText('plain');
+  await expect(studyName(page)).toHaveValue('plain');
   await expect(image).toHaveCount(0);
 });

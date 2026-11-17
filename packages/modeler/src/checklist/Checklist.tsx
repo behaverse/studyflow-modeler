@@ -42,7 +42,7 @@ export function ChecklistDialog({ isOpen, onClose }: Props) {
             ) : (
               <ul className={`${d.panelBody} space-y-4`}>
                 {groups.map((g) => (
-                  <li key={g.id} className="border border-black/[0.06] rounded-lg p-3 bg-white/40">
+                  <li key={g.id} className="border border-black/[0.08] rounded-lg p-3 bg-white/40">
                     <div className="flex items-baseline justify-between gap-3 pb-2">
                       <h4 className="text-sm font-semibold text-stone-900">{g.label}</h4>
                       <span className="text-[0.6875rem] font-mono text-stone-500">{g.type}</span>

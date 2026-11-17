@@ -1,4 +1,4 @@
-import { surface, shadow, border, radius, tooltip as tooltipMaterial } from '@modeler/ui/styles';
+import { divider, material, radius, sectionLabel, tooltip as tooltipMaterial } from '@modeler/ui/styles';
 
 export const palette = {
   /* Centred in the band below the top row, not in the whole viewport: centred on the
@@ -10,10 +10,9 @@ export const palette = {
      window height the tools spill past the band; portal the flyouts out
      first if that ever needs fixing. */
   wrapper: `fixed left-2 top-[4.5rem] bottom-2 my-auto h-fit z-[210] flex flex-col
-            ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panel}
-            py-1 px-1 gap-0.5`,
+            ${material.panel} py-1 px-1 gap-0.5`,
 
-  separator: 'my-1 h-px bg-black/[0.08] mx-1',
+  separator: `my-1 mx-1 ${divider.horizontal}`,
 
   group: 'group relative flex items-center',
   groupWithFlyout: 'group/palgroup relative flex items-center',
@@ -40,14 +39,14 @@ export const paletteFlyout = {
               absolute left-[calc(100%+0.625rem)] top-[-0.375rem] z-[300]
               w-[18.5rem]
               p-2.5 pb-3
-              ${radius.card} ${surface.menu} ${border.hairline} ${shadow.menu}`,
+              ${material.menu}`,
 
   /** Without this the flyout closes as the cursor crosses the gap from its button. */
   gapBridge: 'absolute left-[-0.625rem] top-0 w-[0.625rem] h-full',
 
-  header: 'text-xs font-semibold uppercase tracking-[0.1em] text-stone-500 pb-2 mb-2 px-1 border-b border-black/[0.08]',
+  header: `${sectionLabel} pb-2 mb-2 px-1 border-b ${divider.edge}`,
 
-  sectionHeader: 'text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-stone-500 px-1 mt-2 mb-1 first:mt-0',
+  sectionHeader: `${sectionLabel} px-1 mt-2 mb-1 first:mt-0`,
 
   extBadge: 'inline-flex items-center px-1.5 py-px rounded text-[0.6875rem] font-semibold uppercase tracking-[0.1em] bg-transparent text-current border border-current',
 

@@ -1,14 +1,14 @@
 import { expect, test } from '@tests/e2e';
 
 import { STORAGE_KEYS } from '@core/storage';
-import { diagramTitle, examplePath, gotoModeler, openCommandPalette, readDownloadText, runPaletteCommand } from '@tests/utils';
+import { examplePath, gotoModeler, openCommandPalette, readDownloadText, runPaletteCommand, studyName } from '@tests/utils';
 
 /** The Reporting Diagram view on the skill's documents: what each draws is pinned by reporting-documents.unit.spec.ts. */
 
 test('the Reporting Diagram view lists the documents of the guidelines in use, shows the one picked, saves it, and goes with its extension', async ({ page }) => {
   await gotoModeler(page);
   await page.getByTestId('open-file-input').setInputFiles(examplePath('spirit2025'));
-  await expect(diagramTitle(page)).toHaveText('SPIRIT 2025 trial protocol');
+  await expect(studyName(page)).toHaveValue('SPIRIT 2025 trial protocol');
   await runPaletteCommand(page, /^View as Reporting Diagram/);
 
   const dialog = page.getByTestId('reporting-dialog');

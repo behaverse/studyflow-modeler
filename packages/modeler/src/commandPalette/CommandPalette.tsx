@@ -1,7 +1,5 @@
 import { Dialog, DialogPanel } from '@headlessui/react';
 import {
-  createElement,
-  useCallback,
   useContext,
   useEffect,
   useImperativeHandle,
@@ -9,10 +7,10 @@ import {
   useSyncExternalStore,
   useRef,
   useState,
-  type ComponentType,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
-import { ReplayContext, SettingsViewContext } from '@modeler/app/contexts';
+import { ModeContext, SettingsViewContext } from '@modeler/app/contexts';
+import { useDialogs } from '@modeler/app/Dialogs';
 import { useModeler } from '@modeler/app/useModeler';
 import type { Editor } from '@modeler/editor/port';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
@@ -20,36 +18,9 @@ import { MOD_LABEL, URLS } from '@modeler/constants';
 import { getLinkedFileName, subscribeLink } from '@modeler/diagram/fileHandle';
 import { saveLinkedFile } from '@modeler/diagram/save';
 import { commandPalette as cp } from '@modeler/commandPalette/styles';
-import { useDiagramPicker } from '@modeler/open/openFile';
-import { GalleryDialog } from '@modeler/gallery/Gallery';
-import { OpenDialog } from '@modeler/open/Open';
-import { SaveDialog } from '@modeler/export/Save';
-import { ChecklistDialog } from '@modeler/checklist/Checklist';
-import { ScheduleDialog } from '@modeler/schedule/Schedule';
-import { ManuscriptDialog } from '@modeler/manuscript/Manuscript';
-import { ReportingDialog } from '@modeler/reporting/Reporting';
-import { ProvenanceDialog } from '@modeler/provenance/Provenance';
 import { buildElementEntries, buildPaletteCommands } from '@modeler/commandPalette/menu';
-import {
-  groupCommands,
-  searchCommands,
-  type PaletteCommand,
-  type PaletteDialogId,
-} from '@modeler/commandPalette/types';
+import { groupCommands, searchCommands, type PaletteCommand } from '@modeler/commandPalette/types';
 import { ICONS } from '@modeler/icons';
-
-type SubDialogProps = { isOpen: boolean; onClose: () => void; scopeId?: string; onBrowse?: () => void };
-
-const SUB_DIALOGS: Record<PaletteDialogId, ComponentType<SubDialogProps>> = {
-  gallery: GalleryDialog,
-  open: OpenDialog,
-  save: SaveDialog,
-  checklist: ChecklistDialog,
-  schedule: ScheduleDialog,
-  manuscript: ManuscriptDialog,
-  reporting: ReportingDialog,
-  provenance: ProvenanceDialog,
-};
 
 // Structural, so both React's synthetic events and raw window KeyboardEvents fit.
 type KeyPress = Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'>;
@@ -77,28 +48,27 @@ function commitTyping(modeler: Editor): void {
 
 export const OPEN_PALETTE_SHORTCUT_LABEL = `${MOD_LABEL}K`;
 
+/** What the app menu may ask of the palette: open or close it. */
+export type CommandPaletteHandle = { open: () => void; close: () => void };
+
 type Props = {
-  ref?: React.Ref<{ open: () => void; close: () => void }>;
+  ref?: React.Ref<CommandPaletteHandle>;
 };
 
 export function CommandPalette({ ref }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
-  const [dialog, setDialog] = useState<{ id: PaletteDialogId; scopeId?: string } | null>(null);
   const modeler = useModeler();
   const { openSettings } = useContext(SettingsViewContext);
-  const { openReplay } = useContext(ReplayContext);
+  const { openReplay } = useContext(ModeContext);
+  const { dialog, openDialog } = useDialogs();
   const isSimulating = useIsSimulating(modeler);
   // A string selector, so the palette does not re-render through every save state transition.
   const linkedFileName = useSyncExternalStore(subscribeLink, getLinkedFileName, getLinkedFileName);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-
-  // The pick may have been started from the Open dialog, which has nothing left to say once a file opens.
-  const closeDialog = useCallback(() => setDialog(null), []);
-  const diagramPicker = useDiagramPicker(modeler, closeDialog);
 
   const open = () => {
     setQuery('');
@@ -116,11 +86,11 @@ export function CommandPalette({ ref }: Props) {
         isSimulating,
         openSettings,
         // Palette-opened dialogs are unscoped; only the `p`-on-selection path sets a provenance scope.
-        openDialog: (id: PaletteDialogId) => setDialog({ id }),
+        openDialog: (id) => openDialog(id),
         openReplay,
         linkedFileName,
       }),
-    [modeler, openSettings, isSimulating, openReplay, linkedFileName],
+    [modeler, openSettings, isSimulating, openDialog, openReplay, linkedFileName],
   );
 
   // The study's elements, read as the palette opens; they join the list once something is typed.
@@ -155,8 +125,8 @@ export function CommandPalette({ ref }: Props) {
         if (isOpen) close();
         // The quick write needs a linked file. Without one, or with Shift (to reach the format and destination
         // controls), the Save dialog opens instead.
-        if (e.shiftKey) setDialog({ id: 'save' });
-        else void saveLinkedFile(modeler).then((saved) => { if (!saved) setDialog({ id: 'save' }); });
+        if (e.shiftKey) openDialog('save');
+        else void saveLinkedFile(modeler).then((saved) => { if (!saved) openDialog('save'); });
         return;
       }
       // `/` opens, never closes; in the palette it is just a character to search with.
@@ -173,12 +143,12 @@ export function CommandPalette({ ref }: Props) {
         const scopeId = record?.kind === 'label' ? record.owner : record?.id;
         if (!scopeId) return;
         e.preventDefault();
-        setDialog({ id: 'provenance', scopeId });
+        openDialog('provenance', scopeId);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [modeler, isOpen, dialog, linkedFileName]);
+  }, [modeler, isOpen, dialog, openDialog, linkedFileName]);
 
   useEffect(() => {
     if (!listRef.current) return;
@@ -235,67 +205,56 @@ export function CommandPalette({ ref }: Props) {
   };
 
   return (
-    <>
-      {/* Only the open dialog is mounted: mounting all seven runs every dialog's hooks on boot. */}
-      {dialog && createElement(SUB_DIALOGS[dialog.id], {
-        isOpen: true,
-        onClose: () => setDialog(null),
-        scopeId: dialog.scopeId,
-        // The hidden `<input>` below stays mounted for the fallback, so the palette owns the pick.
-        onBrowse: diagramPicker.open,
-      })}
-      <input {...diagramPicker.inputProps} />
-      <Dialog open={isOpen} onClose={close} className={cp.root}>
-        <div className={cp.backdrop} aria-hidden="true" />
-        <div className={cp.layout}>
-          <DialogPanel transition className={cp.panel}>
-            <div className={cp.searchRow}>
-              <i className={cp.searchIcon}></i>
-              <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setActiveIndex(0);
-                }}
-                onKeyDown={handleKeyDown}
-                placeholder="Search commands and elements..."
-                className={cp.searchInput}
-                aria-label="Search commands"
-              />
-              {/* A link, not a command: it never gets searched, selected, or numbered. */}
-              <a
-                href={URLS.githubRepo}
-                target="_blank"
-                rel="noreferrer"
-                title="GitHub"
-                aria-label="Open GitHub repository"
-                className={cp.githubLink}
-              >
-                <i className={ICONS.github}></i>
-              </a>
-            </div>
-            <div ref={listRef} className={cp.list}>
-              {filtered.length === 0 ? (
-                <div className={cp.empty}>No matching commands.</div>
-              ) : (
-                grouped.map(([group, items]) => {
-                  const tiles = items.filter((c) => c.tile);
-                  const rows = items.filter((c) => !c.tile);
-                  return (
-                    <div key={group}>
-                      {tiles.length === 0 && <div className={cp.groupLabel}>{group}</div>}
-                      {tiles.length > 0 && <div className={cp.tile.wrap}>{tiles.map(renderItem)}</div>}
-                      {rows.map(renderItem)}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </DialogPanel>
-        </div>
-      </Dialog>
-    </>
+    <Dialog open={isOpen} onClose={close} className={cp.root}>
+      <div className={cp.backdrop} aria-hidden="true" />
+      <div className={cp.layout}>
+        <DialogPanel transition className={cp.panel}>
+          <div className={cp.searchRow}>
+            <i className={cp.searchIcon}></i>
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setActiveIndex(0);
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="Search commands and elements..."
+              className={cp.searchInput}
+              aria-label="Search commands"
+            />
+            {/* A link, not a command: it never gets searched, selected, or numbered. */}
+            <a
+              href={URLS.githubRepo}
+              target="_blank"
+              rel="noreferrer"
+              title="GitHub"
+              aria-label="Open GitHub repository"
+              className={cp.githubLink}
+            >
+              <i className={ICONS.github}></i>
+            </a>
+          </div>
+          <div ref={listRef} className={cp.list}>
+            {filtered.length === 0 ? (
+              <div className={cp.empty}>No matching commands.</div>
+            ) : (
+              grouped.map(([group, items]) => {
+                const tiles = items.filter((c) => c.tile);
+                const rows = items.filter((c) => !c.tile);
+                return (
+                  <div key={group}>
+                    {tiles.length === 0 && <div className={cp.groupLabel}>{group}</div>}
+                    {tiles.length > 0 && <div className={cp.tile.wrap}>{tiles.map(renderItem)}</div>}
+                    {rows.map(renderItem)}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </DialogPanel>
+      </div>
+    </Dialog>
   );
 }

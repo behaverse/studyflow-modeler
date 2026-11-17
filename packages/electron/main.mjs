@@ -16,15 +16,12 @@ const UI = path.join(ROOT, 'dist');
 /** What `studyflow edit` gets from `display-mode: standalone` (assets/css/desktop.css keys off the class). */
 const DESKTOP_CLASS = `document.documentElement.classList.add('desktop')`;
 
-/** The inset title bar: the brand starts right of the window buttons (`env(titlebar-area-x)`, the gutter the nav bar
- * centres in grows with it), and the top band drags the window, except the chrome on it (the brand, the nav bar, the
- * inspector: everything `fixed top-2`, assets/css/app.css and the modeler's top-chrome classes). */
+/** The inset title bar: the nav bar's row (`fixed top-2 inset-x-2`) starts right of the window buttons
+ * (`env(titlebar-area-x)`), and the top band drags the window, except the nav bar's two bars on it. */
 const TITLEBAR_CSS = `
-  :root { --brand-gutter: calc(3.75rem + env(titlebar-area-x, 0px)); }
-  @media (min-width: 1024px) { :root { --brand-gutter: calc(10rem + env(titlebar-area-x, 0px)); } }
-  a.fixed.top-2.left-0 { left: env(titlebar-area-x, 0px); }
   body::before { content: ''; position: fixed; inset: 0 0 auto 0; height: 3.5rem; z-index: 40; -webkit-app-region: drag; }
-  .fixed.top-2 { -webkit-app-region: no-drag; }
+  .fixed.top-2.inset-x-2 { left: calc(0.5rem + env(titlebar-area-x, 0px)); -webkit-app-region: drag; }
+  .fixed.top-2.inset-x-2 > * { -webkit-app-region: no-drag; }
 `;
 
 /** Files opened from the OS, served at `/open/<name>` for `?open=` to fetch, as `studyflow edit <file>` does. */
@@ -38,7 +35,7 @@ function open(file) {
     minWidth: 720,
     minHeight: 480,
     backgroundColor: '#f7f5f0',
-    // macOS: the traffic lights inset into the app's own top band, centred on the brand row.
+    // macOS: the traffic lights inset into the app's own top band, centred on the nav bar's row.
     ...(process.platform === 'darwin' && { titleBarStyle: 'hiddenInset', titleBarOverlay: true, trafficLightPosition: { x: 16, y: 24 } }),
   });
   win.webContents.on('dom-ready', () => {

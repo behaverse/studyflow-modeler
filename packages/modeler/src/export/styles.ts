@@ -1,5 +1,5 @@
 import { ICONS } from '@modeler/icons';
-import { dialog as d, radius, text } from '@modeler/ui/styles';
+import { border, choice, dialog as d, divider, focusRing, radius, surface, text } from '@modeler/ui/styles';
 
 /** The Save dialog's look, which a skill's destination panel wears too. */
 export const saveDialog = {
@@ -7,24 +7,21 @@ export const saveDialog = {
   rowLabel: `text-sm font-medium ${text.secondary} shrink-0 w-16`,
   selectWrapper: 'relative flex-1 min-w-0',
   select: `appearance-none w-full px-2.5 py-1.5 pr-8 ${radius.field}
-           border border-black/[0.08] bg-cream-100 text-sm text-stone-900
-           focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400 cursor-pointer`,
+           ${border.control} ${surface.chrome} text-sm text-stone-900 ${focusRing} cursor-pointer`,
   selectChevron: `${ICONS.caretDown} pointer-events-none absolute top-2.5 right-2.5 text-stone-500 text-xs`,
   /** A number among words: the TIFF's width on paper, and its dots per inch. */
-  numberField: `w-20 px-2 py-1 ${radius.field} border border-black/[0.08] bg-cream-100 text-sm text-stone-900 text-right
-                focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400`,
+  numberField: `w-20 px-2 py-1 ${radius.field} ${border.control} ${surface.chrome} text-sm text-stone-900 text-right ${focusRing}`,
   inline: 'flex-1 flex flex-wrap items-center gap-2 text-sm text-stone-700',
 
-  segmented: `flex-1 flex gap-1 p-1 ${radius.field} bg-cream-200`,
-  segment: `flex-1 inline-flex items-center justify-center gap-1.5 px-2 py-1 ${radius.field}
-            text-xs font-medium transition-colors cursor-pointer`,
-  segmentIdle: 'text-stone-600 hover:bg-black/[0.04]',
-  segmentActive: 'bg-cream-50 text-stone-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]',
+  segmented: `flex-1 flex gap-1 p-1 ${radius.button} ${surface.card}`,
+  segment: `flex-1 ${choice.base}`,
+  segmentIdle: choice.idle,
+  segmentActive: choice.selected,
 
-  fields: 'mt-4 pt-4 border-t border-black/[0.06] space-y-4',
-  footer: 'mt-5 pt-4 border-t border-black/[0.06] flex items-center justify-between gap-4',
+  fields: `mt-4 pt-4 border-t ${divider.edge} space-y-4`,
+  footer: `mt-5 pt-4 border-t ${divider.edge} flex items-center justify-between gap-4`,
   filename: 'font-mono text-xs text-stone-500 truncate',
-  primaryBtn: `inline-flex items-center gap-2 shrink-0 ${d.primaryBtn} disabled:opacity-50`,
+  primaryBtn: d.primaryBtn,
   error: 'text-xs text-red-500 mt-2',
   status: 'text-xs text-stone-600 mt-2',
 } as const;

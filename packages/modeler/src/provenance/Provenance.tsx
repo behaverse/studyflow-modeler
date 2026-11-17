@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useReducer, useState } from 'react';
 import { Modal } from '@modeler/ui/Modal';
-import { ReplayContext } from '@modeler/app/contexts';
+import { ModeContext } from '@modeler/app/contexts';
 import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { getStoredUserEmail } from '@modeler/settings/store';
@@ -27,7 +27,7 @@ const ICON_GUTTER = 22;
 
 export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
   const modeler = useModeler();
-  const { openReplay } = useContext(ReplayContext);
+  const { openReplay } = useContext(ModeContext);
   const [revision, bumpRevision] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
     modeler.events.on('HistoryChanged', bumpRevision);

@@ -1,11 +1,11 @@
-import { surface, shadow, border, radius, tooltip } from '@modeler/ui/styles';
+import { choice, divider, material, radius, tooltip } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 
 export const inspector = {
-  wrapper: 'fixed top-2 right-2 z-[220]',
+  /* Under the nav bar's row, as the palette is on the left. */
+  wrapper: 'fixed top-14 right-2 z-[220]',
   /** Width is set inline (see `inspector/panelWidth`): drag-resizable, so size is state, not a class. */
-  panel: `relative ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panel}
-          text-stone-900 max-h-[calc(100vh-5rem)] overflow-y-auto`,
+  panel: `relative ${material.panel} text-stone-900 max-h-[calc(100vh-4rem)] overflow-y-auto`,
   panelHidden: 'hidden',
   panelBody: 'w-full',
 
@@ -15,22 +15,15 @@ export const inspector = {
                  after:bg-stone-900/0 hover:after:bg-stone-900/20 focus-visible:after:bg-stone-900/40
                  after:transition-colors`,
 
-  toggleButton: `fixed top-3.5 right-3.5 z-[230] flex items-center justify-center
-                 w-8 h-8 rounded-md
-                 text-stone-500 hover:text-stone-900 hover:bg-black/[0.05]
-                 transition-colors`,
-  /** Mirrored: the glyph draws its panel on the left, and the inspector stands on the right. */
-  toggleIcon: 'text-2xl -scale-x-100',
-
   headerTitle: 'pb-0 text-base font-semibold p-2 pb-0 text-stone-900 tracking-tight',
   headerSubtitle: 'text-[0.6875rem] text-left font-mono px-2 pb-2 text-stone-500',
 
-  tabList: 'flex flex-wrap gap-0.5 px-2 pb-2 border-b border-black/[0.08]',
-  tabBase: 'px-1.5 py-1 text-xs font-semibold rounded-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(205,100%,45%)]',
-  tabSelected: 'bg-stone-900 text-cream-50 shadow-sm',
-  tabUnselected: 'text-stone-600 hover:bg-black/[0.05] hover:text-stone-900 cursor-pointer',
+  tabList: `flex flex-wrap gap-0.5 px-2 pb-2 border-b ${divider.edge}`,
+  tabBase: `${choice.base} focus:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(205,100%,45%)]`,
+  tabSelected: choice.selected,
+  tabUnselected: choice.idle,
   tabPanels: 'p-1',
-  tabPanel: 'rounded-xl',
+  tabPanel: radius.card,
 } as const;
 
 /* ponytail: inspector fields wear a 0.20 border, under the 3:1 control minimum. The cream-200 fill, the label
@@ -67,13 +60,13 @@ export const field = {
   comboChevronBtn: 'absolute top-0 right-0 h-full w-7 flex items-center justify-center text-stone-500 hover:text-stone-900 cursor-pointer',
   comboChevronIndicator: 'pointer-events-none absolute top-0 right-0 h-full w-7 flex items-center justify-center text-stone-500',
   comboChevronIcon: `${ICONS.caretDown} text-xs`,
-  comboOptions: `z-[240] mt-1 w-[var(--input-width)] max-h-56 overflow-auto rounded-md border border-black/[0.08] bg-cream-100 ${shadow.menu} py-1 focus:outline-none [--anchor-gap:4px]`,
+  comboOptions: `z-[240] mt-1 w-[var(--input-width)] max-h-56 overflow-auto ${material.menu} py-1 focus:outline-none [--anchor-gap:4px]`,
   comboOption: 'px-2.5 py-1 text-sm/6 text-stone-800 data-[focus]:bg-black/[0.05] data-[selected]:font-semibold cursor-pointer',
   comboOptionHint: 'block text-xs/4 font-normal text-stone-500',
 
   listboxBtn: 'appearance-none px-2 py-1 pr-8 w-full text-left rounded-md border border-black/[0.20] bg-cream-200 text-sm/6 text-stone-900 focus:outline-2 focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)] cursor-pointer',
-  listboxOptions: `z-[240] mt-1 w-[var(--button-width)] max-h-56 overflow-auto rounded-md border border-black/[0.08] bg-cream-100 ${shadow.menu} py-1 focus:outline-none [--anchor-gap:4px]`,
-  labelMenuOptions: `z-[240] mt-1 min-w-48 max-w-[min(20rem,calc(100vw-2rem))] w-max max-h-56 overflow-auto rounded-md border border-black/[0.08] bg-cream-100 ${shadow.menu} py-1 focus:outline-none [--anchor-gap:4px]`,
+  listboxOptions: `z-[240] mt-1 w-[var(--button-width)] max-h-56 overflow-auto ${material.menu} py-1 focus:outline-none [--anchor-gap:4px]`,
+  labelMenuOptions: `z-[240] mt-1 min-w-48 max-w-[min(20rem,calc(100vw-2rem))] w-max max-h-56 overflow-auto ${material.menu} py-1 focus:outline-none [--anchor-gap:4px]`,
 
   booleanRow: 'flex items-center justify-between',
   booleanGroup: 'flex items-center gap-2',
@@ -102,7 +95,7 @@ export const field = {
   stateTypeInput: 'w-full min-w-0 pl-2 pr-6 py-1 bg-transparent border-0 font-mono text-sm/6 text-stone-600 placeholder-stone-400 placeholder:italic focus:outline-none',
   stateTypeChevronBtn: 'absolute top-0 right-0 h-full w-5 flex items-center justify-center text-stone-500 hover:text-stone-900 cursor-pointer',
   stateTypeChevron: `${ICONS.caretDown} shrink-0 text-[0.6875rem] text-stone-500`,
-  stateTypeOptions: `z-[240] mt-1 w-max min-w-[var(--input-width)] max-w-[15rem] max-h-56 overflow-auto rounded-md border border-black/[0.08] bg-cream-100 ${shadow.menu} py-1 focus:outline-none [--anchor-gap:4px]`,
+  stateTypeOptions: `z-[240] mt-1 w-max min-w-[var(--input-width)] max-w-[15rem] max-h-56 overflow-auto ${material.menu} py-1 focus:outline-none [--anchor-gap:4px]`,
   stateTypeOption: 'px-2.5 py-1 font-mono text-sm text-stone-800 truncate data-[focus]:bg-black/[0.05] data-[selected]:font-semibold cursor-pointer',
   stateTypeUntyped: 'font-sans italic text-stone-500',
   stateTypeNew: 'font-sans text-stone-500',
@@ -117,11 +110,11 @@ export const codeEditor = {
   // Overlay sits above the inspector, its toggle, and the Headless UI dialog root (z-[220] to z-[250]).
   modalOverlay: 'fixed inset-0 z-[260] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/[0.20]',
   modalBackdrop: 'absolute inset-0',
-  modal: `relative z-[270] bg-cream-100 ${radius.capsule} ${shadow.sheet} border border-black/[0.06]
+  modal: `relative z-[270] ${material.sheet}
           flex flex-col
           w-full max-w-6xl
           h-[min(92vh,900px)] max-h-[92vh]`,
-  modalHeader: 'px-4 sm:px-5 py-3 flex justify-between items-center border-b border-black/[0.06] shrink-0',
+  modalHeader: 'px-4 sm:px-5 py-3 flex justify-between items-center border-b border-black/[0.08] shrink-0',
   modalTitle: 'text-base font-semibold tracking-tight text-stone-900',
   modalClose: 'text-sm text-stone-500 hover:text-stone-800 cursor-pointer',
   modalBody: 'flex-1 min-h-0 flex flex-col overflow-y-auto',
@@ -129,9 +122,9 @@ export const codeEditor = {
   modalSectionGrow: 'px-4 sm:px-5 py-3 flex-1 min-h-0 flex flex-col',
   modalSubLabel: 'block text-sm font-medium mb-2 text-stone-700',
   modalLanguageSelect: 'appearance-none p-2 w-full rounded-md border border-black/[0.45] text-sm text-stone-800 bg-cream-200',
-  modalEditorFrame: 'flex-1 min-h-[12.5rem] w-full overflow-auto rounded-lg bg-cream-200 border border-black/[0.06] focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[hsl(205,100%,45%)]',
+  modalEditorFrame: 'flex-1 min-h-[12.5rem] w-full overflow-auto rounded-lg bg-cream-200 border border-black/[0.08] focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[hsl(205,100%,45%)]',
   modalEditor: 'min-h-full font-mono text-sm/6 text-stone-900',
-  modalActions: 'px-4 sm:px-5 py-3 flex justify-end gap-2 border-t border-black/[0.06] shrink-0',
+  modalActions: 'px-4 sm:px-5 py-3 flex justify-end gap-2 border-t border-black/[0.08] shrink-0',
   modalCancelBtn: 'px-3 py-1.5 rounded-lg cursor-pointer text-stone-700 hover:bg-black/[0.05]',
   modalSaveBtn: 'px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-cream-50 rounded-lg cursor-pointer font-medium',
 } as const;

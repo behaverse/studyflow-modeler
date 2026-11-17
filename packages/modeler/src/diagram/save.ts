@@ -129,7 +129,7 @@ let reportedConflictFor: FileSystemFileHandle | undefined;
 
 async function saveInPlace(modeler: Editor, file: LinkedFile, auto: boolean, print?: PrintSize): Promise<SaveOutcome> {
   // Rendering an image costs seconds, which is no way to spend a debounce tick; those files wait
-  // for a save the user asked for, and the chip goes on saying there are unsaved edits until then.
+  // for a save the user asked for, and the nav bar goes on saying there are unsaved edits until then.
   if (auto && !autoSavable(file.format)) return 'skipped';
 
   // Only an explicit save may ask: `requestPermission` outside a gesture is denied without a prompt.
@@ -172,7 +172,7 @@ async function saveInPlace(modeler: Editor, file: LinkedFile, auto: boolean, pri
 }
 
 /**
- * The one save gesture behind the title-bar chip, ⌘S, and the palette's Save: write straight back
+ * The one save gesture behind ⌘S, the palette's Save, and the file card's buttons: write straight back
  * into the linked file, or, opened without a handle, as that file again. Reports `false` when the
  * canvas came from no file, so callers open the dialog instead.
  */

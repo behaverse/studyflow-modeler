@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './e2e';
 
-import { diagramTitle, examplePath, exportDiagram, gotoModeler, readDownload, readDownloadText } from './utils';
+import { examplePath, exportDiagram, gotoModeler, readDownload, readDownloadText, studyName } from './utils';
 
 /**
  * Icons, end to end. The canvas reads each class's glyph out of the app's own stylesheet
@@ -10,10 +10,10 @@ import { diagramTitle, examplePath, exportDiagram, gotoModeler, readDownload, re
  * How each resolver answer is drawn is `packages/canvas/tests/canvas-icons.unit.spec.ts`'s.
  */
 
-/** Open a shipped example and wait for its title. */
+/** Open a shipped example and wait for its study's name. */
 async function openExample(page: Page, name: string, title: string): Promise<void> {
   await page.getByTestId('open-file-input').setInputFiles(examplePath(name));
-  await expect(diagramTitle(page)).toContainText(title);
+  await expect(studyName(page)).toHaveValue(title);
 }
 
 /** A user task whose icon is a `data:` image, red: the raster shows it painted, in the ink rather than its own red. */
@@ -38,7 +38,7 @@ test.describe('native SVG icons', () => {
     page.on('request', (request) => { if (request.url().includes('iconify')) requests.push(request.url()); });
     await gotoModeler(page);
     // kitchensink holds typed tasks, markers, and container activities, which BPMN draws no type glyph for.
-    await openExample(page, 'kitchensink', 'kitchen sink');
+    await openExample(page, 'kitchensink', 'Studyflow element catalog (kitchen sink)');
 
     const canvas = page.getByTestId('modeler-canvas');
     await expect(canvas.locator('svg.sf-icon path').first()).toBeAttached();

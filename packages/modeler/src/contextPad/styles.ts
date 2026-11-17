@@ -6,13 +6,12 @@
  * z-order: palette 210 < context pad 215 < palette flyouts 300 < popover 320.
  */
 
-import { border, radius, shadow, surface, tooltip as tooltipMaterial } from '@modeler/ui/styles';
+import { material, tooltip as tooltipMaterial } from '@modeler/ui/styles';
 
 export const contextPad = {
   /** 3 × 28px entries + 2px gaps + 4px padding + 1px borders. Positioned by `transform`. */
   root: `fixed z-[215] left-0 top-0 w-[6.125rem] select-none
-         flex flex-wrap gap-0.5 p-1
-         ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panel}`,
+         flex flex-wrap gap-0.5 p-1 ${material.panel}`,
 
   entry: `flex items-center justify-center w-7 h-7 rounded-lg
           text-stone-600 cursor-pointer

@@ -56,10 +56,10 @@ export function ManuscriptDialog({ isOpen, onClose }: Props) {
             </DialogHelp>}
     >
       {/* The figure is scaled to fit, not scrolled: the point of the view is seeing the whole page at once. */}
-      <div className="flex-1 min-h-0 flex items-center justify-center bg-white/40 border border-black/[0.06] rounded-lg p-3">
+      <div className="flex-1 min-h-0 flex items-center justify-center bg-white/40 border border-black/[0.08] rounded-lg p-3">
         {src && <img src={src} alt="The diagram as a figure" className="max-h-[60vh] max-w-full object-contain" />}
       </div>
-      <div className="mt-4 pt-4 border-t border-black/[0.06] flex flex-wrap items-center justify-between gap-3">
+      <div className="mt-4 pt-4 border-t border-black/[0.08] flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm text-stone-700">
           <label htmlFor="export-print-width" className="font-medium shrink-0">TIFF</label>
           <PrintSizeFields size={size} />

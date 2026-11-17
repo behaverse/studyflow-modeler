@@ -1,13 +1,13 @@
 import { expect, test } from './e2e';
 
-import { diagramTitle, examplePath, gotoModeler, runPaletteCommand } from './utils';
+import { examplePath, gotoModeler, runPaletteCommand, studyName } from './utils';
 
 /** The Schedule view on a scheduled study: what it draws is laid out by schedule/rows.ts (tests/schedule-rows.unit.spec.ts). */
 
 test('the Schedule view draws a scheduled study as a row per step and group under one axis, joins a step to what it waits on, and a group folds its rows away and back', async ({ page }) => {
   await gotoModeler(page);
   await page.getByTestId('open-file-input').setInputFiles(examplePath('spirit2025'));
-  await expect(diagramTitle(page)).toHaveText('SPIRIT 2025 trial protocol');
+  await expect(studyName(page)).toHaveValue('SPIRIT 2025 trial protocol');
   await runPaletteCommand(page, /schedule/i);
 
   const chart = page.locator('svg[aria-label="Schedule chart"]');

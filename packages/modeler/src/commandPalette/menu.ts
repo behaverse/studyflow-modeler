@@ -4,7 +4,8 @@ import { saveLinkedFile } from '@modeler/diagram/save';
 import { MOD_LABEL, URLS } from '@modeler/constants';
 import { ICONS } from '@modeler/icons';
 import { getPaletteIconForBpmnType } from '@modeler/palette/groups';
-import type { PaletteCommand, PaletteDialogId } from '@modeler/commandPalette/types';
+import type { PaletteCommand } from '@modeler/commandPalette/types';
+import type { DialogId } from '@modeler/app/Dialogs';
 import type { Editor } from '@modeler/editor/port';
 import { reportingDocuments } from '@modeler/skillModules';
 
@@ -12,7 +13,7 @@ export type PaletteCommandDeps = {
   modeler: Editor;
   isSimulating: boolean;
   openSettings: () => void;
-  openDialog: (id: PaletteDialogId) => void;
+  openDialog: (id: DialogId) => void;
   openReplay: () => void;
   /** Name of the file the diagram is linked to, if any; it decides what "Save" is called. */
   linkedFileName?: string;
@@ -91,6 +92,14 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       icon: ICONS.book,
       action: () => { window.open(URLS.docs, '_blank', 'noopener'); },
     },
+    {
+      id: 'website',
+      group: 'File',
+      label: 'Studyflow Website',
+      icon: ICONS.website,
+      keywords: 'home about behaverse',
+      action: () => { window.open(URLS.home, '_blank', 'noopener'); },
+    },
     // Nothing to overwrite until a file is linked, so until then "Save As..." is the only save.
     ...(linkedFileName ? [{
       id: 'save',
@@ -99,7 +108,7 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       icon: ICONS.save,
       hint: `${MOD_LABEL}S`,
       keywords: 'overwrite write file',
-      // Same gesture as the title-bar chip: writes straight back into the linked file, no dialog.
+      // Same gesture as ⌘S: writes straight back into the linked file, no dialog.
       action: () => { void saveLinkedFile(modeler); },
     }] : []),
 

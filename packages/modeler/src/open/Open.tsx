@@ -17,7 +17,7 @@ const s = {
   dropTitle: `text-sm font-medium ${text.secondary}`,
   dropHint: 'text-xs text-stone-500',
 
-  formats: 'mt-5 pt-4 border-t border-black/[0.06]',
+  formats: 'mt-5 pt-4 border-t border-black/[0.08]',
   formatsLabel: 'text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-stone-500 mb-2',
   list: 'space-y-1',
   row: 'flex items-baseline justify-between gap-4 text-xs',

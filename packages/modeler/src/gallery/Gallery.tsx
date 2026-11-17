@@ -10,38 +10,38 @@ import {
 } from '@modeler/examples/entries';
 import { galleryCategories } from '@modeler/examples/catalog';
 import { filenameStem } from '@modeler/diagram/file';
-import { surface, radius } from '@modeler/ui/styles';
+import { border, choice, divider, radius, sectionLabel, surface } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 import { PaletteIcon } from '@modeler/palette/PaletteIcon';
 
 const g = {
   filters: 'flex flex-wrap items-center gap-1.5 pb-4 shrink-0',
-  chip: `px-3 py-1 ${radius.pill} text-xs border transition-colors cursor-pointer`,
-  chipIdle: 'border-black/[0.06] text-stone-600 hover:bg-black/[0.04]',
-  chipActive: 'bg-stone-900 border-stone-900 text-cream-50',
+  chip: choice.base,
+  chipIdle: choice.idle,
+  chipActive: choice.selected,
 
   grid: `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5
          flex-1 min-h-0 overflow-y-auto -mx-1 px-1 pb-1 content-start`,
   empty: 'text-sm text-stone-500 italic py-10 text-center',
 
   card: `group w-full h-full flex flex-col text-left overflow-hidden ${radius.card} ${surface.card}
-         border border-black/[0.06] hover:border-black/[0.14] hover:shadow-[0_2px_6px_rgba(0,0,0,0.05),0_12px_28px_rgba(0,0,0,0.09)]
+         ${border.hairline} hover:border-black/[0.14] hover:shadow-[0_2px_6px_rgba(0,0,0,0.05),0_12px_28px_rgba(0,0,0,0.09)]
          disabled:cursor-not-allowed transition-all duration-200 cursor-pointer`,
 
-  thumb: 'relative w-full aspect-[16/9] bg-white border-b border-black/[0.06] flex items-center justify-center overflow-hidden',
+  thumb: `relative w-full aspect-[16/9] bg-white border-b ${divider.edge} flex items-center justify-center overflow-hidden`,
   thumbImage: 'max-h-full max-w-full object-contain p-3 transition-transform duration-300 ease-out group-hover:scale-[1.04]',
   thumbBusy: 'absolute inset-0 flex items-center justify-center bg-white/70',
   thumbSpinner: `${ICONS.spinner} text-stone-500 animate-spin`,
   // The skill's schema icon, pinned to the picture's corner so it reads as where the example comes from.
-  badge: `absolute top-2 start-2 flex size-6 items-center justify-center ${radius.button} bg-white/90 text-stone-500 ring-1 ring-black/[0.06]`,
+  badge: `absolute top-2 start-2 flex size-6 items-center justify-center ${radius.button} bg-white/90 text-stone-500 ring-1 ring-black/[0.08]`,
 
   body: 'flex flex-col gap-1 px-3.5 py-3',
-  eyebrow: 'text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-stone-400',
+  eyebrow: sectionLabel,
   title: 'text-sm font-semibold tracking-tight text-stone-900 line-clamp-2',
   summary: 'text-xs leading-snug text-stone-500 line-clamp-2',
   error: 'text-xs text-red-500',
 
-  blankThumb: 'relative w-full aspect-[16/9] bg-white border-b border-black/[0.06] flex items-center justify-center',
+  blankThumb: 'relative w-full aspect-[16/9] bg-white border-b border-black/[0.08] flex items-center justify-center',
   blankIcon: 'text-[2rem] text-stone-300 group-hover:text-stone-400 transition-colors',
 } as const;
 

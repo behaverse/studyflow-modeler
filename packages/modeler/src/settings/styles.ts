@@ -1,13 +1,13 @@
-import { surface, text, radius } from '@modeler/ui/styles';
+import { button, focusRing, radius, surface, text } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 
 export const settingsView = {
   // Inside the shared Modal frame; the sidebar and content share the panel's height.
-  body: 'flex flex-col sm:flex-row flex-1 min-h-[60vh] -mx-5 sm:-mx-6 md:-mx-7 -mb-5 sm:-mb-6 md:-mb-7 border-t border-black/[0.06]',
+  body: 'flex flex-col sm:flex-row flex-1 min-h-[60vh] -mx-5 sm:-mx-6 md:-mx-7 -mb-5 sm:-mb-6 md:-mb-7 border-t border-black/[0.08]',
 
   sidebar: `shrink-0 ${surface.sheet}
             overflow-x-auto sm:overflow-y-auto
-            border-b sm:border-b-0 sm:border-r border-black/[0.06]
+            border-b sm:border-b-0 sm:border-r border-black/[0.08]
             w-full sm:w-48 md:w-60
             px-2 sm:px-3 py-2 sm:py-4`,
   sidebarList: 'flex flex-row gap-0.5 sm:flex-col',
@@ -23,41 +23,37 @@ export const settingsView = {
   // The vertical padding is the column's, not the scroller's, so a `sticky top-0` child sticks flush to the top.
   contentInner: 'mx-auto max-w-2xl py-5 sm:py-6 md:py-8 space-y-6 sm:space-y-8',
 
-  sectionTitle: `text-xl font-semibold tracking-tight ${text.primary}`,
+  sectionTitle: `text-base font-semibold tracking-tight ${text.primary}`,
   sectionDescription: `text-sm ${text.muted} mt-1`,
 
-  row: 'flex items-start justify-between gap-6 py-4 border-b border-black/[0.06] last:border-b-0',
+  row: 'flex items-start justify-between gap-6 py-4 border-b border-black/[0.08] last:border-b-0',
   rowText: 'flex-1 min-w-0',
   rowLabel: `text-sm font-medium ${text.primary}`,
   rowHelp: `text-xs ${text.muted} mt-0.5 leading-relaxed`,
   rowControl: 'shrink-0 flex items-center',
 
-  group: `${radius.card} ${surface.card} border border-black/[0.06] px-4 py-1`,
+  group: `${radius.card} ${surface.card} border border-black/[0.08] px-4 py-1`,
 
-  inlineBtn: `${radius.button} bg-cream-200 hover:bg-cream-300 active:bg-cream-400
-              border border-black/[0.06] py-1.5 px-3 text-sm ${text.secondary}
-              hover:text-stone-900 transition-colors cursor-pointer`,
-  inlineBtnDanger: `${radius.button} bg-red-50 hover:bg-red-100 active:bg-red-200
-                    border border-red-200 py-1.5 px-3 text-sm text-red-700
-                    hover:text-red-900 transition-colors cursor-pointer`,
+  inlineBtn: `${button.md} ${button.secondary}`,
+  inlineBtnDanger: `${button.md} ${button.danger}`,
 
   select: `appearance-none px-2.5 py-1 pr-8 ${radius.field}
            border border-black/[0.45] bg-cream-100 text-sm text-stone-900
-           focus:outline-2 focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)] cursor-pointer`,
+           ${focusRing} cursor-pointer`,
   selectWrapper: 'relative',
   selectChevron: `${ICONS.caretDown} pointer-events-none absolute top-2.5 right-2 text-stone-500 text-xs`,
 
   textInput: `px-2.5 py-1.5 w-72 max-w-full ${radius.field}
               border border-black/[0.45] bg-cream-100 font-mono text-sm text-stone-900
-              placeholder-stone-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)]`,
+              placeholder-stone-400 ${focusRing}`,
 
   switchTrack: `relative flex h-5 w-9 cursor-pointer ${radius.pill}
                 bg-cream-300 p-0.5 transition-colors
-                data-[checked]:bg-stone-900 focus:outline-2 focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)]`,
+                data-[checked]:bg-stone-900 ${focusRing}`,
   switchThumb: `pointer-events-none inline-block size-4 ${radius.pill} bg-cream-50 shadow ring-0
                 transition duration-200 ease-in-out
                 translate-x-0 group-data-[checked]:translate-x-4`,
 
   valueChip: `inline-flex items-center gap-1.5 px-2 py-0.5 ${radius.field}
-              bg-cream-200 border border-black/[0.06] text-xs font-medium ${text.secondary}`,
+              bg-cream-200 border border-black/[0.08] text-xs font-medium ${text.secondary}`,
 } as const;

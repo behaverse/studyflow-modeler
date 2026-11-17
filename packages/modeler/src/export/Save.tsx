@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@headlessui/react';
 import { Modal } from '@modeler/ui/Modal';
 import { useModeler } from '@modeler/app/useModeler';
-import { useDiagramName } from '@modeler/navBar/useDiagramName';
+import { useDiagramName } from '@modeler/diagram/useDiagramName';
 import { executeCommand } from '@modeler/commandBus';
 import { supportsFileSystemAccess } from '@modeler/diagram/fileHandle';
 import { defaultSaveFormat, saveFilename } from '@modeler/diagram/save';
@@ -32,7 +32,7 @@ type Props = {
 
 export function SaveDialog({ isOpen, onClose }: Props) {
   const modeler = useModeler();
-  const { diagramName } = useDiagramName(modeler);
+  const diagramName = useDiagramName(modeler);
   // No picker means no choosing where the file lands, so a download is the only local destination.
   const canSaveToFile = supportsFileSystemAccess();
   const [destination, setDestination] = useState('local');

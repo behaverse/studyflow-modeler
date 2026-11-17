@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useReducer, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import { ICONS } from '@modeler/icons';
 import { useModeler } from '@modeler/app/useModeler';
 import { InspectorContext } from '@modeler/inspector/hooks';
 import { CategoryTabs } from '@modeler/inspector/CategoryTabs';
@@ -17,17 +16,6 @@ function Header({ element, model }: { element: Element; model: StudyModel }) {
       <h1 className={s.headerTitle}>{resolveDisplayName(model, element)}</h1>
       <h2 className={s.headerSubtitle}>{getTypeName(model, element)}</h2>
     </>
-  );
-}
-
-function ToggleButton({ isInspectorVisible, onClick }: { isInspectorVisible: boolean; onClick: () => void }) {
-  const title = isInspectorVisible ? 'Hide Inspector' : 'Show Inspector';
-  const icon = isInspectorVisible ? ICONS.inspectorHide : ICONS.inspectorShow;
-
-  return (
-    <button onClick={onClick} className={s.toggleButton} title={title}>
-      <i className={`${icon} ${s.toggleIcon}`}></i>
-    </button>
   );
 }
 
@@ -64,28 +52,16 @@ function useSelectedElement(editor: Editor): Element | undefined {
   return editor.study.element(id);
 }
 
-export function Panel() {
+/** The inspector; whether it shows is the app's, whose nav bar holds its toggle. */
+export function Panel({ isVisible }: { isVisible: boolean }) {
   const modeler = useModeler();
   const element = useSelectedElement(modeler);
   const { model } = modeler.study;
-  // Below 900px an open panel leaves no canvas worth drawing on (the same
-  // threshold `--inspector-gutter` uses), so it starts out of the way. The
-  // toggle is still there, and reopening floats it over the canvas.
-  const [isVisible, setIsVisible] = useState(() => window.innerWidth > 900);
   const [width, setWidth] = useState(() =>
     clampPanelWidth(fromStoredWidth(loadInspectorWidth() ?? undefined), window.innerWidth));
   // The width the user chose, independent of the scale. A resize that crosses a
   // `--ui-scale` step re-derives from this, so the panel grows with its contents.
   const baseWidth = useRef(toStoredWidth(width));
-
-  useEffect(() => {
-    document.body.classList.toggle('inspector-collapsed', !isVisible);
-    return () => document.body.classList.remove('inspector-collapsed');
-  }, [isVisible]);
-
-  useEffect(() => {
-    document.body.style.setProperty('--inspector-width', `${width}px`);
-  }, [width]);
 
   useEffect(() => {
     const onResize = () => setWidth(clampPanelWidth(fromStoredWidth(baseWidth.current), window.innerWidth));
@@ -98,8 +74,6 @@ export function Panel() {
     baseWidth.current = toStoredWidth(next);
     saveInspectorWidth(baseWidth.current);
   };
-
-  const toggle = () => setIsVisible((v) => !v);
 
   return (
     <InspectorContext.Provider value={{ element, model }}>
@@ -122,15 +96,8 @@ export function Panel() {
             </>
           )}
         </div>
-        {/* Outside the panel: the handle must not scroll with it, and the toggle shows while it is hidden. */}
-        {element && (
-          <>
-            {isVisible && (
-              <ResizeHandle width={width} onResize={setWidth} onCommit={commitWidth} />
-            )}
-            <ToggleButton isInspectorVisible={isVisible} onClick={toggle} />
-          </>
-        )}
+        {/* Outside the panel: the handle must not scroll with it. */}
+        {element && isVisible && <ResizeHandle width={width} onResize={setWidth} onCommit={commitWidth} />}
       </div>
     </InspectorContext.Provider>
   );

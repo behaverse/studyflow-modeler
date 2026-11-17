@@ -4,18 +4,14 @@ import { useModeler } from '@modeler/app/useModeler';
 import { exportDiagramName } from '@modeler/diagram/name';
 import { saveBlob } from '@modeler/export/commands';
 import { reportingDocuments, type ReportingDocument } from '@modeler/skillModules';
-import { dialog as d, radius } from '@modeler/ui/styles';
+import { choice, dialog as d } from '@modeler/ui/styles';
 import { DialogHelp } from '@modeler/ui/DialogHelp';
 import { ICONS } from '@modeler/icons';
 import type { Editor } from '@modeler/editor/port';
 
 type Props = { isOpen: boolean; onClose: () => void };
 
-const chip = {
-  base: `px-3 py-1 ${radius.pill} text-xs border transition-colors cursor-pointer`,
-  idle: 'border-black/[0.06] text-stone-600 hover:bg-black/[0.04]',
-  active: 'bg-stone-900 border-stone-900 text-cream-50',
-};
+const chip = { base: choice.base, idle: choice.idle, active: choice.selected };
 
 /** The document's drawing of the study, or the reason it has none. A skill's error is reported here instead of thrown at the app. */
 function drawn(modeler: Editor, document: ReportingDocument): { svg: string } | { unavailable: string } {
@@ -75,12 +71,12 @@ export function ReportingDialog({ isOpen, onClose }: Props) {
             ))}
           </div>
           <p className="text-xs text-stone-500 pb-3">{current.description}</p>
-          <div className="flex-1 min-h-0 overflow-auto flex items-start justify-center bg-white border border-black/[0.06] rounded-lg p-3">
+          <div className="flex-1 min-h-0 overflow-auto flex items-start justify-center bg-white border border-black/[0.08] rounded-lg p-3">
             {src
               ? <img src={src} alt={`${current.guideline}: ${current.label}`} data-testid="reporting-figure" className="max-w-full" />
               : <p className="text-sm text-stone-500 italic self-center" data-testid="reporting-unavailable">{figure && 'unavailable' in figure ? figure.unavailable : ''}</p>}
           </div>
-          <div className="mt-4 pt-4 border-t border-black/[0.06] flex justify-end">
+          <div className="mt-4 pt-4 border-t border-black/[0.08] flex justify-end">
             <button
               type="button"
               disabled={!figure || !('svg' in figure)}

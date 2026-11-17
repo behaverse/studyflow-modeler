@@ -232,11 +232,11 @@ function ColumnEditor({ attrDef, edited }: { attrDef: AttributeSpec; edited: Sch
             </div>
 
             {showSource ? (
-              <pre className="bg-stone-50 border border-black/[0.06] rounded p-3 text-[0.6875rem] overflow-auto">
+              <pre className="bg-stone-50 border border-black/[0.08] rounded p-3 text-[0.6875rem] overflow-auto">
                 {sourcePreview}
               </pre>
             ) : (
-              <div className="overflow-x-auto border border-black/[0.06] rounded">
+              <div className="overflow-x-auto border border-black/[0.08] rounded">
                 <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-stone-50 text-left text-[0.6875rem] uppercase tracking-wide text-stone-500">

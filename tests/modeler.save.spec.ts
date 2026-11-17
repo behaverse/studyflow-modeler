@@ -3,7 +3,7 @@ import { expect, test } from './e2e';
 
 import { embedStudyflowIntoPng, extractStudyflowFromPng } from '@core/document/png';
 
-import { browseForDiagram, diagramTitle, exampleText, gotoModeler, runPaletteCommand, setSelectedElementName } from './utils';
+import { browseForDiagram, exampleText, fileTitle, gotoModeler, renameStudy, runPaletteCommand, setSelectedElementName } from './utils';
 
 /** A BPMN file of one start event. */
 const DIAGRAM = `<?xml version="1.0" encoding="UTF-8"?>
@@ -95,32 +95,24 @@ const disk = async (page: Page) => {
 // Document stamps are `prov:Activity` records on the study's root, one element each in the XML.
 const stamps = (xml: string): number => (xml.match(/<prov:activity\b/g) ?? []).length;
 
-/** Renames the study in the inspector: with a file linked, the nav bar's title is the file, not the study. */
-async function renameDiagram(page: Page, name: string): Promise<void> {
-  const field = page.locator('input[name="bpmn:name"]');
-  await field.fill(name);
-  await field.press('Tab');
-}
-
 test.describe('Saving back into the opened file', () => {
   test('an opened file takes every edit unsigned, a save signs it, a change underneath stops it, New lets it go, Save As links another', async ({ page }) => {
     await installFakeDisk(page, 'demo.bpmn', DIAGRAM_B64);
     await gotoModeler(page, { pickers: true });
 
     await browseForDiagram(page);
-    // A linked file is the nav bar's title: its name, not the study's.
-    await expect(diagramTitle(page)).toHaveCount(0);
 
-    const status = page.getByTestId('file-status');
+    const status = fileTitle(page);
     const writes = async () => (await disk(page)).writes;
     await expect(status).toContainText('demo.bpmn');
+    await expect(status).toHaveAttribute('data-file-place', 'disk');
     await expect(status).toHaveAttribute('data-file-state', 'clean');
     // Opening alone writes nothing: the file is only touched once the diagram changes. Waited out
     // past the auto-save debounce, because "not yet" and "never" look identical at zero.
     await page.waitForTimeout(1500);
     expect(await writes()).toBe(0);
 
-    await renameDiagram(page, 'renamed');
+    await renameStudy(page, 'renamed');
     await expect.poll(writes).toBe(1);
     await expect(status).toHaveAttribute('data-file-state', 'clean');
     expect((await disk(page)).text).toContain('renamed');
@@ -144,11 +136,12 @@ test.describe('Saving back into the opened file', () => {
       window.__disk!.content = btoa('clobbered by something else');
       window.__disk!.lastModified += 5000;
     });
-    await renameDiagram(page, 'second');
+    await renameStudy(page, 'second');
     await expect(status).toHaveAttribute('data-file-state', 'conflict');
     expect(await writes()).toBe(3);
-    // The chip is the way out: an explicit save replaces what is on disk.
+    // The file card is the way out: its save is the explicit one, which replaces what is on disk.
     await status.click();
+    await page.getByTestId('file-card').getByRole('button', { name: 'Replace the file' }).click();
     await expect.poll(writes).toBe(4);
     const saved = await disk(page);
     expect(saved.text).toContain('second');
@@ -156,8 +149,8 @@ test.describe('Saving back into the opened file', () => {
     // A new diagram is not that file, and must never be written over it.
     await runPaletteCommand(page, /^New/);
     await page.getByTestId('new-diagram-blank').click();
-    await expect(status).toHaveCount(0);
-    await expect(diagramTitle(page)).toHaveText('Untitled');
+    await expect(status).toHaveAttribute('data-file-place', 'browser');
+    await expect(status).toContainText('Untitled');
     await page.waitForTimeout(1500);
     const after = await disk(page);
     expect(after.writes).toBe(saved.writes);
@@ -172,7 +165,7 @@ test.describe('Saving back into the opened file', () => {
     await expect(status).toContainText('diagram.studyflow.yaml');
     await expect.poll(writes).toBe(5);
     expect((await disk(page)).text).toContain('schemas:');
-    await renameDiagram(page, 'placed');
+    await renameStudy(page, 'placed');
     await expect.poll(writes).toBe(6);
     expect((await disk(page)).text).toContain('placed');
   });
@@ -183,7 +176,7 @@ test.describe('Saving back into the opened file', () => {
     await browseForDiagram(page);
     await expect(page.getByTestId('file-status')).toContainText('demo.studyflow.png');
 
-    await renameDiagram(page, 'edited');
+    await renameStudy(page, 'edited');
 
     // Writing a PNG means rasterizing the whole diagram; auto-save must not do that per edit burst.
     await page.waitForTimeout(1500);
@@ -223,7 +216,7 @@ test.describe('Saving back into the opened file', () => {
     await gotoModeler(page, { url: `/app?open=${encodeURIComponent('/open/served.studyflow.png')}` });
     await expect(page.getByTestId('file-status')).toContainText('served.studyflow.png');
 
-    await renameDiagram(page, 'edited');
+    await renameStudy(page, 'edited');
     await page.keyboard.press('ControlOrMeta+s');
     await expect.poll(() => writes.length).toBe(1);
     expect(extractStudyflowFromPng(writes[0])).toContain('edited');
@@ -245,10 +238,10 @@ test.describe('Saving back into the opened file', () => {
       buffer: Buffer.from(DIAGRAM, 'utf8'),
     });
 
-    await expect(diagramTitle(page)).toHaveText('fallback');
     // An `<input type=file>` yields bytes, never a handle, so there is nothing to save back into,
     // but a save still lands as that file: its name, its format.
-    await expect(page.getByTestId('file-status')).toHaveCount(0);
+    await expect(fileTitle(page)).toContainText('fallback.bpmn');
+    await expect(fileTitle(page)).toHaveAttribute('data-file-place', 'copy');
     const download = page.waitForEvent('download');
     await page.keyboard.press('ControlOrMeta+s');
     expect((await download).suggestedFilename()).toBe('fallback.bpmn');

@@ -1,7 +1,7 @@
 import type { Page, Request } from '@playwright/test';
 import { expect, test } from '@tests/e2e';
 
-import { diagramTitle, gotoModeler, runPaletteCommand } from '@tests/utils';
+import { gotoModeler, renameStudy, runPaletteCommand } from '@tests/utils';
 
 /** The modeler's Behaverse account (Settings > Behaverse) and its "Save" to the Behaverse server, against a stand-in
  * for the server: its sign-in window hands the page a key, and publishing posts the study with it. */
@@ -42,9 +42,7 @@ test('signed in from Settings, a study is published to the Behaverse server with
     return route.abort();
   });
   await gotoModeler(page);
-  await diagramTitle(page).click();
-  await page.getByTestId('diagram-name-input').fill('Pilot study');
-  await page.getByTestId('diagram-name-input').press('Enter');
+  await renameStudy(page, 'Pilot study');
 
   let settings = await openAccount(page);
   await expect(settings).toContainText('You are working as a guest.');

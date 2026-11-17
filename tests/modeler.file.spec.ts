@@ -5,14 +5,14 @@ import { expect, test } from './e2e';
 
 import { extractStudyflowFromTiff, pngSize, tiffResolution, tiffSize } from '@core/document';
 
-import { diagramTitle, exportDiagram, gotoModeler, readDownload, readDownloadText, runPaletteCommand } from './utils';
+import { exportDiagram, gotoModeler, readDownload, readDownloadText, runPaletteCommand, studyName } from './utils';
 
 test('exports YAML, PNG, SVG, TIFF and LinkML; opens a layout-less file, a jsPsych timeline, the exports again, and says what a file\'s reading could not place', async ({ page }) => {
   // A clock the test runs forward, installed before the page loads, for the warning at the end.
   await page.clock.install();
   await gotoModeler(page);
   const open = page.getByTestId('open-file-input');
-  const title = diagramTitle(page);
+  const title = studyName(page);
 
   // A download is an export, so the YAML carries the trail's first stamp.
   const yaml = await exportDiagram(page, 'studyflow');
@@ -52,7 +52,7 @@ test('exports YAML, PNG, SVG, TIFF and LinkML; opens a layout-less file, a jsPsy
     mimeType: 'text/yaml',
     buffer: readFileSync(path.join(process.cwd(), 'tests/fixtures/layoutless.studyflow')),
   });
-  await expect(title).toHaveText('Layout-less demo');
+  await expect(title).toHaveValue('Layout-less demo');
   for (const id of ['Enroll', 'Eligibility_Gateway', 'DidNotStart', 'Done']) {
     await expect(page.locator(`[data-element-id="${id}"]`), id).toBeVisible();
   }
@@ -63,21 +63,21 @@ test('exports YAML, PNG, SVG, TIFF and LinkML; opens a layout-less file, a jsPsy
     mimeType: 'application/json',
     buffer: readFileSync(path.join(process.cwd(), 'skills/jspsych/tests/fixtures/flanker.timeline.json')),
   });
-  await expect(title).toHaveText('flanker.timeline');
+  await expect(title).toHaveValue('flanker.timeline');
   await expect(page.locator('[data-element-id="Flanker_test"]')).toBeVisible();
 
   // The exports reopen as the diagram they were made from.
   await open.setInputFiles({ name: 'as-yaml.studyflow.yaml', mimeType: 'text/yaml', buffer: Buffer.from(yamlText, 'utf8') });
-  await expect(title).toHaveText('as-yaml');
+  await expect(title).toHaveValue('as-yaml');
   await expect(page.locator('[data-element-id="StartEvent_1"]')).toBeVisible();
   await open.setInputFiles({ name: 'as-png.studyflow.png', mimeType: 'image/png', buffer: pngBytes });
-  await expect(title).toHaveText('as-png');
+  await expect(title).toHaveValue('as-png');
   await expect(page.locator('[data-element-id="StartEvent_1"]')).toBeVisible();
   await open.setInputFiles({ name: 'as-svg.studyflow.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(svgText, 'utf8') });
-  await expect(title).toHaveText('as-svg');
+  await expect(title).toHaveValue('as-svg');
   await expect(page.locator('[data-element-id="StartEvent_1"]')).toBeVisible();
   await open.setInputFiles({ name: 'as-tif.studyflow.tif', mimeType: 'image/tiff', buffer: Buffer.from(tifBytes) });
-  await expect(title).toHaveText('as-tif');
+  await expect(title).toHaveValue('as-tif');
   await expect(page.locator('[data-element-id="StartEvent_1"]')).toBeVisible();
   // Saved again as a TIFF, it is offered the size it was opened at.
   await runPaletteCommand(page, /^Save As/);

@@ -13,7 +13,7 @@ import {
 } from '@modeler/provenance/records';
 import { computeSegLengths, dedupePoints, samplePolyline, smootherstep, tokenAnchor } from '@modeler/simulation/polyline';
 import type { ElementRecord, Point, Study } from '@canvas/index.ts';
-import { border, radius, shadow, surface } from '@modeler/ui/styles';
+import { button, divider, material } from '@modeler/ui/styles';
 import type { Canvas, Editor } from '@modeler/editor/port';
 
 import { ICONS } from '@modeler/icons';
@@ -363,14 +363,14 @@ function ReplayTimeline({ onClose }: Props) {
 
   // Each document-level `executed` stamp is one run of the study, matching the Provenance dialog.
   const runs = shown.filter((r) => r.isDocument && r.action === 'executed').length;
-  const btn = 'flex items-center justify-center size-7 rounded-md text-stone-500 enabled:hover:text-stone-900 enabled:hover:bg-black/[0.05] enabled:cursor-pointer disabled:opacity-30 transition-colors';
+  const btn = button.icon;
   const frac = (n: number) => `${(n / Math.max(total, 1)) * 100}%`;
 
   return (
     <div className="fixed bottom-2 inset-x-2 z-[220]" data-testid="provenance-replay" data-covers="bottom">
       {/* Over the bar's right end, in the inspector's place: the whole study, with the step's element ringed. */}
       <Minimap focus={focus} className="absolute bottom-full right-0 mb-2" covers="right" />
-      <div className={`${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panel} text-stone-900 px-3 py-2`}>
+      <div className={`${material.panel} text-stone-900 px-3 py-2`}>
         <div className="flex items-center gap-1">
           <h1
             className="text-base font-semibold text-stone-900 tracking-tight pr-2"
@@ -406,7 +406,7 @@ function ReplayTimeline({ onClose }: Props) {
               >
                 {SPEEDS[speedIdx].label}
               </button>
-              <span className="w-px h-4 bg-black/10 mx-1.5 shrink-0" aria-hidden="true" />
+              <span className={`${divider.vertical} mx-1.5`} aria-hidden="true" />
               {current ? (
                 <div className="flex items-center gap-2.5 flex-1 min-w-0 overflow-hidden whitespace-nowrap">
                   {current.icon && <i className={`${current.icon} size-3.5 shrink-0 text-stone-500`} aria-hidden="true" />}

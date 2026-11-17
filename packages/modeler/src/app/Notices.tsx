@@ -5,11 +5,13 @@ import {
   subscribeNotices,
   type NoticeKind,
 } from '@modeler/app/noticeStore';
+import { radius, shadow, surface } from '@modeler/ui/styles';
 
+/** A notice is a panel: plain for information, tinted for a warning or an error. */
 const KIND_STYLES: Record<NoticeKind, string> = {
-  error: 'border-red-300 bg-red-50 text-red-900',
-  warning: 'border-amber-300 bg-amber-50 text-amber-900',
-  info: 'border-stone-300 bg-white text-stone-800',
+  error: 'border-red-200 bg-red-50 text-red-900',
+  warning: 'border-amber-200 bg-amber-50 text-amber-900',
+  info: `border-black/[0.08] ${surface.chrome} text-stone-800`,
 };
 
 export function Notices() {
@@ -25,7 +27,7 @@ export function Notices() {
         <div
           key={notice.id}
           role={notice.kind === 'error' ? 'alert' : 'status'}
-          className={`flex items-start gap-3 rounded-lg border px-4 py-3 text-sm shadow-lg whitespace-pre-wrap ${KIND_STYLES[notice.kind]}`}
+          className={`flex items-start gap-3 ${radius.card} ${shadow.panel} border px-4 py-3 text-sm whitespace-pre-wrap ${KIND_STYLES[notice.kind]}`}
         >
           <span className="flex-1">{notice.text}</span>
           <button

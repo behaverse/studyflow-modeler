@@ -2,7 +2,7 @@ import { expect, test } from './e2e';
 
 import { STORAGE_KEYS } from '@core/storage';
 
-import { diagramTitle, gotoModeler, runPaletteCommand } from './utils';
+import { gotoModeler, runPaletteCommand, studyName } from './utils';
 
 /** The New Study gallery: the blank card, then one card per shipped example, in shelves. */
 
@@ -44,7 +44,7 @@ test.describe('New Study gallery', () => {
 
     await card.click();
     await expect(dialog).toBeHidden();
-    await expect(diagramTitle(page)).toHaveText('Within-subject cognitive battery');
+    await expect(studyName(page)).toHaveValue('Within-subject cognitive battery');
     await expect(page.locator('g[data-element-id="Task_NBack"]')).toBeVisible();
     // It opens fitted to what the app's floating chrome leaves free, and a reload restores it fitted the same way.
     const clearsPalette = async () => {

@@ -13,16 +13,6 @@ export type PaletteCommand = {
   action: () => void | Promise<unknown>;
 };
 
-export type PaletteDialogId =
-  | 'gallery'
-  | 'open'
-  | 'save'
-  | 'checklist'
-  | 'schedule'
-  | 'manuscript'
-  | 'reporting'
-  | 'provenance';
-
 export function searchCommands(commands: PaletteCommand[], query: string): PaletteCommand[] {
   const q = query.trim().toLowerCase();
   if (!q) return commands;

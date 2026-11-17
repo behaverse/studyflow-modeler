@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
-import { dialog as d } from '@modeler/ui/styles';
+import { button, dialog as d } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 
 const SIZES = { sm: d.panelSm, md: d.panelMd, lg: d.panelLg, xl: d.panelXl, full: d.panelFull } as const;
@@ -39,7 +39,7 @@ export function Modal({ isOpen, onClose, title, size = 'lg', help, actions, test
                 <button
                   type="button"
                   onClick={() => setMaximized((v) => !v)}
-                  className={`${d.titleAction} ml-2`}
+                  className={`${button.icon} -my-1`}
                   title={maximized ? 'Restore the dialog' : 'Fill the window'}
                   aria-label={maximized ? 'Restore' : 'Maximize'}
                 >

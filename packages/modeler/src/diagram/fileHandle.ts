@@ -42,8 +42,10 @@ export type LinkedFile = {
 export type LinkSnapshot = {
   file: LinkedFile | null;
   state: LinkState;
-  /** Set alongside `error` and `conflict`, for the tooltip on the status chip. */
+  /** Set alongside `error` and `conflict`, for the file card in the nav bar. */
   message?: string;
+  /** The file the canvas came from when no handle came with it; never set alongside `file`. */
+  opened?: OpenedFile;
 };
 
 const NO_LINK: LinkSnapshot = { file: null, state: 'clean' };
@@ -126,14 +128,12 @@ export function markOpened(): void {
  */
 export type OpenedFile = { name: string; format: ExportFormat };
 
-let opened: OpenedFile | undefined;
-
-export const getOpenedFile = (): OpenedFile | undefined => opened;
+export const getOpenedFile = (): OpenedFile | undefined => snapshot.opened;
 
 /** Remembers the file an open just read without a handle; an extension with no encoder is not remembered. */
 export function rememberOpenedFile(name: string): void {
   const format = importableFormatFor(name);
-  opened = format && { name, format };
+  setSnapshot(format ? { ...NO_LINK, opened: { name, format } } : NO_LINK);
 }
 
 export function linkFile(
@@ -142,7 +142,6 @@ export function linkFile(
   { seenModified = 0, state = 'dirty', message }: { seenModified?: number; state?: LinkState; message?: string } = {},
 ): LinkedFile {
   const file: LinkedFile = { handle, name: handle.name, format, seenModified };
-  opened = undefined;
   // Clean is a claim about the canvas, so it only holds while nothing is waiting to be written.
   setSnapshot({ file, state: state === 'clean' ? settledState() : state, message });
   void rememberLink();
@@ -150,7 +149,6 @@ export function linkFile(
 }
 
 export function unlinkFile(): void {
-  opened = undefined;
   setSnapshot(NO_LINK);
   void forgetLink();
 }

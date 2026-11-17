@@ -1,6 +1,6 @@
 import { expect, test } from './e2e';
 
-import { diagramTitle, examplePath, gotoModeler, openCommandPalette } from './utils';
+import { examplePath, gotoModeler, openCommandPalette } from './utils';
 
 /**
  * Sub-process drill-down, end to end: the context pad's badge, the breadcrumb trail
@@ -25,7 +25,7 @@ async function openExample(page: import('@playwright/test').Page): Promise<void>
 const drilldown = (page: import('@playwright/test').Page) => page.getByTestId('context-pad-drilldown');
 
 test.describe('sub-process drill-down', () => {
-  test('the badge enters a sub-process and the breadcrumb leads back, whichever way its contents are stored; drilled in, a rename names the study', async ({ page }) => {
+  test('the badge enters a sub-process and the breadcrumb leads back, whichever way its contents are stored', async ({ page }) => {
     await openExample(page);
     const shape = (id: string) => page.locator(`g[data-element-id="${id}"]`);
     const crumbs = page.getByTestId('drilldown-breadcrumbs');
@@ -51,18 +51,6 @@ test.describe('sub-process drill-down', () => {
       await expect(shape(outside), id).toBeVisible();
       await expect(crumbs, id).toHaveCount(0);
     }
-
-    // Drilled in, the nav bar names the study, and a rename renames the study, not the sub-process:
-    // the trail reads the new name at once, and the sub-process keeps its own.
-    await shape('select_model').click();
-    await drilldown(page).click();
-    await expect(diagramTitle(page)).toHaveText('scikit-learn pipeline');
-    await diagramTitle(page).click();
-    await page.getByTestId('diagram-name-input').fill('Pipeline');
-    await page.getByTestId('diagram-name-input').press('Enter');
-    await expect(diagramTitle(page)).toHaveText('Pipeline');
-    await expect(page.getByTestId('breadcrumb-sklearn_pipeline')).toContainText('Pipeline');
-    await expect(page.getByTestId('breadcrumb-select_model')).toContainText('select_model');
   });
 
   test('the command palette finds a step by name and shows it, inside the sub-process that holds it', async ({ page }) => {

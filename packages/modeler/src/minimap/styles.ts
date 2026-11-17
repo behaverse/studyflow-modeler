@@ -2,10 +2,10 @@
  * The minimap's look: a small card of the app's chrome, with rings in the drill-down blue. Its host positions it.
  */
 
-import { border, radius, shadow, surface } from '@modeler/ui/styles';
+import { material } from '@modeler/ui/styles';
 
 export const minimap = {
-  root: `hidden md:block w-[200px] h-[130px] overflow-hidden ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panel}`,
+  root: `hidden md:block w-[200px] h-[130px] overflow-hidden ${material.panel}`,
 } as const;
 
 /**

@@ -16,12 +16,12 @@ A view changes the document by sending a command: `executeCommand(editor, { type
 
 | Folder | What |
 | --- | --- |
-| `app/` | Boot, the top-level layout, the editor context, notices. |
+| `app/` | Boot, the top-level layout, the editor and mode contexts (`contexts.ts`: editing, simulating or replaying), the dialogs (`Dialogs.tsx`: which one is open, and the hidden `open-file-input` the CLI and the e2e specs drive), notices. |
 | `editor/` | The `Editor` type (`port.ts`), `mountEditor`, the snapshot history, the popup-menu registry. |
 | `diagram/` | The file formats (`formats.ts`: what opens, what saves, what a skill adds), importing (`commands.ts`), layout for files without DI, autosave, the linked file (`fileHandle.ts`) and saving back into it (`save.ts`), and the notice that only a PNG keeps a pasted image (`pastedImageNotice.ts`). |
 | `open/`, `export/` | The Open dialog and the picker; the encoders (`commands.ts`), the Save dialog and the export model the projections read. |
 | `inspector/` | The side panel. `Panel.tsx` follows the selection, `categories.ts` files attributes under tabs, `registry.tsx` picks an input per attribute (`inputs.tsx`, `editors.tsx`). A section a tab shows beyond attributes is its own file (`state.tsx`, `dataFlow.tsx`, `loop.tsx`, `participants.tsx`, `message.tsx`), each over a pure helper module the unit specs pin. |
-| `palette/`, `popup/`, `contextPad/`, `commandPalette/`, `navBar/`, `drilldown/` | The chrome around the canvas. The ⌘K palette also hosts the dialogs and the hidden `open-file-input` the CLI and the e2e specs drive. |
+| `palette/`, `popup/`, `contextPad/`, `commandPalette/`, `navbar/`, `drilldown/` | The chrome around the canvas. The nav bar is the top row: the app's menu (the ⌘K palette) and the file (`FileStatus.tsx` over the pure `fileState.ts`), the drill-down trail, and the mode's actions (`ModeActions.tsx`). |
 | `provenance/`, `simulation/`, `minimap/` | The run trail and its replay; the token simulator, which shows dry runs of core's walk; the minimap, the whole diagram small with the elements a host names ringed (the replay's current step). |
 | `settings/`, `gallery/`, `examples/`, `checklist/`, `schedule/`, `shape/`, `draw/`, `ui/` | Settings, the examples gallery, the read-only views, element commands, icon maps, shared styles. A template drops through the canvas (`study/templates.ts`). |
 

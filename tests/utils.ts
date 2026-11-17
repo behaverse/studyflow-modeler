@@ -70,9 +70,19 @@ export async function gotoModeler(page: Page, { pickers = false, url = '/app' } 
   await expect(page.getByTestId('modeler-canvas')).toBeVisible();
 }
 
-/** The diagram's name on the nav bar: a `title`d span until clicked, so one locator serves every spec that reads it. */
-export function diagramTitle(page: Page): Locator {
-  return page.getByTitle(/rename the study/i);
+/** The nav bar's title: the file the study saves into, or Untitled. A click opens the file card. */
+export function fileTitle(page: Page): Locator {
+  return page.getByTestId('file-status');
+}
+
+/** The study's name: the inspector's name field, which shows the study while nothing is selected. */
+export function studyName(page: Page): Locator {
+  return page.locator('input[name="bpmn:name"]');
+}
+
+export async function renameStudy(page: Page, name: string): Promise<void> {
+  await studyName(page).fill(name);
+  await studyName(page).press('Tab');
 }
 
 /** The in-place label editor: the `<textarea>` the canvas overlays on the label being edited (`canvas/interaction/labelEditing.ts`). */
