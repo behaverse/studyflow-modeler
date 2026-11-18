@@ -80,7 +80,7 @@ export const ICONS = {
   table: 'iconify tabler--table',
   database: 'iconify tabler--database',
   /** The views' drawer under the canvas. */
-  views: 'iconify tabler--layout-bottombar',
+  views: 'iconify tabler--eye',
   schedule: 'iconify lucide--chart-gantt',
   manuscript: 'iconify tabler--file-text',
   reporting: 'iconify ph--flow-arrow',

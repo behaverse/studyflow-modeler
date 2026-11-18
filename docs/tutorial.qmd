@@ -22,7 +22,7 @@ Choose **New** from the menu on the logo. Say what you are building, tick its pa
 | select a step | its actions, and its main fields to fill in |
 | double-click a step | its name, to edit |
 
-![](assets/img/modeler/window.png){fig-alt="The modeler window. A study of seven steps runs left to right across the canvas. One task is selected: under it a small panel shows a row of action icons and four fields, Name, Duration, Instrument and Timeline. The app menu and file name are top left, the tools down the left edge, and a command bar at the bottom."}
+![](assets/img/modeler/window.png){fig-alt="The modeler window. A study of seven steps runs left to right across the canvas. One task is selected: under it a small panel shows a row of action icons and four fields, ID, Duration, Instrument and Timeline. The app menu and file name are top left, the tools down the left edge, and a command bar at the bottom."}
 
 ## 4. Check it
 

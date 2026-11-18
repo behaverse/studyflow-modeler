@@ -25,6 +25,8 @@ function StringInput({ attrDef, isMarkdown }: { attrDef: AttributeSpec; isMarkdo
     { debounceMs: TYPING_DEBOUNCE_MS },
   );
   const name = attrDef.ns.name;
+  // An element's id shows, to read and to copy: the study sets no id (`set` refuses it), so typing one would be lost.
+  const fixed = attrDef.isId === true || name === 'bpmn:id';
   const element = useInspectedElement();
   const model = useInspectedModel();
   // `{count}` shows its run-state value under the input; the input itself keeps the placeholder.
@@ -49,7 +51,7 @@ function StringInput({ attrDef, isMarkdown }: { attrDef: AttributeSpec; isMarkdo
       {isMarkdown ? (
         <Textarea name={name} onChange={handleChange} onBlur={flush} value={value} rows={4} className={s.textArea} />
       ) : (
-        <WrapInput name={name} onChange={handleChange} onBlur={flush} value={String(value ?? '')} className={s.textInput} />
+        <WrapInput name={name} onChange={handleChange} onBlur={flush} value={String(value ?? '')} className={s.textInput} readOnly={fixed} />
       )}
       {resolved !== value && (
         <div className="px-1 text-[0.6875rem] text-stone-500 truncate" title={resolved}>→ {resolved}</div>

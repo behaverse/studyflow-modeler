@@ -111,13 +111,13 @@ export function getAttributesByCategory(model: StudyModel, element: Element): Re
   );
 }
 
-/** The inline inspector's fields (`InlineInspector.tsx`): the name, then the ones the type's schema marks `showInline`,
- * in the inspector's order, each once. */
+/** The inline inspector's fields (`InlineInspector.tsx`): the id, then the ones the type's schema marks `showInline`,
+ * in the inspector's order, each once. The name is not among them: it is edited on the canvas. */
 export function inlineFields(model: StudyModel, element: Element): AttributeSpec[] {
   const all = Object.values(getAttributesByCategory(model, element)).flat();
   const keyOf = (attrDef: AttributeSpec): string => attrDef.ns?.name ?? attrDef.name;
-  const name = all.filter((attrDef) => keyOf(attrDef) === 'bpmn:name').slice(0, 1);
+  const id = all.filter((attrDef) => keyOf(attrDef) === 'bpmn:id').slice(0, 1);
   const marked = all.filter((attrDef, index) => attrDef.meta?.showInline
     && all.findIndex((other) => keyOf(other) === keyOf(attrDef)) === index);
-  return [...name, ...marked];
+  return [...id, ...marked];
 }

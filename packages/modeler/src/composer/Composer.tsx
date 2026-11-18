@@ -136,14 +136,13 @@ function Readiness({ issues }: { issues: Issue[] }) {
   );
 }
 
-/** The selection as the commands' context: its name, or how many, and a way to let it go. */
+/** The selection as the commands' context: its id, or how many, and a way to let it go. */
 function SelectionChip({ ids }: { ids: readonly string[] }) {
   const modeler = useModeler();
-  const record = ids.length === 1 ? modeler.study.get(ids[0]) : undefined;
-  const label = record ? (record.name?.trim() || record.id) : `${ids.length} selected`;
+  const label = ids.length === 1 ? ids[0] : `${ids.length} selected`;
   return (
     <span className={s.chip}>
-      <span className={s.chipName}>{label}</span>
+      <span className={s.chipLabel}>{label}</span>
       <button type="button" className={s.chipClear} title="Clear the selection" aria-label="Clear the selection" onClick={() => modeler.canvas.select([])}>
         <i className={ICONS.close} aria-hidden="true" />
       </button>

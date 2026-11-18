@@ -71,7 +71,7 @@ export const composer = {
   /** What the commands act on: the selection, as a chip the way AI apps attach context, in the accent the selection
    *  wears everywhere (its outline, the pad, the inspector's header). */
   chip: `${chip.base} max-w-[12rem]`,
-  chipName: 'truncate font-mono',
+  chipLabel: 'truncate font-mono',
   chipClear: chip.clear,
 
   start: control.secondary,

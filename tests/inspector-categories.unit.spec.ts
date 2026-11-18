@@ -20,7 +20,7 @@ S:
   expect(general).toEqual(['bpmn:id', 'bpmn:name', 'studyflow:values']);
 });
 
-test('the inline inspector shows a step\'s name, then the fields its schema marks essential', () => {
+test('the inline inspector shows a step\'s id, then the fields its schema marks for it, and not its name', () => {
   const model = studyModel(`id: D
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
@@ -34,6 +34,6 @@ S:
       type: ExclusiveGateway
 `);
   const fields = (id: string) => inlineFields(model, model.get(id)!).map((attrDef) => attrDef.ns?.name ?? attrDef.name);
-  expect(fields('T_1')).toEqual(['bpmn:name', 'studyflow:duration']);
-  expect(fields('G_1'), 'a type no schema marks shows its name alone').toEqual(['bpmn:name']);
+  expect(fields('T_1')).toEqual(['bpmn:id', 'studyflow:duration']);
+  expect(fields('G_1'), 'a type no schema marks shows its id alone').toEqual(['bpmn:id']);
 });

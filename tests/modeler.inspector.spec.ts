@@ -66,20 +66,26 @@ test("inspector fields: an optional one opens when ticked and clears unticked, a
   expect(recording.extensions['reachy:InteractionRecording'].streams).toEqual(['audio']);
 });
 
-test('closed, the inspector leaves a step the inline inspector on the canvas: its name and essential fields, and All properties to open the rest', async ({ page }) => {
+test('closed, the inspector leaves a step the inline inspector on the canvas: its id, read-only, and the fields its schema marks, with All properties to open the rest; the composer names the selection by its id', async ({ page }) => {
   await gotoModeler(page, { inspector: false });
   await expect(page.getByTestId('inspector-root')).toBeHidden();
   await addPaletteElement(page, 'Activities', 'Task', { x: 340, y: 180 });
   await page.keyboard.press('Escape');
 
   const card = page.getByTestId('inline-inspector');
-  await expect(card.getByText('Duration')).toBeVisible();
-  await card.locator('[name="bpmn:name"]').fill('Read the rules');
-  await card.locator('[name="bpmn:name"]').press('Tab');
+  // The name is edited on the canvas, so the card leads with the id, which is shown and not typed over.
+  await expect(card.locator('[name="bpmn:name"]')).toHaveCount(0);
+  await expect(card.locator('[name="bpmn:id"]')).toHaveJSProperty('readOnly', true);
+  const id = await card.locator('[name="bpmn:id"]').inputValue();
+  await expect(page.getByRole('button', { name: 'Clear the selection' }).locator('..')).toContainText(id);
+  await card.locator('[name="studyflow:duration"]').fill('PT5M');
+  await card.locator('[name="studyflow:duration"]').press('Tab');
 
   // The inspector opens on the step, holding what the card wrote; the pad is a pad again.
   await page.getByRole('button', { name: 'All properties' }).click();
-  await expect(page.getByTestId('inspector-root').locator('[name="bpmn:name"]')).toHaveValue('Read the rules');
+  const inspector = page.getByTestId('inspector-root');
+  await inspector.getByRole('tab', { name: 'Schedule' }).click();
+  await expect(inspector.locator('[name="studyflow:duration"]')).toHaveValue('PT5M');
   await expect(card).toHaveCount(0);
 });
 
