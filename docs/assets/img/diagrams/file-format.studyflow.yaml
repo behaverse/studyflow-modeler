@@ -10,7 +10,7 @@ File_Format:
   documentation: >-
     The files that carry a study, and what converts into what. Inside the group, every conversion can be undone without
     loss: YAML and BPMN XML expand and project into each other, and a picture carries its source and reopens from it. A
-    derived view is exported one way. Drawn for docs/reference.qmd.
+    derived view is exported one way. Drawn for docs/format.qmd.
   elements:
     Yaml:
       type: DataObjectReference

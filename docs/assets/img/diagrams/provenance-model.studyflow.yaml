@@ -12,7 +12,7 @@ Provenance_Model:
     on its root, one record per element, and the state. The modeler appends to the trail and voids records. The local
     runtime appends each event of the run to its record, events.jsonl, commits every checkpoint into the run repository,
     whose commits restate the step, and reads the trail entry, the element records and the state off the record when the
-    run ends. Drawn for docs/developers.qmd.
+    run ends. Drawn for docs/reference.qmd.
   laneSets:
     Lanes:
       lanes:

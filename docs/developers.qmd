@@ -1,265 +1,77 @@
 ---
-title: "Developers"
-description: "The programs that read studyflow files, how to build and run them, where a run departs from BPMN 2.0, what a run produces, how to extend the vocabulary, and how a tool joins through a partial runner."
+title: "Develop"
+description: "How a tool joins Studyflow: a skill, its types, and its runners."
 ---
 
-| Program | Does | Lives in |
+The [repository](https://github.com/behaverse/studyflow-modeler) says how to build, test and contribute. This page shows how a tool joins Studyflow.
+
+## Skills {#skills}
+
+A tool joins through a *skill*: one folder that gives authors a domain's elements, and runs them. Any part may be missing.
+
+| Part | File | Gives |
 |:--|:--|:--|
-| the modeler | authoring: edit, validate, import and export a studyflow | [`packages/modeler`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/modeler) |
-| the browser runtime | hosts the walk for one participant and shows each step as a screen, served at `./run/` | [`packages/runtime-browser`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/runtime-browser) |
-| the local runtime | hosts the walk on your machine, records, and hands each element to the skill that claims it | [`packages/runtime-local`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/runtime-local) |
-| the command line | `studyflow` with `convert`, `validate`, `info`, and `run` | [`packages/cli`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/cli) |
-| the core | the object model they all share: YAML to BPMN and back, element access, and the walk, the one engine both runtimes and the modeler's simulation host | [`packages/core`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/core) |
-| the skills | one folder each, declared by its `SKILL.md`: a BPMN extension (vocabulary), runners that execute it per runtime, a modeler module (exports, imports, reporting documents), examples, tests; any part may be missing | [`skills`](https://github.com/behaverse/studyflow-modeler/tree/main/skills) |
+| manifest | `SKILL.md` | its name, what it is for, and which parts it has |
+| vocabulary | `*.moddle.yaml` | element types, their attributes, palette templates |
+| runners | `local.py`, `browser/` | what executes its elements in each runtime |
+| modeler module | `modeler.ts` | exports, imports, inspector sections, settings pages, parts for the New dialog |
+| examples, tests | `examples/`, `tests/` | studies that use it, and its checks |
 
+![The sets that ship with Studyflow: the required ones always load, the rest you switch on.](assets/img/diagrams/schema-map.studyflow.svg){#fig-schema-map fig-alt="A Studyflow diagram. When the modeler opens, it loads the required sets, studyflow and prov; then the skill sets switched on in Settings, Extensions, one per skill: cognitive, behaverse, eeg, agentic, reachy and reporting; then compiles the catalog, which gives the palette, the inspector tabs and the XML namespaces."}
 
-Install the command line with Homebrew:
+### Declare a type
 
-```bash
-brew trust https://github.com/behaverse/studyflow-modeler   # Homebrew 6 loads a third-party tap only once trusted
-brew tap behaverse/studyflow https://github.com/behaverse/studyflow-modeler
-brew install studyflow
+A type extends a BPMN element, so a file that uses it stays valid BPMN.
+
+```yaml
+name: My lab
+prefix: mylab
+uri: http://example.org/schemas/mylab
+types:
+  - name: Calibration
+    description: Calibrates the eye tracker before a block.
+    superClass:
+      - bpmn:Task
+    meta:
+      icon: iconify tabler--focus-2
+    properties:
+      - name: points
+        description: How many points the calibration shows.
+        isAttr: true
+        type: Integer
+        meta:
+          showInline: true
 ```
 
-## How to build and run
+[`skills/SCHEMAS.md`](https://github.com/behaverse/studyflow-modeler/blob/main/skills/SCHEMAS.md) is the reference for the format. Often no type is needed: a tool's step can be a plain service task with an `implementation`.
 
-```bash
-git clone https://github.com/behaverse/studyflow-modeler
-cd studyflow-modeler
-npm install
-npm run dev          # the modeler and the browser runner, at http://localhost:5173
-npm run typecheck && npm run lint && npm run test:unit   # what CI and a release check
-npx playwright install chromium   # once, before the browser tests
-npm test             # all tests, e2e included
+## Runners {#runners}
+
+In a local run, the walk hands each step to the *runner* that claims it. A runner in Python is two functions:
+
+```python
+import os, sys
+from pathlib import Path
+sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[2] / "packages" / "runtime-local" / "python"))
+from runner import serve
+
+def claims(plan):            # the ids of the elements this runner takes
+    return [eid for eid, e in plan["elements"].items()
+            if e["attributes"].get("implementation", "").startswith("echo://")]
+
+def execute(step):           # one hand-off; what it returns is the step's result
+    return step.fill(step.element["additionalArguments"] or "")
+
+if __name__ == "__main__":
+    sys.exit(serve(claims, execute))
 ```
 
-A local run (`studyflow run --runtime local`) needs [`uv`](https://docs.astral.sh/uv/); the site is built with [Quarto](https://quarto.org) (`npm run docs`). Its figures are Studyflow diagrams in `docs/assets/img/diagrams/`: edit a figure's `.studyflow.yaml`, then, after `npm run build`, redraw the picture beside it with `node packages/cli/dist/studyflow.mjs convert <figure>.studyflow.yaml <figure>.studyflow.svg --modeler`.
-
-
-## The same study in three formats
-
-A studyflow diagram can be stored as YAML (the canonical format), as BPMN 2.0 XML (what other BPMN tools read), or as a PNG, SVG or TIFF with the diagram embedded in it. Conversion between them is lossless:
+Try it on one run, without installing anything:
 
 ```bash
-studyflow validate study.studyflow.yaml --strict
-studyflow convert study.studyflow.yaml study.bpmn
-studyflow convert study.studyflow.yaml study.studyflow.png   # into that picture; --modeler draws a new one (in a checkout)
-studyflow convert study.studyflow.png study.studyflow.tif    # the PNG's pixels as the LZW TIFF a journal takes, at its print size (--dpi for another), the study inside
-studyflow info study.studyflow.yaml --json
-studyflow edit study.studyflow.png              # the desktop app: the modeler served from this machine, opened on that file
+studyflow run study.studyflow.yaml --runner echo="uv run --script ./local.py" --debug
 ```
 
-## Running a study
+![A local run from a runner's side. The picture carries its diagram, so it opens in the modeler.](assets/img/diagrams/runner-contract.studyflow.svg){#fig-runner-contract fig-alt="A Studyflow collaboration diagram in three pools. The top pool, the local runtime, starts a run and asks every runner for its claims; if a runner does not answer, the run stops before any step. Otherwise it hands over the next claimed element, adopts what it hands back and commits the run directory, repeats while elements remain, removes .cache/ and finishes. The middle pool, the partial runner in its skill, answers initialize with the ids it takes, and on execute reads the plan and the run's values, runs the element with its tool, and hands back its result, record and files. Dashed message flows join the two pools. The bottom pool is the tool, reached only through its own protocol."}
 
-![What happens in one run: the file is validated first, the study's `runtime` attribute decides which runner takes it, and a local run also leaves a repository behind.](assets/img/diagrams/run-lifecycle.studyflow.svg){#fig-lifecycle fig-alt="A Studyflow diagram. The author saves the study, it is validated, and a gateway asks which runtime. On browser, the participant's steps run in the page, optionally posting sessions and events to a data server, until the session is over. On local, the plan is archived into runs/STAMP/, and the steps are walked, each checkpoint committed into the run repository, until the run finishes. A second start, running again after an edit, asks whether a record was invalidated: if so, the repository branches at that step's parent before the walk; if not, the walk resumes in place. A note says a later run skips each step whose record still stands."}
-
-`studyflow run` reads the `runtime` attribute on the study (`local` unless set) and decides where to send it, and a local run installs the study's `dependencies` into every partial runner's environment (`uv run --with`), so a runner script declares only what it needs itself: a `browser` study runs from the published `./run/` URL, and a `local` one goes to the local runners on your machine. An AI evaluation is the same walk with a model in the participant's seat (a pool whose `studyflow:Actor` has `actorType: llm`), so the same two runners execute it and you do not need a separate harness.
-
-::: {layout-ncol=4}
-![Consent, from the start event](assets/img/runner/consent.png){#fig-run-consent fig-alt="A browser screen presenting a consent document with an accept button."}
-
-![An instruction step](assets/img/runner/instruction.png){#fig-run-instruction fig-alt="A browser screen showing instruction text and a continue button."}
-
-![A questionnaire step](assets/img/runner/questionnaire.png){#fig-run-questionnaire fig-alt="A browser screen presenting questionnaire items with response options."}
-
-![Completion, from the end event](assets/img/runner/completion.png){#fig-run-completion fig-alt="A browser screen thanking the participant and showing a completion code."}
-:::
-
-Gateways decide which branch a run takes, and each kind decides differently:
-
-| Gateway | Rule |
-|:--|:--|
-| An exclusive gateway, and `cognitive:EligibilityGateway` | the first outgoing edge whose condition holds, otherwise the edge marked `default`, otherwise the one edge without a condition; with none of these the run stops |
-| `cognitive:RandomGateway` | a draw seeded from the study's `seed`, the gateway, the participant and its visit, weighted by `allocationRatio`; `algorithm: block` deals permuted blocks, and `alternation` the arms in turn, over the participants in the order they reach the gateway, so one excluded before it takes no place (a browser session deals by the participant number its link names); with `stratifyBy`, within each stratum, and `minimization` takes the arm that least unbalances its factors four times in five, both by the participants before, which only a local run of the cohort knows; with `seedDigest`, from the gateway's own seed instead, which the run is given and checks against that digest |
-| A parallel gateway | every outgoing edge, each walked as a path of its own at once; as a join, it waits for a token along each incoming edge |
-| An inclusive gateway | every outgoing edge whose condition holds, otherwise the edge marked `default`; as a join, it waits for the tokens that can still come |
-| An activity or event with several outgoing edges | each edge without a condition, each whose condition holds, and the `default` edge when none holds |
-
-- A runner that cannot evaluate a condition stops the run, rather than quietly taking the other branch.
-- A condition that names a value which is not in scope reports an exception, rather than evaluating to `false`.
-- Setting a `seed` on the study makes every gateway draw replay exactly, and both runtimes draw the same branches from it: they host one walk.
-
-| Element | Checked before the run | Browser runtime | Local runtime |
-|:--|:--|:--|:--|
-| `bpmn:StartEvent`, `bpmn:EndEvent` | consent link shape; completion-code coherence | consent screen; completion screen, code, redirect | reached and recorded, no screen |
-| `cognitive:Instruction`, `cognitive:Questionnaire` | empty content or instrument blocks the run | renders; writes the answer into scope | - |
-| `behaverse:Task` | checked against the assessment build's manifest | runs the assessment in the page, where its screen also plays a model or the build's bot on the task's band | claimed by the `behaverse` skill's partial runner, which plays it in the Unity build |
-| An activity whose `implementation` is `jspsych://<plugin>@<version>` | a reference naming a jsPsych the runtime does not play stops the run before its first step | plays the plugin with the Parameters wired into it, a person answering | claimed by the `jspsych` skill's partial runner, which plays its timeline in jsPsych, headless, every trial answered along its message flows |
-| `cognitive:CognitiveTask`, plain `bpmn:Task` | - | generic screen, and a way forward; one that exchanges messages has none, and the walk sends and receives for it | - |
-| Any activity carrying `implementation` | reference grammar; literal arguments must be a mapping | shows the call it names | imports and calls it, binding the drawn data associations |
-| `bpmn:SubProcess` | - | walked one level in, its properties a scope of its own, re-entered on each pass | the same |
-| `bpmn:ExclusiveGateway`, `cognitive:EligibilityGateway` | - | conditions (FEEL), then `default`, then the one edge without a condition | the same rule |
-| `cognitive:RandomGateway` | an allocation the walk cannot apply as written (a ratio or block that does not fit, `stratifyBy` under `simple`, minimization without factors or at an unequal ratio) stops the run; refuses a `seedDigest` that is not one, or on `alternation`; once run, holds the revealed `allocationSeed` against `seedDigest` | the seeded draw, weighted by the ratio; blocks and alternation by the link's participant; refuses a concealed allocation, and one with `stratifyBy` | the same draw; blocks and alternation over the cohort, within strata too; minimization; a concealed allocation from `--allocation-seed`, revealed in the executed copy |
-| `bpmn:DataStore`, and the `bpmn:DataStoreReference`s naming it | two stores of one name, a name starting with `_`, a step joined to a store without a reference | the study's one value: the file's state, else its `value`; a link may set it | the same, kept in the executed copy's state for the next run |
-| `studyflow:Dataset`, `studyflow:Table`, `studyflow:Schema`, and a skill's data types (`eeg:Timeseries`) | a browser run warns of one kept at a `uri` that a step it plays writes its result to | held for the run when a screen's result is written to them; nothing is loaded from a `uri` or saved at one | loaded and saved wherever they carry a `uri` |
-| `studyflow:Parameters` | reports overridden, undeclared, and unbound names | bound before the walk | - |
-| Timers | the time is ISO 8601 | a timer event waits for its time, its screen showing the time left (and, for a `cognitive:Rest`, how to rest); one at a boundary event ends the step when it runs out, and its screen is dropped | the same, with no screen, and the step's runner is stopped |
-| Loop and multi-instance markers | - | one pass after another: while `loopCondition` holds, `loopCardinality` times, or once per item of `loopDataInputRef` | the same |
-| Boundary events | - | an error boundary event takes a step the participant refuses; a conditional one reads the finished step | those, and a message boundary event |
-| Message flows between pools | a browser run refuses a flow to a pool no one in the page plays (a model, a device), and one from a screen; it refuses the exchange a band stands for the same way, unless the task's screen plays the pool on the band | carried by the walk between the pools it walks; a pool with no process and a human actor is the person at the page, who answers each message on a screen | carried by the walk, pool to pool; a pool with no process is played by the runner that claims it |
-
-: What each runtime does with each family of elements, and what is checked before the run starts. Both host the same walk, so they differ only in what executes a step: a screen in the page, a partial runner on your machine. A dash means the runtime passes that step over. {#tbl-support}
-
-
-## Where a run departs from BPMN 2.0 {#bpmn-departures}
-
-The walk, which both runtimes host, is a profile of the execution semantics of BPMN 2.0. @tbl-departures lists where it reads a construct otherwise than the specification does, by design, and why; `studyflow validate` refuses or warns about each departure that could surprise an author. Three of them meet one limit of BPMN: the instances that run one after another, the message sent once after the last instance, and the data objects that every pool shares. BPMN treats each process instance as a separate case, whereas a study relates many participants to one allocation sequence, one cohort, and one analysis[^ocpm]. The study's own state is no departure: BPMN keeps data that outlive a process instance in data stores, and a study keeps the values it holds for all its participants the same way ([Run state](reference.qmd#run-state)).
-
-| BPMN construct | How a run reads it | `studyflow validate` | Why |
-|:--|:--|:--|:--|
-| A process or sub-process with several start events | starts at the first, where BPMN starts at whichever is triggered | a warning | a run has one beginning |
-| A process or sub-process with sequence flows and no start event, or no end event | refused, where BPMN starts every node nothing flows into and ends each path where its flows end; one with no sequence flow starts at each node it holds, as BPMN does, and so does an ad-hoc sub-process, which BPMN gives neither | an error | a well-formed study says where each path begins and ends (well-formedness condition 3) |
-| A message or timer start event | the run starts each pool's instances itself, as many as the `maximum` of its `participantMultiplicity` (one without it), and the event makes each instance wait for its message or its time; BPMN starts a new instance each time the event is triggered | - | how many participants take part is the protocol's, drawn on the pool |
-| A multi-instance marker, parallel or not, and a pool with a `participantMultiplicity` | the instances run one after another, each re-entering the scope; a pool's instances walk at once only when the run is given a concurrency (`studyflow run --concurrency N`), which is the run's and not the protocol's, and the record then keeps the order they reached each random gateway in | - | the instances share the study's counts and data, which then do not depend on how they interleave |
-| A step with no message flow of its own | exchanges along the message flows of the nearest sub-process around it, else of its pool; a step no runner takes does so only when it has data inputs to send | - | the exchange is drawn once, on the container, and reaches no further than its border |
-| A message flow from a pool's border to a step in another pool | sent once, carrying null, when the pool's last instance has ended; BPMN sends one per instance, each starting an instance of the receiver | - | a step for the whole cohort, such as the analysis, starts once, after the last participant |
-| A data object, and a data store reference that names no data store | the study's: one value, shared by every pool and every instance of a pool, and kept from one pass of a sub-process to the next; BPMN gives each instance of the process or sub-process that holds a data object its own | - | the analysis reads the datasets that the participants' process writes; a value the study keeps on purpose is a data store, which BPMN shares the same way |
-| An exclusive gateway none of whose conditions holds | takes its default flow, else its one flow without a condition; BPMN takes the default flow, else throws an exception | a warning where conditions on one number overlap, and an error where they leave a value no flow takes and there is no default flow | a flow drawn without a condition reads as the remaining case; overlapping conditions would be settled by the order of the flows in the file, which the drawing does not show |
-| A complex gateway | stops the run where it splits, and passes each token on where it joins | an error where it splits, a warning where it joins | its activation rule is an expression the drawing does not show |
-| A parallel join one of whose tokens can never come | stops the run, where BPMN waits for ever | a warning, from exploring every way the study can go | a run that cannot end is reported rather than left waiting |
-| A conditional boundary event | read once, when its activity has finished (on a loop, after the last pass) and its data edges have written, one that does not interrupt then starting a path beside the activity's own flow; BPMN fires it whenever its condition becomes true while the activity runs | - | BPMN does not say when the condition is checked; one fixed point makes a run repeatable |
-| A timer cycle | waits for its first firing, but at a boundary event that does not interrupt, where each firing starts a path up to the cycle's repetitions; a cron schedule passes at once | a warning, but for a repeating interval on a boundary event that does not interrupt | a run's timers are waits it can count in time, which a schedule of calendar times is not |
-| An error that no error boundary event around it catches | an error end event ends its own path as a plain end event does, the paths beside it walking on, and a step's failure fails the run | - | BPMN leaves an uncaught error to the engine; an exclusion drawn as an error end event at the top of a process ends that participant's path |
-| An ad-hoc sub-process | runs round after round every activity nothing flows into, all at once or, with its `ordering` Sequential, one after another, each going on along its flows; it reads its `completionCondition` after each activity, and ends after one round when it has none; BPMN leaves which activities run, and how often, to their performers | - | a run decides nothing a performer would: a choice between activities, such as the tool an agent's model names, is a gateway after the step that makes it |
-| A call activity that names no process of the study, or one that calls a process it is inside | the first passes as an activity a runner may claim; the second is refused, where BPMN would call the process again | a warning; an error | the process the first names is not in the file to walk; a process calling itself repeats a number of times the drawing does not show, which a loop marker does |
-| A signal, escalation, compensation, link, or cancel event | not read | an error | each acts on steps away from where it is drawn: a signal on every catcher, a link at its target, a compensation on steps already done, an escalation or a cancel on a scope around it |
-| An activity that repeats more than a thousand times, under a loop or a multi-instance marker, an ad-hoc sub-process that goes round more than a thousand times, and a path that takes more than a thousand steps in one process or sub-process | stops the run, where BPMN sets no bound | an error for a standard loop marker with neither a `loopCondition` nor a `loopMaximum`, and no interrupting message, timer or error boundary event to end it; - otherwise | a run that would not end is stopped rather than left running |
-| A choreography task in a process | written in BPMN XML as the `bpmn:task` it is, marked `studyflow:exchange`, its bands as `studyflow:participants` and `studyflow:initiator`; reading the XML draws it back | the XML is checked against the OMG's BPMN 2.0 schema (a warning when the machine has no `xmllint`) | the exchange with the actor is drawn where it happens, in the process that runs it |
-
-: Where a run reads a BPMN 2.0 construct otherwise than the specification, by design, what `studyflow validate` reports, and why. A dash means it reports nothing. {#tbl-departures}
-
-Everything else a run reads as BPMN 2.0 says. A boundary event that does not interrupt (`cancelActivity: false`) starts a path beside its activity each time it happens, and one that interrupts ends the activity at once, stopping a runner's hand-off in progress, whether a timer ran out or a message came. An event-based gateway takes the branch whose event comes first: a message, a timer that runs out, or a condition that holds. A conditional catch or start event waits until its condition holds, read again each time a value changes. An error goes out to the innermost activity whose error boundary event catches it, by the error the event names or that error's `errorCode`, and a step's failure goes the same way, its runner able to name the code. A pool whose runner fails a message fails the step that asked, which throws the pool's failure the same way, and an event or a gateway that fails is such a step too. A multi-instance marker stops once its `completionCondition` holds, and a call activity walks the process it calls in its place, that process no pool of its own.
-
-[^ocpm]: van der Aalst, W. M. P. (2019). Object-centric process mining: Dealing with divergence and convergence in event data. *Software Engineering and Formal Methods (SEFM 2019)*, LNCS 11724, 3-25.
-
-
-## What a run leaves behind
-
-![Where the record of a run is kept: its events, one a line in `events.jsonl`, and what the study keeps of the run, read off them: a trail on the study itself, one record per element, and the state; for local runs, a repository whose commits restate each step.](assets/img/diagrams/provenance-model.studyflow.svg){#fig-provenance-model fig-alt="A Studyflow diagram in two lanes. In the Modeler lane, exporting a study stamps created and modified into the trail, and marking a step stale voids its record. In the Local runtime lane, executing a step appends its events to the record, events.jsonl, each checkpoint is committed into the run repository, runs/STAMP/.git, and when the run ends the trail, the records and the state are read off the record. A dashed group, the studyflow document, holds the trail on the study's root, whose entries carry action, when, who, with, what, run, seed and note, and the records, one per element. A note says each commit's trailers restate the step and the record is committed with the run's started and finished commits; another says there is one record, events.jsonl, and what the study keeps of a run is read off it."}
-
-Before it runs, a studyflow is a plan. As it runs, what actually happened accumulates in the same file (this follows W3C PROV, which separates the prospective plan from the retrospective record). So "did the study deviate from the plan?" is a question you answer by diffing one file against an earlier version of itself. A local run keeps the text it was given for this: the executed copy of a `.studyflow.yaml` file is that file, every line of it, comments and folds included, with the run's records added to the elements it stamped and its state written at the end, so a line diff of the registered file and its executed copy shows the run's additions alone (`executedText` in `packages/core/src/model/executed.ts`). When a run would change more than that, or the file writes an element it stamped in a way no record can be added to, such as a flow written `A -> B`, the copy is the study as the tools write it, and the run's log says so. A study given as BPMN XML or in an image is written as the tools write it.
-
-What the file keeps is read off one record. A run's record is its events, in order: a run started, a token reached a node or took a flow, a pool's instance or a loop's pass began, a property or a data store was written, a step ran or failed or was reused, a gateway took a flow and how (by its condition, its default, a draw, a message, a replay), a message was sent or answered, an artifact was made or staged in, the run finished. The walk tells its host each event as it happens (`RunEvent` in `packages/core/src/engine/record.ts`). An event that a step, a message or an answer records for one instance of a pool of several names that participant, `participant: "<pool>#<instance>"`, so participants who walk at once (`--concurrency`) keep their events apart. A local run appends them to `events.jsonl` in its run directory, one JSON object a line, never rewritten, run after run, and commits it with the run's `started` and `finished` commits; `stateOf` and `recordOf` read the state and each element's record off it, so what the file holds can be recomputed from `events.jsonl` alone.
-
-The `prov:` names a study carries (`prov:Activity`) are Studyflow's own vocabulary, `https://w3id.org/studyflow/prov`, not W3C PROV. `studyflow prov <run> [out.ttl]` writes a run's record in W3C's terms, as PROV-O in Turtle (`packages/runtime-local/src/w3c.ts`): the run is a `prov:Activity` associated with who ran it and the tool, under the study as its `prov:Plan` (named by its protocol digest); each step that ran, gateway that decided, answer a pool gave or step reused is a `prov:Activity` part of the run, whose plan is its element (`<plan>#<id>`); and each value written, message sent and file made is a `prov:Entity` the run generated. What PROV has no term for (a step's status, the flow a gateway took) keeps a Studyflow term, `sf:`.
-
-`studyflow crate <run> <folder> --license <license>` packages a run to deposit in an archive, as a Workflow Run RO-Crate ([the profile](https://w3id.org/ro/wfrun/workflow/0.6), on RO-Crate 1.3; `packages/runtime-local/src/rocrate.ts`). It copies the study as run, the record, the log, and each file the record says a step made or was given into the folder, beside their metadata, `ro-crate-metadata.json`. In the profile's terms, the study is the workflow, identified by its protocol digest, and each data element whose file a run made or staged in is one of its output or input parameters; each run in the record is a `CreateAction` whose instrument is the study, whose agent is who ran it (`--author`), and whose object and result are the files it staged in and made; and the record and the log are traces about the runs. A file several runs made is the result of the last, as the folder holds it as that run left it. RO-Crate asks for a license and a study names none, so `--license` gives it, an SPDX id (`CC-BY-4.0`) or a URL. The profile has no place for the tool that ran a workflow, so a run's description names it, with the seed and the protocol digest. Zip the folder to deposit it.
-
-`studyflow ocel <run> [out.json]` writes the record as an object-centric event log, OCEL 2.0 in its JSON format (`packages/runtime-local/src/ocel.ts`), which process-mining tools read (PM4Py's `read_ocel2_json`). Each step that ran, failed or was reused, event passed and gateway decision is an event typed by its element's name, the activity a process model of the study names it by, with the step's record entry as its attributes; the run's start and end, each message sent, each answer a pool gave and each file made or staged in are events typed `started`, `finished`, `sent`, `answered`, `created` and `imported`. The objects are the run, each participant, each task that ran, each actor that answered and each dataset, named as the PROV-O export names them, and an event concerns its run and, as the case may be, its participant, task, actor and datasets. Flattened on `participant`, the log gives each participant's path through the study, which a tool can replay on the study as BPMN XML (`studyflow convert`) once it keeps the events whose `type` attribute is a task's: events and gateways are silent in a process model. The counts and the values written are the study's state, not events, and are left out.
-
-The retrospective part has two places. The records are `prov:Activity` entries on the elements they are about, oldest first: each run's own, and the modeler's `created` and `modified`, on the study's root. The state lives under `state`, a tree keyed by element id (`state:` in the YAML file, a JSON string in `<studyflow:state>` in the XML). Everything the runner owns sits under `state._meta` (`META_KEY` in `@core/document`): `_meta.reached.<element_id>`, incremented every time a token reaches an element or follows a sequence flow, and `_meta.instance.<element_id>`, which pass a repeating activity is on. A run that redoes an earlier one starts from the state that run started from, so its counts are not added twice. Everything else in the tree is written only by data output associations: a `bpmn:Property` value under `state.<scope_id>`, and a data store's under `state.<store_id>`. Keys starting with `_` cannot be declared.
-
-| Attribute | Holds | | Action | Records |
-|:--|:--|:-:|:--|:--|
-| `action` | what happened, in one word | | `created`, `modified` | the file was authored, or edited and exported again |
-| `when` | an ISO 8601 timestamp; ties break by position | | `imported` | an artifact was staged in from outside |
-| `who` | a name, an email, or an ORCID | | `executed` | the document ran, or one element did |
-| `with` | the tool that acted, as `name/version` | | `invalidated` | a marker voiding a named execution record |
-| `what` | element ids, the `when` of the entry referred to, or a data edge's commit | | `reused` | a step was skipped and an earlier record trusted |
-| `run`, `seed` | the run's identifier, and its root seed | | `read`, `wrote` | a step's data edge, `what` the commit holding the data as the step read or wrote it |
-| `plan` | for `executed`, the digest of the protocol the run walked, which `studyflow validate` recomputes | | | |
-| `commit` | the commit an `executed` step's state is in | | | |
-
-These records are also what makes a partial re-run possible: the runner skips a step when its record still stands, nothing it reads was re-made during this run, its outputs are still there, and the `commit` its record names still holds what it ran with — every artifact it reads or makes, compared by git itself, and its own drawing, read back out of the plan that commit carries. So editing a step, a gateway's condition or an input file re-runs that step, and an output the worktree has lost comes back from the commit that made it rather than being recomputed. Invalidating a record cascades to everything downstream of the outputs that step re-makes.
-
-A run names who ran it only when it is told: `studyflow run --author 'Name <email>'` (the email optional) puts that author on the run's commits, as git's author and committer and in their `Prov-Who` trailer, and on its record as `who`. Without it the commits name `studyflow-runner` and the record names no one. Neither the machine's user nor git's own identity is read, so a run repository passed on carries no name its author did not give.
-
-With `studyflow run --data-outside-history`, a run repository keeps its data out of its history. Its commits hold the study as run and `data.sha256`, the SHA-256 of every other file in the run directory, in `sha256sum`'s format, so `sha256sum -c data.sha256` checks a directory against it; the files themselves stay in the directory alone, and a `.gitignore` says so. That is every other file, not only the files the data elements' `uri`s name: the record, `events.jsonl`, whose events carry each message sent and each value written; the log, with what the runners printed; and whatever a runner writes under a name no data element gives, such as a robot's camera frames. The history then shows which data existed after each step without holding any of it. A re-run compares a file with the digest its step's commit holds, as it would compare it with git; it cannot bring one back, so a re-run that needs a file the directory lost, or holds otherwise than that commit left it, stops and names the file. The choice is made at a repository's first commit, and every later run in it keeps it; asking it of a repository whose history already holds data is refused. The executed copy is committed as it is, with its counts, its decisions, and the state its properties hold. `studyflow validate` and the exports (`prov`, `crate`, `ocel`) read the record in the run directory; in a clone, which has none, an export says so.
-
-## Extending the notation
-
-![The element sets that ship with Studyflow: two always load, and the rest, one per skill, you switch on in the modeler's settings.](assets/img/diagrams/schema-map.studyflow.svg){#fig-schema-map fig-alt="A Studyflow diagram. When the modeler opens, it loads the required sets, studyflow and prov; then the skill sets switched on in Settings, Extensions, one per skill: cognitive, behaverse, eeg, agentic, reachy and reporting; then compiles the catalog, which gives the palette, the inspector tabs and the XML namespaces."}
-
-You can add your own vocabulary as an extension set. Each new type extends an existing one and adds its own attributes, so files that use it stay well formed and still open in generic BPMN tools. Before you declare a type, it is worth checking whether you need one at all. An attribute on an existing type is often enough.
-
-Declaring a type buys a limited amount:
-
-| Declaring a type gives it | It does not give it |
-|:--|:--|
-| a place in the palette, a shape, and an icon | a screen or a call in either runner |
-| fields in the inspector | pre-flight checks over the values an author types |
-| storage and retrieval through every file format | a way for a run to do anything at that step |
-
-To make a new type do something during a run, you have to teach a runner about it, either to render it on screen or to execute it. @tbl-support is the current list of what the two runners handle. A set's namespace carries its format version.
-
-For a `local` run, executing new elements needs no change to the local runtime: a skill pairs its schema with a *partial runner*, which claims the elements it executes and takes them one hand-off at a time, a JSON digest of the plan and the state in, updated state out, the diagram itself never opened. The next section walks through it.
-
-## Writing a partial runner
-
-A tool joins Studyflow through a skill, never through Studyflow itself. The skill is the boundary between the two, what domain-driven design calls an anti-corruption layer: its vocabulary gives study authors the domain's elements in the domain's own words, and its runners translate between Studyflow's runner contract and each tool's own protocol. Studyflow names no tool, and a tool never reads a plan. In the `behaverse` skill, for example, authors draw `behaverse:Task`s, and the skill's local runner speaks the Unity build's protocol; another build of the same tasks gets a runner in the same skill ([#105](https://github.com/behaverse/studyflow-modeler/issues/105)), so a study moves between builds without being redrawn.
-
-The contract is the local runtime's [`SKILL.md`](https://github.com/behaverse/studyflow-modeler/blob/main/packages/runtime-local/CONTRACT.md), and [`skills/python`](https://github.com/behaverse/studyflow-modeler/tree/main/skills/python) and [`skills/reachy`](https://github.com/behaverse/studyflow-modeler/tree/main/skills/reachy) are working runners. This section explains it from the runner's side.
-
-### Placing a tool's step
-
-A study places a step that a tool performs in one of two ways:
-
-| Placed as | What says what runs | Who runs it |
-|:--|:--|:--|
-| a typed task, such as `behaverse:Task` | its own attributes (`instrument`, `timeline`) | the runner of the skill that declares the type |
-| a service task | its `implementation`, `<scheme>://<ref>[@<version>]`, with its arguments and the Parameters wired into it | the runner of the skill the scheme names: `python://` is the python skill's |
-
-A typed task gives authors a palette entry and fields in the inspector; a service task needs no vocabulary at all. The `behaverse` skill takes typed tasks only, for now ([#115](https://github.com/behaverse/studyflow-modeler/issues/115)).
-
-### Where a runner lives
-
-The local runtime finds runners in these places, and asks each which elements it takes:
-
-| Found as | Meant for |
-|:--|:--|
-| `runtimes.local` in a skill's `SKILL.md`, run in that skill's folder (the checkout's `skills/`, or a directory on `STUDYFLOW_SKILLS`) | a domain's runner, which ships and is tested with the vocabulary it reads |
-| an executable named `studyflow-<name>` on `PATH` | a runner that belongs to no skill here, installed for every run on that machine |
-| `--runner NAME=COMMAND` on `studyflow run` | trying a runner, or replacing one, for a single run |
-
-A domain with a skill keeps its runners in that skill. Its claims are settled in one place, since two runners claiming one element stop the run; one contract covers every tool the domain uses; and a runner changes with the schema it reads. Its name also ends up in the record: a claimed element with no `implementation` is recorded as run by `runner://<name>`.
-
-### A run, from the runner's side
-
-![A local run from a partial runner's side, drawn in Studyflow. The walk starts every runner and asks for its claims, then hands each claimed element over and commits what comes back; the runner speaks the walk's contract on one side and its tool's own protocol on the other. The picture carries its diagram, so it opens in the modeler, and `runner-contract.studyflow.yaml` beside it is the same diagram as text.](assets/img/diagrams/runner-contract.studyflow.svg){#fig-runner-contract fig-alt="A Studyflow collaboration diagram in three pools. The top pool, the local runtime, starts a run and asks every runner for its claims; if a runner does not answer, the run stops before any step. Otherwise it hands over the next claimed element, adopts what it hands back and commits the run directory, repeats while elements remain, removes .cache/ and finishes. The middle pool, the partial runner in its skill, answers initialize with the ids it takes, and on execute reads the plan and the run's values, runs the element with its tool, and hands back its result, record and files. Dashed message flows join the two pools. The bottom pool is the tool, reached only through its own protocol."}
-
-@fig-runner-contract draws the steps below.
-
-A runner is one process for the whole run, and the walk speaks to it in JSON-RPC 2.0 on its stdin and stdout, one message a line. [`packages/runtime-local/CONTRACT.md`](https://github.com/behaverse/studyflow-modeler/blob/main/packages/runtime-local/CONTRACT.md) is the contract, and `packages/runtime-local/python/runner.py` speaks it for a runner written in Python, which is then two functions: `claims(plan)` and `execute(step)`.
-
-1. **Claims.** Before the first step, each runner is started and sent `initialize`, with the path of `plan.json` and the run directory; it answers with the ids of the elements it takes. They are *live* unless it says otherwise: they run every time. `"live": false` makes them *replayable*: a re-run skips one whose record still stands. A runner that answers with an error stops the run before anything happens, and its message is shown; that is how a runner refuses a machine that cannot run its elements, such as one missing a build or a device. So does a runner that has not answered within `--start-timeout` seconds (600 by default, long enough for a first `uv run` to install the runner's packages). A runner whose command is not on the machine claims nothing, and one that claims nothing is shut down at once. An element no runner claims is passed over with a warning, unless it carries an `implementation`, which stops the run.
-2. **Hand-offs.** Each claimed element is handed over on every visit, as an `execute` request carrying the run's values; a skill's runner runs in the skill's folder. Because the process lives as long as the run, what it loads or connects to once (a library, a model, a robot) stays for the next hand-off, and `shutdown` is where it lets go. `STUDYFLOW_RUN_PID` is the walk's pid, for a process a runner starts beside itself and leaves to follow the run.
-3. **What comes back.** The answer says what the step binds: its `result`, under the element's id for later steps (`{Play.trials}`); `values`, by the id each is bound under (one under a data store reference's id lands in its store); `state`, the properties it wrote, scope by scope; and a `record` of what it ran with (a version, a digest, a build). A failure is an error answer, and what the runner had bound before it failed rides along and is kept.
-4. **Files.** The run directory is a git repository: whatever a runner leaves there is committed at the next checkpoint (with `--data-outside-history`, its SHA-256 is). `.cache/` in it is never committed and is removed when the run ends, so a report, a log or a resume point goes in the run directory, or at the `uri` of an output the step writes.
-5. **Messages.** A step with message flows sends a `message` notification naming the flow, and each message along a flow into it arrives as one; the walk carries each along its flow.
-6. **Stopping.** A timer at a boundary event, or `--step-timeout`, sends `cancel` for the hand-off in progress. A runner that has not answered a second later has its process ended, and is started again for its next hand-off; so a runner answers at once, and work that cannot stop midway (a robot's move, a model's request) finishes behind the answer. Timers wait on the machine's clock; `studyflow run --clock virtual` runs them on a virtual one that jumps ahead to the next timer whenever no hand-off is in progress and nothing else can happen, so a study whose sessions are weeks apart runs in the time its steps take, and the run records that it did ([WALK.md](https://github.com/behaverse/studyflow-modeler/blob/main/packages/runtime-local/WALK.md#boundary-events-and-timers)).
-
-What a runner returns is what the rest of the study reads. A runner that claims a gateway returns, as its `result`, the bindings the gateway's conditions read (`{"canRun": false}`). A study keeps what it reuses in properties and data stores: a step's data edges write its result into them, narrowed by FEEL (`transformation`), and conditions read them by name. So a task whose data edge writes `unanswered` from its result leaves on `unanswered > max_unanswered`; a condition that cites a name no scope declares fails the run, rather than reading as false. A runner returns data, not policy: counts, never a threshold or a choice of which trials matter.
-
-### What a runner gets, and what it does not yet
-
-| A runner reads | In |
-|:--|:--|
-| the study's `id`, `name`, `seed` and `dependencies` | `plan.json`, under `study` |
-| each element's type, attributes, extensions, wired `parameters`, inputs, outputs and message flows, and the data stores | `plan.json`, under `elements` |
-| the run's values (a data store's under its id and each reference's to it), how often each element was reached (`_meta.reached`), and which pass a repeating activity is on (`_meta.instance`) | `execute`'s `values` |
-
-The root seed drives the random gateways, and the python runner seeds each of its steps with it; a runner that needs randomness of its own mints a seed and reports it in `record`. These are not there yet, each with its issue:
-
-- the participant, the session, and a step's position in the participant's walk ([#108](https://github.com/behaverse/studyflow-modeler/issues/108));
-- a `version` on `plan.json`, and a JSON Schema for it ([#107](https://github.com/behaverse/studyflow-modeler/issues/107));
-- an interrupted element's state, handed back on its next attempt so a runner can resume inside it ([#110](https://github.com/behaverse/studyflow-modeler/issues/110));
-- questionnaires, instructions, breaks and consent in local runs ([#109](https://github.com/behaverse/studyflow-modeler/issues/109)).
-
-### Trying a runner
-
-```bash
-studyflow run study.studyflow.yaml --runner mytool="uv run --script ./local.py" --debug
-```
-
-Try a runner with `--runner`, not by putting a `studyflow-<name>` executable on `PATH`:
-
-- **It is scoped to one run.** Every local run asks every runner it discovers for its claims before its first step, whatever the study. A `studyflow-<name>` left on `PATH` is asked by every run on that machine: if it refuses to start, every run stops, and if it claims an element another runner claims, that run stops too.
-- **It is explicit.** The command names the runner and the program behind it. What `PATH` supplies depends on the machine: which executables are installed, in which order, and at which version.
-- **It shadows nothing by accident.** A `PATH` executable named after a skill replaces that skill's runner without a word; `--runner` replaces one only when you name it, and only for that run.
-- **It needs no install,** and leaves nothing behind.
-
-A runner given this way gets exactly its command, and reads the run's `options` (`--option sim`, `--option auto`) from `plan.json`. `--debug` keeps `.cache/`, with `plan.json` and the run's values after each element (`<id>.state.json`), so you can read exactly what a step was handed and what it left.
-
-## Contributing
-
-How to set up, test, and propose a change is in [`CONTRIBUTING.md`](https://github.com/behaverse/studyflow-modeler/blob/main/CONTRIBUTING.md).
+[`CONTRACT.md`](https://github.com/behaverse/studyflow-modeler/blob/main/packages/runtime-local/CONTRACT.md) is the contract. The [`python`](https://github.com/behaverse/studyflow-modeler/tree/main/skills/python) and [`shell`](https://github.com/behaverse/studyflow-modeler/tree/main/skills/shell) skills are short working runners.

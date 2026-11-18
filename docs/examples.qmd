@@ -1,0 +1,17 @@
+---
+title: "Examples"
+---
+
+| Study | Experimental design | Studyflow |
+|:--|:--|:--|
+| Minimal study | one Flanker task, between a start and an end event | [Open](https://behaverse.org/studyflow-modeler/app?open=docs/assets/examples/minimal_study.studyflow.yaml) |
+| [White et al. (2011)](https://doi.org/10.1016/j.cogpsych.2011.08.001), Experiment 1 | Flanker (arrows); one session; 25 tested | [Open](https://behaverse.org/studyflow-modeler/app?open=docs/assets/examples/published-studies/white2011_flanker.studyflow.yaml) |
+| [Crump et al. (2013)](https://doi.org/10.1371/journal.pone.0057410), Experiment 3 | Flanker (letters), online; one session; 52 analyzed | [Open](https://behaverse.org/studyflow-modeler/app?open=docs/assets/examples/published-studies/crump2013_flanker.studyflow.yaml) |
+| [Burle et al. (2014)](https://doi.org/10.3758/s13423-013-0561-6) | Flanker (letters), with recorded muscle activity; two sessions, one with accuracy and one with speed instructions; 16 tested | [Open](https://behaverse.org/studyflow-modeler/app?open=docs/assets/examples/published-studies/burle2014_flanker.studyflow.yaml) |
+| [Zelazo et al. (2014)](https://doi.org/10.1017/S1355617714000472) | Flanker (fish and arrows) in a standardized test battery; 237 of 268 analyzed, 89 retested 7 to 21 days later | [Open](https://behaverse.org/studyflow-modeler/app?open=docs/assets/examples/published-studies/zelazo2014_flanker.studyflow.yaml) |
+| [Hedge et al. (2018)](https://doi.org/10.3758/s13428-017-0935-1), Study 1 | Flanker (arrows); two sessions three weeks apart; 47 of 50 analyzed | [Open](https://behaverse.org/studyflow-modeler/app?open=docs/assets/examples/published-studies/hedge2018_flanker.studyflow.yaml) |
+| [Wylie et al. (2010)](https://doi.org/10.1162/jocn.2009.21326) | Simon; patients with Parkinson's disease and healthy controls; 82 tested | [Open](https://behaverse.org/studyflow-modeler/app?open=docs/assets/examples/published-studies/wylie2010_simon.studyflow.yaml) |
+| [Hübner and Töbel (2019)](https://doi.org/10.1371/journal.pone.0214203), Experiment 3 | Simon, with 75% or 25% congruent trials in two groups; 21 tested | [Open](https://behaverse.org/studyflow-modeler/app?open=docs/assets/examples/published-studies/hubner2019_simon.studyflow.yaml) |
+| [Mittelstädt et al. (2022)](https://doi.org/10.3758/s13423-021-02003-x), preregistered experiment | Simon, in blocks alternating with a Flanker task, with speed or accuracy instructions; 32 tested | [Open](https://behaverse.org/studyflow-modeler/app?open=docs/assets/examples/published-studies/mittelstadt2022_simon.studyflow.yaml) |
+| [Kucina et al. (2023)](https://doi.org/10.1038/s41467-023-37777-2), final experiment, double-shot Simon | Simon, as a game played online; random assignment to one of six conditions; two sessions 10 minutes apart; 30 analyzed in this condition | [Open](https://behaverse.org/studyflow-modeler/app?open=docs/assets/examples/published-studies/kucina2023_simon.studyflow.yaml) |
+| [Gonthier et al. (2016)](https://doi.org/10.3758/s13421-016-0591-1), Experiment 1a | Stroop (pictures and words), spoken responses; two sessions at most a week apart; 34 of 35 analyzed | [Open](https://behaverse.org/studyflow-modeler/app?open=docs/assets/examples/published-studies/gonthier2016_stroop.studyflow.yaml) |

@@ -20,22 +20,20 @@ website:
     contents:
       - text: Overview
         href: index.qmd
-      - text: Glossary
-        href: glossary.qmd
+      - text: Tutorial
+        href: tutorial.qmd
+      - text: Examples
+        href: examples.qmd
       - text: Reference
         href: reference.qmd
-      - text: Published studies as diagrams
-        href: published-studies.qmd
-      - text: What each release implements
-        href: implemented.qmd
-      - text: Developers
+      - text: File format
+        href: format.qmd
+      - text: Command line
+        href: cli.qmd
+      - text: Develop
         href: developers.qmd
       - "---"
-      - text: Studyflow
-        href: https://behaverse.org/projects/studyflow.html
-        icon: house
-        target: _blank
-      - text: Modeler
+      - text: Studyflow Modeler
         href: https://behaverse.org/studyflow-modeler/app.html
         icon: box-arrow-up-right
         target: _blank

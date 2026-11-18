@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" class="sf-canvas" viewBox="26 16 978 448" width="978" height="448"><metadata><bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:prov="https://w3id.org/studyflow/prov" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="file_format" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:process id="File_Format" name="What converts into what">
-    <bpmn:documentation>The files that carry a study, and what converts into what. Inside the group, every conversion can be undone without loss: YAML and BPMN XML expand and project into each other, and a picture carries its source and reopens from it. A derived view is exported one way. Drawn for docs/reference.qmd.</bpmn:documentation>
+    <bpmn:documentation>The files that carry a study, and what converts into what. Inside the group, every conversion can be undone without loss: YAML and BPMN XML expand and project into each other, and a picture carries its source and reopens from it. A derived view is exported one way. Drawn for docs/format.qmd.</bpmn:documentation>
     <bpmn:extensionElements>
       <studyflow:study>
         <studyflow:state>{"_meta":{"prov":[{"action":"created","when":"2026-09-29T21:42:54+02:00","with":"studyflow-modeler/26.9.29"}]}}</studyflow:state>

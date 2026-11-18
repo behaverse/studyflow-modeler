@@ -11,7 +11,7 @@ Run_Lifecycle:
     What happens in one run. The study is validated first, and its runtime attribute decides who runs it: the browser
     runner, which can post sessions and events to a data server, or the local runtime, which archives the plan into a
     run repository and commits every checkpoint. A later run skips each step whose record still stands, and an
-    invalidated record branches the repository at that step's parent. Drawn for docs/developers.qmd.
+    invalidated record branches the repository at that step's parent. Drawn for docs/reference.qmd.
   elements:
     Save:
       type: StartEvent

@@ -1,0 +1,119 @@
+---
+title: "Command line"
+description: "The studyflow command: convert, check, run, inspect and export a study."
+---
+
+## Install
+
+```bash
+brew trust https://github.com/behaverse/studyflow-modeler   # Homebrew asks this of a third-party tap
+brew tap behaverse/studyflow https://github.com/behaverse/studyflow-modeler
+brew install studyflow
+```
+
+A local run also needs [`uv`](https://docs.astral.sh/uv/).
+
+## Commands
+
+| Command | Does |
+|:--|:--|
+| [`convert`](#convert) | writes a study in another format |
+| [`validate`](#validate) | checks a study without running it |
+| [`info`](#info) | shows what a file contains |
+| [`run`](#run) | runs a study |
+| [`edit`, `ui`](#edit) | open the desktop app |
+| [`mcp`](#mcp) | serves a study to an AI assistant |
+| [`prov`, `crate`, `ocel`](#exports) | export a run's record |
+| [`skill`](#skill) | installs, lists and removes skills |
+
+Every command reads a study from `.studyflow.yaml`, `.bpmn` or `.xml`, `.studyflow.png`, `.studyflow.svg` or `.studyflow.tif`. `studyflow <command> --help` lists every option; the tables below show the main ones.
+
+## convert {#convert}
+
+```bash
+studyflow convert <input> <output>
+```
+
+The output's extension picks the format. Between YAML, BPMN XML and the images that carry a study, nothing is lost.
+
+| Option | Does |
+|:--|:--|
+| `--into <image>` | embeds the study into this image |
+| `--modeler` | draws a new image with the modeler (in a checkout of the repository) |
+| `--strict` | writes nothing and fails on a reader's warning |
+
+```bash
+studyflow convert study.studyflow.yaml study.bpmn
+studyflow convert study.studyflow.yaml study.studyflow.png   # into the picture that is there
+studyflow convert study.studyflow.png study.studyflow.tif    # the same pixels as the LZW TIFF a journal takes
+```
+
+## validate {#validate}
+
+```bash
+studyflow validate <input> [--strict]
+```
+
+Reports errors and warnings, and fails on an error. `--strict` fails on a warning too. [`packages/core`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/core#what-validate-checks) lists the checks.
+
+## info {#info}
+
+```bash
+studyflow info <input> [--json]
+```
+
+## run {#run}
+
+```bash
+studyflow run <input> [options]
+```
+
+Runs the study in the runtime it declares (`local` unless set). A local run first applies the checks of `validate`. [Reference](reference.qmd#running) explains what happens.
+
+| Option | Does |
+|:--|:--|
+| `--runtime <local\|browser>` | overrides the study's own |
+| `--author <name>` | who runs it, as git writes an author (`'Name <email>'`); without it the record names no one |
+| `--repo <dir>` | the run repository to write into (default: the study's directory when it is one, else `~/.studyflow/runs/<name>`) |
+| `--from <ref>` | re-runs from this commit, on a branch |
+| `--fresh` | ignores earlier records and re-runs every step |
+| `--concurrency <n>` | how many instances of a pool walk at once (default 1) |
+| `--runner <name=command>` | adds or replaces a runner for this run; repeatable |
+| `--debug` | keeps `.cache/`, with the values after each step |
+
+## edit, ui {#edit}
+
+```bash
+studyflow edit [file]
+studyflow ui
+```
+
+Opens the modeler from this machine, in a window of its own, with no network. `edit` opens a file and saves back into it; `ui` opens a blank canvas. It needs Chrome, Chromium, Brave or Edge, and falls back to the default browser.
+
+## mcp {#mcp}
+
+```bash
+studyflow mcp <file>
+```
+
+Serves the study to an AI assistant as a [Model Context Protocol](https://modelcontextprotocol.io) server on stdio: the study's editing tools, `check`, and `save` back to the file. A modeler with the same file open shows each saved version as a change to accept or discard.
+
+## prov, crate, ocel {#exports}
+
+```bash
+studyflow prov <run> [out.ttl]                       # W3C PROV-O, in Turtle
+studyflow crate <run> <folder> --license CC-BY-4.0   # a Workflow Run RO-Crate, to deposit
+studyflow ocel <run> [out.json]                      # OCEL 2.0, for process mining
+```
+
+`<run>` is a run repository or its `events.jsonl`. `crate` needs `--license`, an SPDX id or a URL.
+
+## skill {#skill}
+
+```bash
+studyflow skill add <git-url-or-folder>
+studyflow skill list
+studyflow skill remove <name>
+```
+
+Installs a skill into `~/.studyflow/skills` (or `$STUDYFLOW_HOME/skills`), where every command and the desktop app find it. Adding a skill of the same name replaces it.
