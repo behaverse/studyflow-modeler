@@ -28,7 +28,7 @@ A studyflow diagram replaces these copies with one file. Each document you need 
 ## How it works
 
 1. **Draw** the study in the [modeler](tutorial.qmd), with BPMN's elements and those a domain adds.
-2. **Save** it as YAML, or as an image that carries the YAML.
+2. **Save** it as YAML, or as an image that carries it.
 3. **Run** it in a browser or on your machine. The [run](reference.qmd#running) is [recorded](reference.qmd#records-of-a-run) in the file itself.
 4. **View** it as a schedule, a checklist, a provenance log, a reporting diagram, or a figure.
 

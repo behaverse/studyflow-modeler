@@ -59,7 +59,7 @@ A run walks the study from its start event to an end event. Two runtimes host th
 | Runs | in a web page, at `/run/?diagram=<address>` | on your machine, with [`studyflow run`](cli.qmd#run) |
 | For | one participant at a screen | an analysis, models or simulated participants, a device |
 | A step is | a screen | a hand-off to the [runner](developers.qmd#runners) that claims it |
-| Leaves | the session | a [run repository](#records-of-a-run) |
+| Leaves | the record, to download | a [run repository](#records-of-a-run) |
 
 The study's `runtime` attribute picks one, `local` unless set.
 

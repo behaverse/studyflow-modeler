@@ -7,7 +7,7 @@ This project bundles or derives from the following third-party packages.
 (c) 2014-present Camunda Services GmbH — https://github.com/bpmn-io/diagram-js
 
 diagram-js is not a dependency of this project, but the wheel pan/zoom handling in
-`packages/canvas/src/Canvas.ts` (`handleWheel` / `zoomStep`) is adapted from
+`packages/canvas/src/interaction/pan.ts` (`Pan.wheel`, `ZOOM_STEP`) is adapted from
 diagram-js's `ZoomScroll` (`lib/navigation/zoomscroll/ZoomScroll.js`), and several
 interaction constants and behaviors across `packages/canvas` intentionally match
 diagram-js for UX parity.
@@ -18,12 +18,6 @@ diagram-js for UX parity.
 
 Used as dependency for reading/writing BPMN files.
 
-## bpmn-auto-layout (MIT)
-
-(c) bpmn.io contributors — https://github.com/bpmn-io/bpmn-auto-layout
-
-Used as dependency for automatic diagram layout.
-
 ## bpmn-in-color (bioc attributes)
 
 Element colors are serialized using the BPMN in Color (BIOC) extension attributes (`bioc:*`) defined by the bpmn.io project.
@@ -31,11 +25,13 @@ Element colors are serialized using the BPMN in Color (BIOC) extension attribute
 ## Icons
 
 Copyright (c) 2020-PRESENT Iconify - https://iconify.design
-Copyright (c) Phosphor Icons - https://github.com/phosphor-icons/core
-Copyright (c) Camunda Services GmbH - https://github.com/bpmn-io/bpmn-font
 Copyright (c) Paweł Kuna - https://github.com/tabler/tabler-icons
+Copyright (c) Phosphor Icons - https://github.com/phosphor-icons/core
+Copyright (c) Lucide Contributors - https://github.com/lucide-icons/lucide
+Copyright (c) Pictogrammers - https://github.com/Templarian/MaterialDesign
+Copyright (c) Camunda Services GmbH - https://github.com/bpmn-io/bpmn-font
 
-The icons used in the apps come from three sets, read through the Iconify project: Phosphor and Tabler Icons, under the MIT license, and the BPMN font, under the SIL Open Font License 1.1.
+The icons used in the apps come from five sets, read through the Iconify project: Tabler Icons and Phosphor, under the MIT license; Lucide, under the ISC license; Material Design Icons, under the Apache License 2.0; and the BPMN font, under the SIL Open Font License 1.1.
 
 ## BIDS logo
 

@@ -137,7 +137,7 @@ FEEL.
 ## The simulated build
 
 In a local run, a task whose trials go to a simulated actor, along its own message flows or those it inherits from
-a sub-process or its pool, plays on the simulated build whatever its `runtime` says.
+a sub-process or its pool, plays on the simulated build whatever its `implementation` names.
 
 - The simulated build is a stand-in that plays the battery's AX-CPT (`RE`), Which One (`WO`) and N-back (`NB`)
   without Unity, from the timelines the Parameters wired into the task define (`simulated.py`).

@@ -26,7 +26,7 @@ A local run also needs [`uv`](https://docs.astral.sh/uv/).
 | [`prov`, `crate`, `ocel`](#exports) | export a run's record |
 | [`skill`](#skill) | installs, lists and removes skills |
 
-Every command reads a study from `.studyflow.yaml`, `.bpmn` or `.xml`, `.studyflow.png`, `.studyflow.svg` or `.studyflow.tif`. `studyflow <command> --help` lists every option; the tables below show the main ones.
+`<input>` is a study as `.studyflow.yaml`, `.bpmn` or `.xml`, `.studyflow.png`, `.studyflow.svg` or `.studyflow.tif`. `studyflow <command> --help` lists every option; the tables below show the main ones.
 
 ## convert {#convert}
 
@@ -96,7 +96,7 @@ Opens the modeler from this machine, in a window of its own, with no network. `e
 studyflow mcp <file>
 ```
 
-Serves the study to an AI assistant as a [Model Context Protocol](https://modelcontextprotocol.io) server on stdio: the study's editing tools, `check`, and `save` back to the file. A modeler with the same file open shows each saved version as a change to accept or discard.
+Serves a study, in YAML or BPMN XML, to an AI assistant as a [Model Context Protocol](https://modelcontextprotocol.io) server on stdio: the study's editing tools, `check`, and `save` back to the file. A modeler with the same file open shows each saved version as a change to accept or discard.
 
 ## prov, crate, ocel {#exports}
 

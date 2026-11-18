@@ -34,7 +34,7 @@ Demo0_FromScratch:
 - `studyflow.moddle.yaml` declares the app-wide powers that no other skill copies: the inspector tab set, the
   `bpmn:*` redefines, and the expression traits. The schema authoring reference is [../SCHEMAS.md](../SCHEMAS.md).
 - `prov.moddle.yaml` is the vocabulary a run writes back into the diagram: the records it stamps on what it ran
-  (`prov:Activity`) and the state tree's `_meta`. The `prov:` prefix is Studyflow's own, not W3C PROV.
+  (`prov:Activity`). The `prov:` prefix is Studyflow's own, not W3C PROV.
 
 ## A run's record
 
@@ -49,6 +49,6 @@ form.
 
 ## Examples
 
-`examples/` holds the demos every shelf of the gallery starts from (LabLink, the kitchen sink). The CONSORT and
+`examples/` is the gallery's Core shelf (LabLink, the kitchen sink). The CONSORT and
 SPIRIT protocols ship with the [reporting-guidelines](../reporting-guidelines/SKILL.md) skill, which draws their
 documents.

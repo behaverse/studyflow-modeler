@@ -1,6 +1,6 @@
 # Runner nodes
 
-An element runner is one folder, `src/nodes/<kind>/`, or `skills/<name>/browser/` for a skill's own. Every `index.tsx` there is imported at startup and registers itself; no other file changes.
+An element runner is one folder, `src/nodes/<kind>/`, whose `index.tsx` is imported at startup and registers itself; no other file changes. A skill's own sits in `skills/<name>/browser/`: the module its `SKILL.md` names as `runtimes.browser` is imported the same way, and imports the skill's kinds.
 
 1. Create `index.tsx` with the component and its registration.
 2. Declare the job type by augmenting `JobsByType` from `@runner/jobs`.

@@ -88,7 +88,7 @@ The pool's `memory` says what the model is sent of the earlier messages.
 Ollama keeps only the last `num_ctx` tokens of what it is sent, and drops the rest without saying so. The runner
 therefore sends `num_ctx` sized to the conversation:
 
-- at least 8,192 tokens, in powers of two, estimated generously from the characters sent;
+- at least 32,768 tokens, in powers of two, estimated generously from the characters sent;
 - never shrinking for a model within a run, since a new size reloads the model;
 - never past the model's own context length (`/api/show`), where the runner fails the message rather than let an
   earlier turn be dropped.

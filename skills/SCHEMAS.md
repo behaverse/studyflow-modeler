@@ -80,7 +80,7 @@ of its own (`MarkdownString`). A type whose `superClass` is `Element` is a recor
 | `tags` | Labels other parts of the app look types up by, inherited by subtypes: see [Tags](#tags). |
 | `strategy` | How a gateway of this type decides: `random` or `condition`. |
 | `eventDefinition` | What a new event of this type waits for: `{ type: bpmn:TimerEventDefinition, timeDuration: PT1M }`. |
-| `actorKind` | On a pool type: the kinds of actor it offers, as the name of an enumeration attribute (`actorType`), or the one kind it is (`Reachy Mini`). |
+| `actorKind` | On a pool type: the kinds of actor it offers, as the name of an enumeration attribute (`actorType`), or the one kind it is. |
 | `returns` | The type that describes what a step of this type hands back, so a study reading `result.<field>` is checked. |
 | `widget` | The widget every attribute of this type opens in. |
 
@@ -126,7 +126,7 @@ How it is edited:
 | Key | Says |
 | --- | --- |
 | `widget` | A named input: `csvw-table`, `code`, `markdown`, `checklist`. |
-| `nullable: true` | A checkbox opens the field. |
+| `nullable: true` | On a `String`: a checkbox opens the field. |
 | `allowCustom: true` | An enumeration that also takes free text. |
 | `expression: true` | FEEL. Goes with `type: bpmn:Expression` and `xml: {serialize: xsi:type}`. |
 | `codeEditorLanguage` | The sibling attribute that holds the language of the `code` widget. |

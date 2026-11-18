@@ -1,7 +1,6 @@
 """Check each encoded study against its quote record and its article on PubMed Central, and count what the articles
-state (the table of docs/published-studies.qmd). <name>.quotes.json gives, for each of the 20 checklist values, whether
-the article states it and the words it was read from; a value read from a figure is checked by the sentence that cites
-the figure.
+state. <name>.quotes.json gives, for each of the 20 checklist values, whether the article states it and the words it
+was read from; a value read from a figure is checked by the sentence that cites the figure.
 
     python3 docs/assets/examples/published-studies/check_encodings.py
 """
