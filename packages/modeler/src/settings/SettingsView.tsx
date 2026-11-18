@@ -2,6 +2,8 @@ import { useMemo, useState, useSyncExternalStore } from 'react';
 import { Modal } from '@modeler/ui/Modal';
 import { SCHEMAS, SCHEMA_LOAD_FAILURES } from '@core/notation/loader';
 import { installedSchemas } from '@modeler/app/installedSchemas';
+import { loadedSchemas, turnOnSchemas, useCatalogVersion } from '@modeler/app/skills';
+import { notify } from '@modeler/app/noticeStore';
 import { schemaDiagnostics } from '@core/notation';
 import { ICONS } from '@modeler/icons';
 import { URLS } from '@modeler/constants';
@@ -37,7 +39,7 @@ function AboutSection() {
   const version = (import.meta as any).env?.APP_VERSION ?? 'dev';
   return (
     <>
-      <SectionHeader title="About" description="Draw, simulate, and publish studies. Built on BPMN 2.0." />
+      <SectionHeader title="About" />
 
       <Row label="Version" control={<span className={s.valueChip}>{String(version)}</span>} />
       <Row
@@ -70,11 +72,10 @@ function EditorSection() {
 
   return (
     <>
-      <SectionHeader title="Editor" description="How the canvas and inspector behave." />
+      <SectionHeader title="Editor" />
 
       <Row
         label="Snap to grid"
-        help="Land dragged, resized and newly created elements on the grid. Turn this off to place them freely."
         control={
           <ToggleControl
             label="Snap to grid"
@@ -87,7 +88,6 @@ function EditorSection() {
 
       <Row
         label="Auto-save"
-        help="Keep the study you are editing in this browser, so it persists across a reload."
         control={
           <SelectControl
             label="Auto-save"
@@ -103,11 +103,7 @@ function EditorSection() {
 
       <Row
         label="Write to the opened file"
-        help={
-          supportsFileSystemAccess()
-            ? 'Save edits straight back into the file you opened, with no download. Images are too slow to render on every edit, so they always wait for you to save.'
-            : 'Unavailable: this browser has no file picker, so a page here can only put files in the downloads folder. Chrome, Edge, and other Chromium browsers on the desktop support it.'
-        }
+        help={supportsFileSystemAccess() ? undefined : 'Needs Chrome or Edge.'}
         control={
           <ToggleControl
             label="Write to the opened file"
@@ -128,12 +124,12 @@ function diagnosticsFor(prefix: string): string[] {
 function ExtensionsSection() {
   const { settings, update } = useSettings();
   const disabled = useMemo(() => new Set(settings.disabledSchemas), [settings.disabledSchemas]);
-  const [initial] = useState(() => new Set(settings.disabledSchemas)); // what was off when the section opened
-  const dirty = useMemo(() => {
-    if (initial.size !== disabled.size) return true;
-    for (const id of initial) if (!disabled.has(id)) return true;
-    return false;
-  }, [disabled, initial]);
+  // A set turned on loads now; one turned off stays loaded until a reload, since reading the study without it would
+  // drop its elements.
+  const catalog = useCatalogVersion();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `catalog` stands in for what is loaded
+  const leaving = useMemo(() => loadedSchemas().filter((prefix) => disabled.has(prefix)), [disabled, catalog]);
+  const [turningOn, setTurningOn] = useState<string>();
 
   // A required schema's switch is disabled, and it is never stored as off.
   function toggle(prefix: string, on: boolean) {
@@ -141,20 +137,22 @@ function ExtensionsSection() {
     if (on) next.delete(prefix);
     else next.add(prefix);
     update({ disabledSchemas: SCHEMAS.filter((sc) => !sc.required && next.has(sc.prefix)).map((sc) => sc.prefix) });
+    if (!on) return;
+    setTurningOn(prefix);
+    turnOnSchemas([prefix])
+      .catch((err) => notify('error', `Could not load it: ${err instanceof Error ? err.message : String(err)}`))
+      .finally(() => setTurningOn(undefined));
   }
 
   return (
     <>
-      <SectionHeader
-        title="Extensions"
-        description="Which element sets the modeler loads. A disabled set leaves the palette and opened files."
-      />
+      <SectionHeader title="Extensions" />
 
-      {dirty && (
+      {leaving.length > 0 && (
         <div className={`${s.group} sticky top-1 z-10`}>
           <p className={`${s.rowHelp} flex items-center gap-1.5`}>
             <i className={`${ICONS.reload} text-sm`} aria-hidden="true" />
-            Reload the page to apply changes.
+            Turned off after a reload.
             <button
               type="button"
               className={`ms-2 shrink-0 ${s.inlineBtn}`}
@@ -170,7 +168,7 @@ function ExtensionsSection() {
         <Row
           key={failure.sourceName}
           label={`${failure.sourceName} (not loaded)`}
-          help={`Could not be read, so its elements are missing. Reload the page, and report this if it persists — ${failure.message}`}
+          help={`Couldn't be read: ${failure.message}`}
           control={<i className={`${ICONS.warning} text-red-600`} title="Failed to load" aria-label="Failed to load" />}
         />
       ))}
@@ -181,25 +179,25 @@ function ExtensionsSection() {
         return (
           <Row
             key={schema.prefix}
-            label={<>{schema.name}{schema.required && <i className={`${ICONS.lock} ms-1.5 text-xs text-stone-500`} role="img" title="required" aria-label="required" />}</>}
-            help={diagnostics.length > 0 ? `${help} ⚠ ${diagnostics.join(' — ')}` : help}
+            label={<span title={help}>{schema.name}{schema.required && <i className={`${ICONS.lock} ms-1.5 text-xs text-stone-500`} role="img" title="required" aria-label="required" />}</span>}
+            help={diagnostics.length > 0 ? `⚠ ${diagnostics.join('; ')}` : undefined}
             control={
               <ToggleControl
                 label={`Load the ${schema.name} elements`}
                 checked={schema.required || !disabled.has(schema.prefix)}
                 onChange={(on) => toggle(schema.prefix, on)}
-                disabled={schema.required}
+                disabled={schema.required || turningOn !== undefined}
               />
             }
           />
         );
       })}
 
-      {installedSchemas().map(({ skill, description, model }) => (
+      {installedSchemas().map(({ skill, model }) => (
         <Row
           key={model.prefix}
           label={<>{model.name}<i className={`${ICONS.lock} ms-1.5 text-xs text-stone-500`} role="img" title="installed" aria-label="installed" /></>}
-          help={`${model.description ?? description} Installed with \`studyflow skill add ${skill}\`, so it loads whenever the desktop app runs.`}
+          help={`studyflow skill add ${skill}`}
           control={<ToggleControl label={`Load the ${model.name} elements`} checked onChange={() => {}} disabled />}
         />
       ))}
@@ -224,10 +222,7 @@ function PrivacySection() {
 
   return (
     <>
-      <SectionHeader
-        title="Privacy"
-        description="What this app keeps stays in this browser, unless a skill's own page here says it sends it somewhere."
-      />
+      <SectionHeader title="Privacy" />
 
       <Row
         label="Local storage"
@@ -250,7 +245,6 @@ function PrivacySection() {
 
       <Row
         label="Reset settings"
-        help="Restore every setting on this page to its default. Your study is untouched."
         control={
           <button type="button" className={s.inlineBtn} onClick={reset}>
             Reset to defaults

@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import '#assets/css/app.css';
+import '#assets/css/modeler.css';
 import { App } from '@modeler/app/App';
 
 // The desktop app (`studyflow edit`, packages/desktop) is a window of its own: assets/css/desktop.css styles it as the system's.

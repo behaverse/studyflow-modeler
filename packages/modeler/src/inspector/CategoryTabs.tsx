@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Field, Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
+import { Field, Fieldset, Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { attributeOverridesIn, type AttributeOverride } from '@core/model/parameters';
 import type { AttributeSpec } from '@core/notation';
 import { t } from '@modeler/i18n';
@@ -44,9 +44,11 @@ function AttributeField({ attrDef, override }: { attrDef: AttributeSpec; overrid
 type Props = {
   element: any;
   categories: [string, any[]][];
+  /** Every field reads only (a review): the tabs still switch, so each can be looked at. */
+  readOnly?: boolean;
 };
 
-export function CategoryTabs({ element, categories }: Props) {
+export function CategoryTabs({ element, categories, readOnly = false }: Props) {
   const [selectedName, setSelectedName] = useState<string>('General');
 
   const indexOf = (name: string) => categories.findIndex(([categoryName]) => categoryName === name);
@@ -70,18 +72,20 @@ export function CategoryTabs({ element, categories }: Props) {
           </Tab>
         ))}
       </TabList>
-      <TabPanels className={s.tabPanels}>
-        {categories.map(([name, attrDefs]) => {
-          return (
-            <TabPanel key={name} className={s.tabPanel}>
-              <AttributeFields attrDefs={attrDefs} />
-              {INSPECTOR_SECTIONS.filter((section) => section.tab === name).map(({ name: section, Section }) => (
-                <Section key={`${section}:${elementKey(element)}`} element={element} />
-              ))}
-            </TabPanel>
-          );
-        })}
-      </TabPanels>
+      <Fieldset disabled={readOnly} className={s.fields}>
+        <TabPanels className={s.tabPanels}>
+          {categories.map(([name, attrDefs]) => {
+            return (
+              <TabPanel key={name} className={s.tabPanel}>
+                <AttributeFields attrDefs={attrDefs} />
+                {INSPECTOR_SECTIONS.filter((section) => section.tab === name).map(({ name: section, Section }) => (
+                  <Section key={`${section}:${elementKey(element)}`} element={element} />
+                ))}
+              </TabPanel>
+            );
+          })}
+        </TabPanels>
+      </Fieldset>
     </TabGroup>
   );
 }

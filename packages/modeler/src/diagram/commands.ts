@@ -99,7 +99,7 @@ function printSizeOf(filename: string, content: string | ArrayBuffer): PrintSize
 }
 
 /** The study the file holds, as `.studyflow.yaml` or BPMN XML text. */
-function studyText(modeler: Editor, filename: string, content: string | ArrayBuffer): string {
+export function studyText(modeler: Editor, filename: string, content: string | ArrayBuffer): string {
   const text = fileText(filename, content);
   if (looksLikeXml(text)) return text;
   // A foreign format a skill opens (a jsPsych timeline): converted to a studyflow on the way in, same "Open".

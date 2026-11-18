@@ -37,7 +37,7 @@ export interface StudyTool {
 }
 
 /** The write tools a batch runs as its steps. */
-export const STEP_TOOLS = ['add', 'append', 'connect', 'replace', 'move', 'reconnect', 'rename', 'resize', 'reroute', 'paste', 'layout', 'set', 'item', 'bands', 'remove', 'style', 'expand', 'collapse'] as const;
+export const STEP_TOOLS = ['add', 'append', 'insert', 'connect', 'replace', 'move', 'reconnect', 'rename', 'resize', 'reroute', 'paste', 'layout', 'set', 'item', 'bands', 'remove', 'style', 'expand', 'collapse'] as const;
 
 export type StepTool = (typeof STEP_TOOLS)[number];
 export type ToolName = StepTool | 'document' | 'get' | 'list' | 'attributes' | 'describe' | 'catalog' | 'can' | 'copy' | 'batch' | 'undo' | 'redo';
@@ -152,6 +152,7 @@ const TOOLS = [
     into: ID,
   }, [], write(false, false)),
   tool('append', 'Add a shape of `type` (or a template\'s elements) one gap to the right of `from`, clear of its neighbours, and connect it from `from`.', { from: ID, ...NEW }, ['from'], write(false, false)),
+  tool('insert', 'Put a shape of `type` (or a template\'s elements) on the sequence flow `into`, between its ends: the flow now ends at it, and a new flow leaves it for the old end. What lies past it moves along when there is no room.', { into: ID, ...NEW }, ['into'], write(false, false)),
   tool('connect', 'Connect `from` to `to` with the flow the rules allow between them: a sequence or a message flow, a data or a plain association.', {
     from: ID,
     to: ID,

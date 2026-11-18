@@ -6,13 +6,14 @@ import * as inspector from '@modeler/inspector/commands';
 import * as palette from '@modeler/palette/commands';
 import * as popup from '@modeler/popup/commands';
 import * as provenance from '@modeler/provenance/commands';
+import * as review from '@modeler/review/commands';
 import * as shape from '@modeler/shape/commands';
 import * as simulation from '@modeler/simulation/commands';
 import type { Editor } from '@modeler/editor/port';
 
 /* A command joins the bus by being listed here; command type `X` dispatches to `runX`. */
 const FEATURES = [
-  app, diagram, exportDiagram, inspector, palette, popup, provenance, saveDiagram, shape, simulation,
+  app, diagram, exportDiagram, inspector, palette, popup, provenance, review, saveDiagram, shape, simulation,
 ] as const;
 
 type UnionToIntersection<U> =
@@ -38,8 +39,8 @@ export async function executeCommand<C extends ControllerCommand>(modeler: Edito
 
 /**
  * Registers every `runX` as the only listener on topic `X`, so `events.send({ type: 'X' })` runs it. The canvas
- * cannot import `@modeler/*`, so it reaches an app command this way: it sends `OpenAppendMenu` on the bus it
- * already holds.
+ * cannot import `@modeler/*`, so it reaches an app command this way: it sends `OpenAppendMenu` and `OpenAddMenu` on
+ * the bus it already holds.
  *
  * Called once at boot (`app/Modeler.tsx`). The editor's `destroy()` clears the bus, and these subscriptions with it.
  */

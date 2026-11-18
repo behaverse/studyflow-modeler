@@ -41,3 +41,16 @@ export function checklistItems(markdown: string): ChecklistItem[] {
     })
     .filter((item): item is ChecklistItem => item !== null);
 }
+
+/** `markdown` with its `index`-th task item ticked, or not: the Checklist view's tick. */
+export function withTaskChecked(markdown: string, index: number, checked: boolean): string {
+  let task = -1;
+  return serializeChecklistLines(parseChecklistLines(markdown)
+    .map((line) => (line.kind === 'task' && ++task === index ? { ...line, checked } : line)));
+}
+
+/** `markdown` with an unticked task item added at its end: the Checklist view's new item. */
+export function withTask(markdown: string, text: string): string {
+  const task = `- [ ] ${text.trim()}`;
+  return markdown.trim() ? `${markdown.trimEnd()}\n${task}` : task;
+}

@@ -33,14 +33,14 @@ export function actorIn(model: StudyModel, task: Element): Element | undefined {
 }
 
 /**
- * The presenter of a typed task: its type's `meta.presenter`, a template naming its attributes in angle brackets
- * (`Behaverse - <instrument>`, `<platform>`; braces are a run's placeholders), filled with the values the Parameters
- * wired into the task set, else the values as written. A type that declares none, or a template that comes out
- * empty, presents as the study's software.
+ * The presenter of a typed task, the upper band's text: its type's `meta.choreographyBandLabel`, a template naming its
+ * attributes in angle brackets (`Behaverse - <instrument>`, `<platform>`; braces are a run's placeholders), filled
+ * with the values the Parameters wired into the task set, else the values as written. A type that declares none, or
+ * a template that comes out empty, presents as the study's software.
  */
 export function presenterIn(model: StudyModel, task: Element): string {
   const type = model.extensionType(task);
-  const template = type ? model.metamodel.type(type)?.meta.presenter : undefined;
+  const template = type ? model.metamodel.type(type)?.meta.choreographyBandLabel : undefined;
   if (typeof template !== 'string') return DEFAULT_PRESENTER;
   const wired = wiredIn(model, task)?.attributes ?? {};
   const label = template.replace(/<(\w+)>/g, (_match, name: string) => {
@@ -213,7 +213,7 @@ export function swapChoreographyInitiator(model: StudyModel, task: Element, ids:
 /* --- Choosing who takes a band, and what kind of actor that is --- */
 
 /**
- * A kind an actor that only takes bands can be, from a `bpmn:Participant` type's `meta.participantKind`: the name
+ * A kind an actor that only takes bands can be, from a `bpmn:Participant` type's `meta.actorKind`: the name
  * of one of its enum attributes (one kind per literal) or the label of the one kind the type itself is.
  */
 export type ParticipantKind = {
@@ -231,7 +231,7 @@ export type ParticipantKind = {
 export function participantKinds(): ParticipantKind[] {
   const catalog = getCatalog();
   return catalog.allTypes().flatMap((type) => {
-    const key = type.meta?.participantKind;
+    const key = type.meta?.actorKind;
     if (typeof key !== 'string' || type.isAbstract || type.bpmnType !== 'bpmn:Participant') return [];
     const attribute = type.attributes.find((spec) => spec.ns.localName === key);
     const literals = attribute ? catalog.enumOf(attribute.type, type.ns.prefix)?.literals : undefined;

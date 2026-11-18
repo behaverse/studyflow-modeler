@@ -231,6 +231,9 @@ test('what a successor may follow, and where any edge may start', () => {
     ['none follows nothing', rules.canAppend(undefined), false],
     // An annotation is reached by an association, so it hangs off an end event too.
     ['an annotation hangs off an end event', rules.canAppendType(node('bpmn:EndEvent'), 'bpmn:TextAnnotation'), true],
+    // A successor is what the appended flow can reach: a task, not a start event, which no flow enters.
+    ['a task follows a task', rules.canAppendType(node('bpmn:Task'), 'bpmn:Task'), true],
+    ['a start event follows nothing', rules.canAppendType(node('bpmn:Task'), 'bpmn:StartEvent'), false],
     // The connect handle covers every edge that can leave an element: a data shape sources
     // a data association, an end event and a pool a message, an artifact an association.
     ...['bpmn:Task', 'bpmn:DataObjectReference', 'bpmn:DataStoreReference', 'bpmn:EndEvent', 'bpmn:Participant',

@@ -1,6 +1,6 @@
 import { expect, test } from './e2e';
 
-import { addPaletteElement, examplePath, exportDiagram, gotoModeler, labelEditor, readDownloadText } from './utils';
+import { addPaletteElement, examplePath, exportDiagram, gotoModeler, readDownloadText } from './utils';
 
 /**
  * Choreography tasks: who takes their bands, named in the inspector, and the pool the canvas draws for an actor a band
@@ -14,9 +14,6 @@ test('a choreography task names its two participants; a cognitive task names who
   // From the palette, a choreography task arrives banded with two participants, and the inspector edits them.
   await addPaletteElement(page, 'Activities', 'Choreography Task', { x: 400, y: 240 });
   await expect(inspector).toContainText('ChoreographyTask');
-  // The name editor opens on create; Escape closes it.
-  await page.keyboard.press('Escape');
-  await expect(labelEditor(page)).toBeHidden();
   const banded = page.locator('[data-element-id^="ChoreographyTask_"]').first();
   const topInput = inspector.locator('input[name="choreography:top"]');
   const bottomInput = inspector.locator('input[name="choreography:bottom"]');
@@ -62,7 +59,7 @@ test('a choreography task names its two participants; a cognitive task names who
   await expect(inspector.getByTestId('participant-kind')).toBeVisible();
   await inspector.getByRole('button', { name: /actor kind/i }).click();
   await page.getByRole('option', { name: /^Software$/i }).click();
-  const identifier = inspector.locator('input[name="studyflow:implementation"]');
+  const identifier = inspector.locator('[name="studyflow:implementation"]');
   await identifier.fill('python://lab.bots.random');
   await identifier.blur();
   let studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));

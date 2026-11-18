@@ -2,15 +2,18 @@
  * The app's popup menus, keyed by id.
  *
  * `openPopupMenu(providerId, …)` names a menu and hands over anchor geometry; app chrome (`popup/PopupMenus.tsx`)
- * renders it. The ids (`bpmn-create`, `bpmn-append`, `bpmn-replace`, `color-picker`) are the ones the app's chrome
- * and its e2e specs use.
+ * renders it. The tools' own + renders its Add panel itself (`palette/Palette.tsx`), beside the tools.
  *
- * Registration is a plain map, so the palette, the context pad and the canvas's `a` key open a menu without
+ * Registration is a plain map, so the context pad, the command palette and the canvas's events open a menu without
  * importing a component. Opening a menu before it is registered warns once per id and does nothing.
  */
 
-export const CREATE_MENU = 'bpmn-create';
+/** The Add panel, appending to the selection: the pad's append, the `a` key. */
 export const APPEND_MENU = 'bpmn-append';
+/** The Add panel, adding where the canvas was double-clicked. */
+export const ADD_HERE_MENU = 'add-here';
+/** The Add panel, putting a step on a flow, between its ends: the flow's +. */
+export const INSERT_MENU = 'insert';
 export const REPLACE_MENU = 'bpmn-replace';
 /** Element colours and text styles in one menu, opened by the context pad's paintbrush. The id still says `color-picker` because the e2e specs use it. */
 export const COLOR_MENU = 'color-picker';
@@ -23,6 +26,8 @@ export type PopupPosition = {
 
 export type PopupOptions = {
   title?: string;
+  /** What the menu acts on when it is not the selection: the flow an insert goes on. */
+  subject?: string;
   width?: number;
   search?: boolean;
 };

@@ -1,7 +1,10 @@
+import type { IconDef } from '@canvas/index.ts';
 import { BPMN } from '@core/constants';
+import { extensionTypeOf, heldAttribute, type Element } from '@core/model/index';
+import { getCatalog } from '@core/notation';
 import { ICONS } from '@modeler/icons';
 
-/** The glyph a BPMN type draws when neither a template nor its extension type names one (`editor/mount.ts resolveIcon`); markers belong in MARKER_ICONS. */
+/** The glyph a BPMN type draws when neither a template nor its extension type names one (`resolveIcon`); markers belong in MARKER_ICONS. */
 export const BPMN_ICON_OVERRIDES: Record<string, string> = {
   [BPMN.ManualTask]:          `${ICONS.hand} rotate-90`,
   [BPMN.UserTask]:            ICONS.person,
@@ -42,3 +45,30 @@ export const MARKER_ICONS: Record<string, string> = {
   'checklist':    ICONS.checkbox,
   'function':     ICONS.function,
 };
+
+/**
+ * A `data:` image draws as itself (a URL to fetch does not: nothing fetches an icon); anything
+ * else is a class the app's stylesheet paints, whose glyph the canvas inlines from the CSS.
+ */
+const iconFor = (icon: string): IconDef => (/^data:image\//i.test(icon) ? { href: icon } : { cssClass: icon });
+
+/**
+ * The app's glyph pipeline as the canvas's icon resolver: a marker name or a BPMN
+ * local name in, a resolved glyph out. `null` means "this type has no glyph". The live canvas, its pictures (Save As,
+ * the Manuscript), the New dialog's cards and the Add panel's template pictures all draw with it.
+ */
+export function resolveIcon(iconKey: string, element?: Element): IconDef | null | undefined {
+  const marker = MARKER_ICONS[iconKey];
+  if (marker) return iconFor(marker);
+  if (iconKey.startsWith('iconify ') || iconKey.startsWith('i-')) return iconFor(iconKey);
+  if (element) {
+    const templateIcon = heldAttribute(element, 'icon');
+    const extensionType = extensionTypeOf(element);
+    const extEntry = extensionType ? getCatalog().getType(extensionType) : undefined;
+    const bpmnFallback = iconKey === 'DataObjectReference' ? undefined : BPMN_ICON_OVERRIDES[`bpmn:${iconKey}`];
+    const icon = templateIcon || extEntry?.iconClass || bpmnFallback;
+    if (typeof icon === 'string' && icon) return iconFor(icon);
+  }
+  // The canvas draws anything else with its own glyph, when it has one.
+  return undefined;
+}

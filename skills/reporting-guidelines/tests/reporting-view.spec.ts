@@ -36,6 +36,6 @@ test('the Reporting Diagram view lists the documents of the guidelines in use, s
   await page.reload();
   await expect(page.getByTestId('modeler-ready')).toBeAttached({ timeout: 30_000 });
   await openCommandPalette(page);
-  await expect(page.getByRole('dialog').getByRole('button', { name: /^View as Schedule/ })).toBeVisible();
+  await expect(page.getByRole('dialog').getByRole('button', { name: /^Show Schedule/ })).toBeVisible();
   await expect(page.getByRole('dialog').getByRole('button', { name: /^View as Reporting Diagram/ })).toHaveCount(0);
 });

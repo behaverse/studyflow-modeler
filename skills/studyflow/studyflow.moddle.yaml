@@ -138,13 +138,13 @@ types:
       - String
     meta:
       # Attributes of this type get the markdown editor unless they name their own.
-      editor: markdown
+      widget: markdown
   - name: YAMLString
     description: Text holding a YAML document.
     superClass:
       - String
     meta:
-      editor: code
+      widget: code
 
   - name: BaseElement
     description: What every element of a studyflow carries.
@@ -158,7 +158,7 @@ types:
         isMany: true
         type: bpmn:Documentation
         meta:
-          editor: markdown
+          widget: markdown
           categories:
             - Documentation
   - name: Checklist
@@ -174,7 +174,7 @@ types:
         isAttr: true
         type: String
         meta:
-          editor: checklist
+          widget: checklist
           categories:
             - Documentation
   - name: Icon
@@ -186,12 +186,12 @@ types:
     properties:
       - name: icon
         # An Iconify class or a `data:` image, on the element itself, a typed one included (its extension entry is
-        # no BPMN element, so no trait reaches it). Templates and files set it, and `pinned` keeps it out of the inspector.
+        # no BPMN element, so no trait reaches it). Templates and files set it, and `hidden` keeps it out of the inspector.
         description: The element's own icon, drawn in place of its type's.
         isAttr: true
         type: String
         meta:
-          pinned: true
+          hidden: true
   - name: Font
     description: Lets a shape's or a flow's caption carry a look of its own.
     # On their DI supertypes, not `bpmndi:BPMNShape` itself: moddle aliases a tag by the package of the type's last
@@ -208,7 +208,7 @@ types:
         isAttr: true
         type: String
         meta:
-          pinned: true
+          hidden: true
 
   - name: Study
     description: The study a diagram describes, and how it is run.
@@ -222,7 +222,7 @@ types:
         isAttr: true
         type: Integer
         meta:
-          optional: true
+          nullable: true
           categories:
             - Execution
       - name: runtime
@@ -263,13 +263,13 @@ types:
         isAttr: true
         type: String
         meta:
-          optional: true
+          nullable: true
       - name: registration
         description: Pre-registration or trial-registry id (OSF, NCT number).
         isAttr: true
         type: String
         meta:
-          optional: true
+          nullable: true
           categories:
             - Documentation
       - name: ethicsApproval
@@ -277,18 +277,18 @@ types:
         isAttr: true
         type: String
         meta:
-          optional: true
+          nullable: true
           categories:
             - Documentation
       - name: state
         # A JSON string (not YAML) so a runner without a YAML library can read it; the
-        # `.studyflow` file lifts it to the top-level `state:` mapping. `pinned` keeps it
+        # `.studyflow` file lifts it to the top-level `state:` mapping. `hidden` keeps it
         # out of the inspector: it is written by runners and never drawn.
         description: Retrospective run state, a JSON tree keyed by element id.
         isAttr: false
         type: String
         meta:
-          pinned: true
+          hidden: true
   # BPMN gives a choreography task no data of its own. A cognitive task is one (the study's software presents,
   # the actor on the lower band responds), and it reads settings and writes records, so here it may.
   - name: ChoreographyData
@@ -337,7 +337,7 @@ types:
         meta:
           # Overlay icon drawn on the event when this attribute is set.
           icon: iconify tabler--shield-check
-          optional: true
+          nullable: true
       # The consent form's content in the registered protocol: `studyflow validate` fetches it and compares, and
       # `studyflow run` refuses to start on another text. BPMN has no content hash, so it sits beside the address.
       - name: consentFormDigest
@@ -374,7 +374,7 @@ types:
         isAttr: true
         type: String
         meta:
-          optional: true
+          nullable: true
           # Overlay icon drawn on the event when this attribute is set.
           icon: iconify tabler--logout
       - name: completionCodeType
@@ -414,6 +414,7 @@ types:
         isAttr: true
         type: String
         meta:
+          showInline: true
           categories:
             - Schedule
       - name: progress
@@ -458,7 +459,7 @@ types:
         isAttr: true
         type: Boolean
         meta:
-          pinned: true
+          hidden: true
       - name: participants
         description: Who the task's bands name, top first.
         isAttr: true
@@ -466,14 +467,14 @@ types:
         isReference: true
         type: bpmn:Participant
         meta:
-          pinned: true
+          hidden: true
       - name: initiator
         description: The band that starts the exchange.
         isAttr: true
         isReference: true
         type: bpmn:Participant
         meta:
-          pinned: true
+          hidden: true
 
   - name: Actor
     description: A person, a program or a device that takes part, drawn as a pool or named on a band.
@@ -482,13 +483,15 @@ types:
     meta:
       icon: iconify tabler--layout-sidebar
       # The kinds an actor that only takes bands can be: one per literal of this enum attribute.
-      participantKind: actorType
+      actorKind: actorType
     properties:
       - name: actorType
         description: What kind of actor this is.
         isAttr: true
         type: ActorTypeEnum
         default: human
+        meta:
+          showInline: true
       - name: implementation
         description: The program, model, or device, as `<scheme>://<ref>`, a scheme a loaded skill runs.
         isAttr: true
@@ -532,7 +535,7 @@ types:
     meta:
       icon: iconify tabler--braces
       # An attribute that references a Schema (`Dataset#schema`) edits it as text.
-      editor: code
+      widget: code
     properties:
       - name: format
         description: Language the schema is written in.
@@ -540,7 +543,7 @@ types:
         type: SchemaFormatEnum
         default: csvw
         meta:
-          editable: true
+          allowCustom: true
           categories:
             - Data
       - name: body
@@ -550,7 +553,7 @@ types:
         meta:
           categories:
             - Data
-          editor: csvw-table
+          widget: csvw-table
   - name: Dataset
     description: A structured collection of data organized by a data standard.
     superClass:
@@ -657,8 +660,8 @@ types:
           order: 1
           categories:
             - Execution
-          editor: code
-          languageAttr: bpmn:scriptFormat
+          widget: code
+          codeEditorLanguage: bpmn:scriptFormat
 
   - name: Arguments
     description: Lets an activity carry literal arguments for the software it calls.

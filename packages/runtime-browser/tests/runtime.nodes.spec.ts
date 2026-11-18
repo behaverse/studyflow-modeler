@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { expect, test } from '@tests/e2e';
 
 import { diagramHandoffKey } from '@core/storage';
-import { gotoModeler, runStudyflow } from '@tests/utils';
+import { addPaletteElement, gotoModeler, runStudyflow } from '@tests/utils';
 
 const CONSENT_DECLINE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner-stages-consent" targetNamespace="http://bpmn.io/schema/bpmn">
@@ -157,6 +157,31 @@ Study:
     F2: Mood -> End
 `;
 
+/** A study that starts and goes nowhere: its flows have no end event, which the plan's checks call an error. */
+const UNFINISHED = `id: unfinished
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+Study_1:
+  type: Process
+  extensions:
+    studyflow:Study: {}
+  elements:
+    Start:
+      type: StartEvent
+    Read:
+      type: Task
+      name: Read
+    Flow_1:
+      source: $Start
+      target: $Read
+
+layout:
+  Start: {bounds: 200 200 36 36}
+  Read: {bounds: 300 178 100 80}
+  Flow_1: 236,218 300,218
+`;
+
 test.describe('Studyflow runtime nodes', () => {
   test('declined consent aborts the run before the first step', async ({ page }) => {
     await page.route('**/consent.txt', (route) =>
@@ -289,8 +314,10 @@ test.describe('Studyflow runtime nodes', () => {
   // Every other case opens `run.html` directly; only this one covers the button. It has to claim
   // its tab inside the click: serializing the diagram is async, and a `window.open` that lands
   // after the await reads as an unprompted pop-up.
-  test('the Run button opens the runner in a new tab, and passes no seed of its own', async ({ page, context }) => {
+  test('the Run button opens the runner in a new tab, and passes no seed of its own; a plan with problems asks first', async ({ page, context }) => {
     await gotoModeler(page);
+    // A blank study's composer offers a first step instead; a shape brings Run.
+    await addPaletteElement(page, 'Activities', 'Task', { x: 340, y: 180 });
 
     const unseededTab = context.waitForEvent('page');
     await page.getByRole('button', { name: 'Run', exact: true }).click();
@@ -302,7 +329,9 @@ test.describe('Studyflow runtime nodes', () => {
     await expect(unseeded.getByText('Study_1')).toBeVisible();
     await expect(unseeded.getByText(/^seed=/)).toHaveCount(0);
 
-    // A seed the study pins is the run's, and the link still adds none.
+    // A seed the study pins is the run's, and the link still adds none. The inspector shows the study again once the
+    // composer lets the new task go.
+    await page.getByRole('button', { name: 'Clear the selection' }).click();
     const inspector = page.getByTestId('inspector-root');
     await inspector.getByRole('tab', { name: /execution/i }).click();
     await inspector.getByLabel(/^seed$/i).fill('7');
@@ -314,5 +343,21 @@ test.describe('Studyflow runtime nodes', () => {
     const seeded = await seededTab;
     await expect(seeded).toHaveURL(/run\/\?diagram=[^&]+$/);
     await expect(seeded.getByText('seed=7')).toBeVisible();
+
+    // A plan with problems asks first, read as Run is pressed: the card lists them, and Cancel runs nothing. A fix in it
+    // mends the plan and reads the checks again, so the card can run it.
+    await page.getByTestId('open-file-input').setInputFiles({ name: 'unfinished.studyflow.yaml', mimeType: 'text/yaml', buffer: Buffer.from(UNFINISHED) });
+    await expect(page.locator('g[data-element-id="Read"]')).toBeVisible();
+    const card = page.getByTestId('run-problems');
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+    await expect(card).toContainText('no end event');
+    await card.getByRole('button', { name: 'Cancel' }).click();
+    await expect(card).toHaveCount(0);
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+    await card.getByRole('button', { name: 'Add end' }).click();
+    await expect(card).toContainText('Ready to run');
+    const fixedTab = context.waitForEvent('page');
+    await card.getByRole('button', { name: 'Run', exact: true }).click();
+    await expect(await fixedTab).toHaveURL(/run\/\?diagram=[^&]+$/);
   });
 });

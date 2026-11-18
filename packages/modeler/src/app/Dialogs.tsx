@@ -4,14 +4,11 @@ import { useDiagramPicker } from '@modeler/open/openFile';
 import { GalleryDialog } from '@modeler/gallery/Gallery';
 import { OpenDialog } from '@modeler/open/Open';
 import { SaveDialog } from '@modeler/export/Save';
-import { ChecklistDialog } from '@modeler/checklist/Checklist';
-import { ScheduleDialog } from '@modeler/schedule/Schedule';
 import { ManuscriptDialog } from '@modeler/manuscript/Manuscript';
 import { ReportingDialog } from '@modeler/reporting/Reporting';
-import { ProvenanceDialog } from '@modeler/provenance/Provenance';
 
 /** The app's dialogs, opened from the command palette, a key, or the nav bar's file card. */
-export type DialogId = 'gallery' | 'open' | 'save' | 'checklist' | 'schedule' | 'manuscript' | 'reporting' | 'provenance';
+export type DialogId = 'gallery' | 'open' | 'save' | 'manuscript' | 'reporting';
 
 type DialogProps = { isOpen: boolean; onClose: () => void; scopeId?: string; onBrowse?: () => void };
 
@@ -19,14 +16,10 @@ const DIALOGS: Record<DialogId, ComponentType<DialogProps>> = {
   gallery: GalleryDialog,
   open: OpenDialog,
   save: SaveDialog,
-  checklist: ChecklistDialog,
-  schedule: ScheduleDialog,
   manuscript: ManuscriptDialog,
   reporting: ReportingDialog,
-  provenance: ProvenanceDialog,
 };
 
-/** `scopeId` is the element a provenance dialog is about; every other dialog is about the whole study. */
 type ShownDialog = { id: DialogId; scopeId?: string };
 
 const DialogContext = createContext<{

@@ -92,10 +92,10 @@ types:
       - cognitive:CognitiveTask
     meta:
       icon: iconify tabler--hexagon
-      presenter: "Behaverse - <instrument>"
+      choreographyBandLabel: "Behaverse - <instrument>"
       glyph: instrument
       # The result a played task hands back, which a data edge's `transformation` reads as `result`.
-      result: TaskResult
+      returns: TaskResult
     properties:
       - name: platform
         default: behaverse
@@ -104,7 +104,7 @@ types:
         redefines: cognitive:CognitiveTask#platform
         meta:
           order: 0
-          pinned: true
+          hidden: true
       - name: implementation
         # The build is the reference before `@`, and with none named the Unity build plays the task. `assessment-godot`
         # is the Godot build, which no runner plays yet, so a study naming it stops before its first step. A task whose
@@ -125,6 +125,7 @@ types:
         isAttr: true
         type: InstrumentEnum
         meta:
+          showInline: true
           order: 1
           categories:
             - Execution
@@ -135,6 +136,7 @@ types:
         isAttr: true
         type: String
         meta:
+          showInline: true
           order: 2
           categories:
             - Execution
@@ -244,7 +246,7 @@ types:
         isAttr: true
         redefines: studyflow:Dataset#format
         meta:
-          pinned: true
+          hidden: true
       - name: dataLevel
         description: Level of the BDM hierarchy (events, trials, models).
         isAttr: true

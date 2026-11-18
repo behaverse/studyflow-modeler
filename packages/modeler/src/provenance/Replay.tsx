@@ -4,7 +4,6 @@ import {
   applyStatuses,
   assignLanes,
   collectProvenance,
-  DETAIL_ICONS,
   displayOrder,
   laneOf,
   type ProvenanceRecord,
@@ -13,7 +12,8 @@ import {
 } from '@modeler/provenance/records';
 import { computeSegLengths, dedupePoints, samplePolyline, smootherstep, tokenAnchor } from '@modeler/simulation/polyline';
 import type { ElementRecord, Point, Study } from '@canvas/index.ts';
-import { button, divider, material } from '@modeler/ui/styles';
+import { control } from '@modeler/composer/styles';
+import { divider } from '@modeler/ui/styles';
 import type { Canvas, Editor } from '@modeler/editor/port';
 
 import { ICONS } from '@modeler/icons';
@@ -268,7 +268,11 @@ type Props = { onClose: () => void };
 const scopeName = (r: ProvenanceRecord) =>
   (r.isDocument ? (r.action === 'executed' ? r.scopeId : 'document') : r.scopeId);
 
-export function ReplayPanel({ onClose }: Props) {
+/**
+ * The replay as the composer's face: the transport that walks the run trail, what the step at the playhead did, and
+ * the track to scrub it, with the minimap over the composer's right end. The composer gives it its place and tint.
+ */
+export function ReplayFace({ onClose }: Props) {
   const editor = useModeler();
   // Opening a study fires no `HistoryChanged`, so we bump a separate version to force a new timeline when the document changes.
   const [docVersion, bumpDocVersion] = useReducer((n: number) => n + 1, 0);
@@ -363,44 +367,45 @@ function ReplayTimeline({ onClose }: Props) {
 
   // Each document-level `executed` stamp is one run of the study, matching the Provenance dialog.
   const runs = shown.filter((r) => r.isDocument && r.action === 'executed').length;
-  const btn = button.icon;
+  const btn = control.quietIcon;
   const frac = (n: number) => `${(n / Math.max(total, 1)) * 100}%`;
 
   return (
-    <div className="fixed bottom-2 inset-x-2 z-[220]" data-testid="provenance-replay" data-covers="bottom">
-      {/* Over the bar's right end, in the inspector's place: the whole study, with the step's element ringed. */}
+    <div className="relative flex flex-col w-full min-w-0 text-stone-900" data-testid="provenance-replay">
+      {/* Over the composer's right end, toward the inspector's place: the whole study, with the step's element ringed. */}
       <Minimap focus={focus} className="absolute bottom-full right-0 mb-2" covers="right" />
-      <div className={`${material.panel} text-stone-900 px-3 py-2`}>
-        <div className="flex items-center gap-1">
-          <h1
-            className="text-base font-semibold text-stone-900 tracking-tight pr-2"
-            title="Elements light up as their records land; the token marks the active step, colored by branch"
+      <div>
+        <div className="flex items-center gap-1 h-10 pl-1">
+          <span
+            className={`${control.label} ${control.mode.replay} pr-2`}
+            title="Plays the run back on the canvas"
           >
+            <i className={ICONS.replay} aria-hidden="true" />
             Replay
-          </h1>
+          </span>
           {total === 0 ? (
             <p className="flex-1 text-sm text-stone-500 italic">No provenance yet.</p>
           ) : (
             <>
               <button type="button" onClick={() => jump(0)} disabled={at <= 0} className={btn} title="Start" aria-label="Jump to start">
-                <i className={`${ICONS.jumpToStart} size-4 block`} aria-hidden="true" />
+                <i className={ICONS.jumpToStart} aria-hidden="true" />
               </button>
               <button type="button" onClick={() => step(-1)} disabled={at <= 0} className={btn} title="Back" aria-label="Step back">
-                <i className={`${ICONS.chevronLeft} size-4 block`} aria-hidden="true" />
+                <i className={ICONS.chevronLeft} aria-hidden="true" />
               </button>
-              <button type="button" onClick={togglePlay} className={btn} title={playing ? 'Pause (space)' : 'Play the timeline'} aria-label={playing ? 'Pause' : 'Play'}>
-                <i className={`${playing ? ICONS.pause : ICONS.play} size-4 block`} aria-hidden="true" />
+              <button type="button" onClick={togglePlay} className={control.primaryIcon} title={playing ? 'Pause (space)' : 'Play the timeline (space)'} aria-label={playing ? 'Pause' : 'Play'}>
+                <i className={playing ? ICONS.pause : ICONS.play} aria-hidden="true" />
               </button>
               <button type="button" onClick={() => step(1)} disabled={at >= total} className={btn} title="Forward" aria-label="Step forward">
-                <i className={`${ICONS.chevronRight} size-4 block`} aria-hidden="true" />
+                <i className={ICONS.chevronRight} aria-hidden="true" />
               </button>
               <button type="button" onClick={() => jump(total)} disabled={at >= total} className={btn} title="End" aria-label="Jump to end">
-                <i className={`${ICONS.jumpToEnd} size-4 block`} aria-hidden="true" />
+                <i className={ICONS.jumpToEnd} aria-hidden="true" />
               </button>
               <button
                 type="button"
                 onClick={() => setSpeedIdx((i) => (i + 1) % SPEEDS.length)}
-                className="px-1.5 py-0.5 rounded-md text-[0.6875rem] font-mono text-stone-500 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer transition-colors"
+                className={`${control.quiet} font-mono`}
                 title="Speed"
                 aria-label={`Speed ${SPEEDS[speedIdx].label}`}
               >
@@ -408,20 +413,16 @@ function ReplayTimeline({ onClose }: Props) {
               </button>
               <span className={`${divider.vertical} mx-1.5`} aria-hidden="true" />
               {current ? (
-                <div className="flex items-center gap-2.5 flex-1 min-w-0 overflow-hidden whitespace-nowrap">
+                // What the step at the playhead did, to what, and when; who, with what and the rest show on hover, and in
+                // the Provenance view, whose rows the replay walks.
+                <div
+                  className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden whitespace-nowrap"
+                  title={[...recordDetails(current).map(([label, value]) => `${label}: ${value}`), current.note ?? ''].filter(Boolean).join('\n')}
+                >
                   {current.icon && <i className={`${current.icon} size-3.5 shrink-0 text-stone-500`} aria-hidden="true" />}
                   <span className={`text-sm font-semibold shrink-0 ${current.action === 'invalidated' ? 'text-red-600' : 'text-stone-900'}`}>{current.action}</span>
-                  <span className="text-[0.6875rem] font-mono text-stone-500 truncate max-w-[14rem]" title={current.isDocument ? current.scopeId : current.scopeLabel}>
-                    {scopeName(current)}
-                  </span>
-                  {recordDetails(current).map(([label, value]) => (
-                    <span key={label} className="inline-flex items-center gap-1 min-w-0 text-[0.6875rem] font-mono text-stone-500" title={`${label}: ${value}`}>
-                      <i className={`${DETAIL_ICONS[label] ?? ICONS.threeDots} size-3 shrink-0 text-stone-500`} aria-hidden="true" />
-                      <span className="truncate max-w-[10rem]">{value}</span>
-                    </span>
-                  ))}
-                  <span className="text-[0.6875rem] font-mono text-stone-500 shrink-0" title={current.when}>{shortWhen(current.when) ?? '—'}</span>
-                  {current.note && <span className="text-xs italic text-stone-500 truncate min-w-0" title={current.note}>{current.note}</span>}
+                  <span className="text-xs font-mono text-stone-600 truncate min-w-0">{scopeName(current)}</span>
+                  <span className="text-xs font-mono text-stone-500 shrink-0" title={current.when}>{shortWhen(current.when) ?? '—'}</span>
                 </div>
               ) : (
                 <p className="flex-1 text-xs text-stone-500 italic">Before the first record.</p>
@@ -434,14 +435,14 @@ function ReplayTimeline({ onClose }: Props) {
               <span className="text-[0.6875rem] font-mono text-stone-500 whitespace-nowrap shrink-0 pl-1">{at}/{total}</span>
             </>
           )}
-          <button type="button" onClick={onClose} className={btn} title="Stop the replay and bring the inspector back" aria-label="Close replay">
-            <i className={`${ICONS.close} size-3.5 block`} aria-hidden="true" />
+          <button type="button" onClick={onClose} className={control.secondary} title="Stop the replay and bring the inspector back" aria-label="Close replay">
+            Close
           </button>
         </div>
         {total > 0 && (
           <div
             ref={trackRef}
-            className="relative h-9 mt-1 cursor-ew-resize touch-none select-none"
+            className="relative h-7 mx-2 mb-1.5 cursor-ew-resize touch-none select-none"
             role="slider"
             tabIndex={0}
             aria-label="Replay position"

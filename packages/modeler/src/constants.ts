@@ -1,7 +1,6 @@
 export const APP_NAME = 'Studyflow Modeler';
 
 export const URLS = {
-  home: 'https://behaverse.org/studyflow',
   githubRepo: 'https://github.com/behaverse/studyflow-modeler',
   docs: './docs',
 } as const;

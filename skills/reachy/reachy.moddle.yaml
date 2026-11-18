@@ -36,7 +36,7 @@ enumerations:
 
   # A curated pick from the SDK's emotions library
   # (`pollen-robotics/reachy-mini-emotions-library`, 81 moves in all) plus the
-  # daemon's two built-in moves. `Interact#move` is editable, so any other move
+  # daemon's two built-in moves. `Interact#move` is `allowCustom`, so any other move
   # name in the dataset works too.
   - name: MoveEnum
     description: Recorded expressive move played on the head, body, and antennas.
@@ -150,7 +150,7 @@ enumerations:
 
 types:
   # A robot takes part through the steps of its own pool; what decides for it is another pool, a model the steps ask
-  # along message flows. So it is never only a band on a task: it has no `participantKind`.
+  # along message flows. So it is never only a band on a task: it has no `actorKind`.
   - name: Robot
     description: The robot as a pool of the steps it performs, and the device settings they share.
     superClass:
@@ -165,7 +165,7 @@ types:
         default: wireless
         meta:
           order: 0
-          editable: true
+          allowCustom: true
       # The daemon serves its REST API at `http://<host>:8000/api`.
       - name: host
         description: Hostname or IP of the robot (`reachy-mini.local`; `localhost` for Lite or sim).
@@ -180,14 +180,14 @@ types:
         type: String
         meta:
           order: 2
-          optional: true
+          nullable: true
       - name: language
         description: Language the robot speaks and listens in, as a BCP-47 tag (`en-US`).
         isAttr: true
         type: String
         meta:
           order: 3
-          optional: true
+          nullable: true
       # Applied once at session start: `POST /api/volume/set`.
       - name: volume
         description: Speaker volume, 0 to 100.
@@ -214,6 +214,7 @@ types:
         isAttr: false
         type: studyflow:MarkdownString
         meta:
+          showInline: true
           order: 1
       - name: move
         description: Recorded move to play; any move name in the dataset is also accepted.
@@ -221,7 +222,7 @@ types:
         type: MoveEnum
         meta:
           order: 2
-          editable: true
+          allowCustom: true
       # `GET /api/move/recorded-move-datasets/list/{dataset}` lists its moves.
       - name: dataset
         description: Hugging Face dataset the move comes from.
@@ -239,7 +240,7 @@ types:
         type: SideEnum
         meta:
           order: 4
-          editable: true
+          allowCustom: true
       # `GET /api/media/sounds` lists the files and `POST /api/media/sounds/upload` adds one.
       - name: sound
         description: Sound file name in the robot's library (`chime.wav`).
@@ -247,7 +248,7 @@ types:
         type: String
         meta:
           order: 5
-          optional: true
+          nullable: true
 
   # The daemon's motion primitive: `POST /api/move/goto`. The attributes map
   # 1:1 onto its body; 0 everywhere is the neutral pose.
@@ -371,6 +372,7 @@ types:
         type: LookTargetEnum
         default: face
         meta:
+          showInline: true
           order: 1
       - name: trackingWeight
         description: How strongly face tracking pulls the head, 0-1.
@@ -397,6 +399,7 @@ types:
         type: Real
         default: 10
         meta:
+          showInline: true
           order: 1
           unit: s
 
@@ -455,7 +458,7 @@ types:
         default: wake_word
         meta:
           order: 1
-          editable: true
+          allowCustom: true
       - name: wakeWord
         description: The phrase to listen for (`Hey Reachy`).
         isAttr: true

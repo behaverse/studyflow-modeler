@@ -12,16 +12,18 @@ export const HIDDEN_SCHEMA_TYPES = new Set([
 ]);
 
 /** First match wins, so containers must precede Activity. */
-const CATEGORY_RULES: Array<{ ancestor: string; category: string }> = [
-  { ancestor: 'bpmn:Event', category: 'Events' },
-  { ancestor: 'bpmn:Gateway', category: 'Gateways' },
-  { ancestor: 'bpmn:SubProcess', category: 'Containers' },
-  { ancestor: 'bpmn:Participant', category: 'Containers' },
-  { ancestor: 'bpmn:Group', category: 'Containers' },
-  { ancestor: 'bpmn:Activity', category: 'Activities' },
-  { ancestor: 'bpmn:DataObjectReference', category: 'Data' },
-  { ancestor: 'bpmn:DataStoreReference', category: 'Data' },
-  { ancestor: 'bpmn:ItemAwareElement', category: 'Data' },
+const GROUP_RULES: Array<{ ancestor: string; group: string }> = [
+  { ancestor: 'bpmn:Event', group: 'Events' },
+  { ancestor: 'bpmn:Gateway', group: 'Gateways' },
+  { ancestor: 'bpmn:SubProcess', group: 'Containers' },
+  { ancestor: 'bpmn:Participant', group: 'Containers' },
+  { ancestor: 'bpmn:Group', group: 'Containers' },
+  { ancestor: 'bpmn:Activity', group: 'Activities' },
+  // A choreography task is listed with the activities, as BPMN's own is (`palette/groups.ts`).
+  { ancestor: 'bpmn:ChoreographyActivity', group: 'Activities' },
+  { ancestor: 'bpmn:DataObjectReference', group: 'Data' },
+  { ancestor: 'bpmn:DataStoreReference', group: 'Data' },
+  { ancestor: 'bpmn:ItemAwareElement', group: 'Data' },
 ];
 
 export function isHiddenFromPalette(
@@ -60,12 +62,9 @@ export function humanizeLabel(typeName: string): string {
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2');
 }
 
-export function paletteCategories(meta: TypeMeta, bpmnType: string | null): string[] {
-  const explicit = meta?.categories;
-  if (Array.isArray(explicit) && explicit.length > 0) return explicit;
-  if (!bpmnType) return [];
-  for (const { ancestor, category } of CATEGORY_RULES) {
-    if (isBpmnSubtypeOf(bpmnType, ancestor)) return [category];
-  }
-  return [];
+/** A type's group in the tools: the one its schema names (`meta.paletteGroup`), else its BPMN ancestor's. */
+export function paletteGroup(meta: TypeMeta, bpmnType: string | null): string | undefined {
+  if (typeof meta?.paletteGroup === 'string' && meta.paletteGroup) return meta.paletteGroup;
+  if (!bpmnType) return undefined;
+  return GROUP_RULES.find(({ ancestor }) => isBpmnSubtypeOf(bpmnType, ancestor))?.group;
 }

@@ -201,7 +201,7 @@ test.describe('Saving back into the opened file', () => {
 
     await expect.poll(async () => (await disk(page)).writes).toBe(1);
     expect(extractStudyflowFromPng(Buffer.from((await disk(page)).content, 'base64'))).toContain('still typing');
-    await expect(page.locator('input[name="bpmn:name"]')).toBeFocused();
+    await expect(page.locator('[name="bpmn:name"]')).toBeFocused();
   });
 
   test('the file `studyflow edit` opens is saved back into, as the format it is, with no picker', async ({ page }) => {

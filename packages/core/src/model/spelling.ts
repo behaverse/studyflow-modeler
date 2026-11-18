@@ -1,6 +1,6 @@
 /**
  * The short forms of the `.studyflow.yaml` file, on plain data: each reversible, the long form always accepted.
- * Specified for authors in docs/reference.qmd, "The file"; pinned by packages/core/tests/studyflow-yaml.unit.spec.ts.
+ * Specified for authors in docs/format.qmd; pinned by packages/core/tests/studyflow-yaml.unit.spec.ts.
  */
 import * as yaml from 'js-yaml';
 

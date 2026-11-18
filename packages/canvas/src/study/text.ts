@@ -74,6 +74,13 @@ function midSegment(waypoints: readonly Point[]): [Point, Point] {
   return [first, second];
 }
 
+/** The middle of a flow, where the canvas offers to insert a step on it: its middle segment's midpoint. */
+export function flowMiddle(waypoints: readonly Point[]): Point {
+  if (waypoints.length < 2) return { ...(waypoints[0] ?? { x: 0, y: 0 }) };
+  const [a, b] = midSegment(waypoints);
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
 /** The centre of an edge's default caption: the middle segment's midpoint, set off the line. */
 function flowLabelPosition(waypoints: readonly Point[]): Point {
   if (waypoints.length === 0) return { x: 0, y: 0 };

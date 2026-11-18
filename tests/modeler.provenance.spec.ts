@@ -43,29 +43,29 @@ test('the provenance view lists a run\'s records, `p` filters it to the selectio
   await page.getByTestId('open-file-input').setInputFiles({
     name: 'run_stamped.studyflow.yaml', mimeType: 'text/yaml', buffer: Buffer.from(RUN_STAMPED),
   });
-  const dialog = page.getByRole('dialog');
-  const rows = dialog.getByTestId('provenance-log').getByRole('listitem');
+  const view = page.getByTestId('views-drawer');
+  const rows = view.getByTestId('provenance-log').getByRole('listitem');
 
   // From the palette, the whole timeline, oldest first: the run's stamp, then the steps it executed.
-  await runPaletteCommand(page, 'View Provenance...');
-  await expect(dialog).toContainText('3 entries · 1 run · 1 repository');
-  await expect(dialog).toContainText('git -C runs/demo log');
+  await runPaletteCommand(page, 'Show Provenance');
+  await expect(view).toContainText('3 entries · 1 run · 1 repository');
+  await expect(view).toContainText('git -C runs/demo log');
   await expect(rows).toHaveText([/^executed\s*Run_Stamped/, /^executed\s*Fit/, /^executed\s*Score/]);
-  await dialog.getByRole('button', { name: 'Close' }).click();
-  await expect(dialog).toBeHidden();
+  await view.getByRole('button', { name: 'Close views' }).click();
+  await expect(view).toBeHidden();
 
   // `p` on a selected step opens its own records alone.
   await page.locator('g[data-element-id="Fit"]').click();
   await pressOnCanvas(page, 'p');
-  await expect(dialog.getByRole('button', { name: 'Clear provenance filter' })).toBeVisible();
+  await expect(view.getByRole('button', { name: 'Clear provenance filter' })).toBeVisible();
   await expect(rows).toHaveText([/^executed\s*Fit/]);
 
   // Invalidating keeps the record and appends a marker under it, where the next run branches; undo takes it back.
-  const invalidate = dialog.getByRole('button', { name: 'Invalidate executed record of Fit' });
+  const invalidate = view.getByRole('button', { name: 'Invalidate executed record of Fit' });
   await invalidate.click();
   await expect(rows).toHaveText([/^executed\s*Fit/, /^invalidated\s*Fit\s*branches here/]);
   await expect(invalidate).toHaveCount(0);
-  await dialog.getByRole('button', { name: 'Undo' }).click();
+  await view.getByRole('button', { name: 'Undo' }).click();
   await expect(rows).toHaveText([/^executed\s*Fit/]);
   await expect(invalidate).toBeVisible();
 });

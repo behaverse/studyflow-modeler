@@ -60,6 +60,11 @@ function timerDelay(element: Element): string | undefined {
   return typeof text === 'string' && text.trim() ? text.trim() : undefined;
 }
 
+/** How long `element` lasts, as written: its `duration`, else a timer's delay. */
+export function durationOf(model: StudyModel, element: Element): string | undefined {
+  return readTimingAttrs(model, element).duration;
+}
+
 function readTimingAttrs(model: StudyModel, element: Element): TimingAttrs {
   const out: TimingAttrs = {};
   for (const k of ATTR_NAMES) {
@@ -80,7 +85,8 @@ const UNIT_MINUTES: [RegExp, number][] = [
   [/(\d+(?:\.\d+)?)\s*(?:s|sec|secs|second|seconds)\b/, 1 / 60],
 ];
 
-function parseDurationMin(raw: string): number | undefined {
+/** A length as minutes: a bare number, ISO 8601 (`PT1H30M`), or words (`2 h 30 min`, `1 week`). */
+export function parseDurationMin(raw: string): number | undefined {
   const s = raw.trim().toLowerCase();
   if (!s) return undefined;
 
@@ -251,6 +257,16 @@ function summarize(group: Row, children: Row[]): void {
  * any, in tree order: a container's rows follow it. Onsets are relative to a single shared anchor; a row that states
  * none starts where the rows it waits on end.
  */
+/** The steps a person spends time in (tasks, called processes, choreography tasks) that state no length yet. */
+export function unscheduledSteps(modeler: Pick<Editor, 'study'>): string[] {
+  const { model } = modeler.study;
+  return modeler.study.list({ kind: 'node' }).filter((record) => {
+    const element = model.get(record.id);
+    const step = element && ['bpmn:Task', 'bpmn:CallActivity', 'bpmn:ChoreographyTask'].some((type) => model.isA(element, type));
+    return step && !model.attribute(element, 'duration');
+  }).map((record) => record.id);
+}
+
 export function collectScheduleRows(modeler: Pick<Editor, 'study'>): Row[] {
   const { study } = modeler;
   const records = study.list();

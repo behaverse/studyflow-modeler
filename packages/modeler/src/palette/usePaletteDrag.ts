@@ -4,14 +4,29 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { executeCommand } from '@modeler/commandBus';
-import type { PaletteEntry } from '@modeler/palette/groups';
-import type { PaletteTemplate } from '@modeler/palette/commands';
+import type { AddWhat } from '@modeler/popup/commands';
 import type { Editor } from '@modeler/editor/port';
 
 /** Pointer travel (px) that separates a tap from a drag. */
 export const DRAG_THRESHOLD = 3;
 
-export type PaletteDraggable = PaletteEntry | (PaletteTemplate & { __template: true });
+/** What a tool, a pin or an Add panel row makes: a shape, or a template's elements. */
+export type PaletteDraggable = AddWhat;
+
+/** Arm the canvas's create gesture with `what`: it follows the pointer from `event`, and a click (or the drag's end) drops it. */
+export function startCreate(modeler: Editor, what: AddWhat, event: MouseEvent): void {
+  if (what.template) {
+    void executeCommand(modeler, { type: 'PaletteStartCreateTemplate', templateId: what.template, event });
+    return;
+  }
+  void executeCommand(modeler, {
+    type: 'PaletteStartCreate',
+    bpmnType: what.bpmnType,
+    event,
+    attributes: what.attributes ?? {},
+    extensionType: what.extensionType,
+  });
+}
 
 export type PaletteDragHandlers = {
   onPointerDown: (draggable: PaletteDraggable, event: ReactPointerEvent) => void;
@@ -19,10 +34,6 @@ export type PaletteDragHandlers = {
   onPointerUp: () => void;
   onClick: (draggable: PaletteDraggable, event: ReactMouseEvent) => void;
 };
-
-function isTemplate(draggable: PaletteDraggable): draggable is PaletteTemplate & { __template: true } {
-  return (draggable as any).__template === true;
-}
 
 export function usePaletteDrag(
   modeler: Editor,
@@ -33,23 +44,7 @@ export function usePaletteDrag(
   /* Touch fingers jitter a pixel the instant they land; without a threshold every tap starts a dead drag. */
   const pressPosRef = useRef({ x: 0, y: 0 });
 
-  const dispatchCreate = (draggable: PaletteDraggable, nativeEvent: MouseEvent) => {
-    if (isTemplate(draggable)) {
-      executeCommand(modeler, {
-        type: 'PaletteStartCreateTemplate',
-        templateId: draggable.id,
-        event: nativeEvent,
-      });
-      return;
-    }
-    executeCommand(modeler, {
-      type: 'PaletteStartCreate',
-      bpmnType: draggable.bpmnType,
-      event: nativeEvent,
-      attributes: draggable.attributes ?? {},
-      extensionType: draggable.extensionType,
-    });
-  };
+  const dispatchCreate = (draggable: PaletteDraggable, nativeEvent: MouseEvent) => startCreate(modeler, draggable, nativeEvent);
 
   return {
     onPointerDown: (_draggable, event) => {

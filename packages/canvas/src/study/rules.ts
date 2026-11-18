@@ -333,11 +333,15 @@ export class Rules {
     return isDataShape(type) || isArtifact(type) || isMessageSource(type) || isDataSource(type);
   }
 
-  /** `canAppend` narrowed to a successor type; an artifact is reached by association from anything. */
+  /**
+   * `canAppend` narrowed to a successor type: one the link an append draws can reach (no flow enters a start event); an
+   * artifact is reached by association from anything.
+   */
   canAppendType(source: RuleElement | undefined, targetType: string | undefined): boolean {
     if (!source) return false;
     if (targetType && isArtifact(targetType)) return !!bpmnTypeOf(source, this.catalog);
-    return this.canAppend(source);
+    if (!this.canAppend(source)) return false;
+    return !targetType || this.canConnect(source, { type: targetType, parent: source.parent }) !== false;
   }
 
   /** May `shape` be retyped in place (to `targetType`, when given)? Within its family only (`bpmnFamilyOf`): a retype

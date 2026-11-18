@@ -1,6 +1,6 @@
 /**
  * The names a `.studyflow.yaml` file gives BPMN's keys, per element type, the kinds an event's definition is written
- * under, and how an activity's marker is (docs/reference.qmd, "Elements and their keys"). A file's key is the BPMN
+ * under, and how an activity's marker is (docs/format.qmd, "Elements and their keys"). A file's key is the BPMN
  * property's name made shorter by three rules (a reference drops its `Ref`, a true-or-false its `is`, a key what the
  * element holding it already says), or a name of its own; a rule never gives a key a name its element already holds for
  * another property, so each key stands for one property of each type and reads back as it.

@@ -8,9 +8,7 @@ import { idOf, isElement } from '@core/model/index';
 import { HelpTooltip } from '@modeler/inspector/widgets';
 import { field as fld } from '@modeler/inspector/styles';
 
-const TRANSFORMATION_DESCRIPTION = '`slot = selection` with '
-  + 'each half optional: the slot names the parameter to fill, the selection narrows the '
-  + 'value that arrives.';
+const TRANSFORMATION_DESCRIPTION = '`slot = selection`, either half optional.';
 
 const ASSOCIATION_TYPES = new Set(['bpmn:DataInputAssociation', 'bpmn:DataOutputAssociation']);
 

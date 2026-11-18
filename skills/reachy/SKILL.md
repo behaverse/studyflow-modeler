@@ -7,6 +7,7 @@ metadata:
   schema: "reachy.moddle.yaml"
   runtimes:
     local: "uv run --script local.py"
+  modeler: "modeler.ts"
 ---
 
 `reachy.moddle.yaml` maps one-to-one onto the robot daemon's REST API, and `local.py` is the partial runner that
@@ -44,7 +45,7 @@ Take:
 
 `examples/reachy_pools` draws the three pools. Behaverse sends each trial to the robot's loop. The robot takes a
 picture, asks the model with the instructions wired in, answers the task, and shows the answer with its antennas,
-until the task's end ends the loop. The palette's "Each trial" drops that loop, and "Conversation" a spoken one.
+until the task's end ends the loop. The Add panel's "Each trial" drops that loop, and "Conversation" a spoken one.
 
 ## Steps
 

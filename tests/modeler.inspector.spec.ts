@@ -2,13 +2,13 @@ import * as yaml from 'js-yaml';
 
 import { expect, test } from './e2e';
 
-import { addPaletteElement, addSchemaPaletteElement, exportDiagram, gotoModeler, pressOnCanvas, readDownloadText, runPaletteCommand, setSelectedElementName } from './utils';
+import { addPaletteElement, addSkillElement, exportDiagram, gotoModeler, pressOnCanvas, readDownloadText, runPaletteCommand, setSelectedElementName } from './utils';
 
 test("inspector fields: an optional one opens when ticked and clears unticked, a name is drawn, Enter in a checklist adds the next item and a tick checks it off in the Checklist view, and a many-valued enum's tick is stored", async ({ page }) => {
   await gotoModeler(page);
   const inspector = page.getByTestId('inspector-root');
   const toggle = inspector.getByRole('checkbox', { name: 'Version' });
-  const field = inspector.locator('input[name="studyflow:version"]');
+  const field = inspector.locator('[name="studyflow:version"]');
 
   // Ticked and not yet typed into, the study holds no version, and the field stays open.
   await toggle.click();
@@ -19,6 +19,12 @@ test("inspector fields: an optional one opens when ticked and clears unticked, a
   await toggle.click();
   await expect(toggle).not.toBeChecked();
   await expect(field).toHaveCount(0);
+
+  // A long name wraps in its field and keeps the title to one line, so letting go of the field moves nothing below it:
+  // the next press lands where it was aimed.
+  await page.locator('[name="bpmn:name"]').fill('Within-subject cognitive battery with a timed break and a NASA-TLX survey at the end');
+  await inspector.getByRole('button', { name: 'Add another item' }).first().click();
+  await expect(inspector.locator('[name^="studyflow:authors["]')).toHaveCount(1);
 
   await addPaletteElement(page, 'Activities', 'Task', { x: 340, y: 180 });
   await setSelectedElementName(page, 'Review Task');
@@ -35,20 +41,24 @@ test("inspector fields: an optional one opens when ticked and clears unticked, a
   await expect(items).toHaveCount(2);
   await expect(items.nth(1)).toBeFocused();
 
-  // A ticked item is checked off in the study, where the Checklist view gathers every element's list.
+  // A ticked item is checked off in the study, where the Checklist view gathers every element's list; a tick there
+  // checks it off too, and a new item goes on the selected element's list.
   await items.nth(1).fill('debrief');
   await inspector.getByRole('checkbox', { name: 'Check consent' }).check();
-  await runPaletteCommand(page, 'View as Checklist...');
-  const view = page.getByRole('dialog');
+  await runPaletteCommand(page, 'Show Checklist');
+  const view = page.getByTestId('views-drawer');
   await expect(view).toContainText('Review Task');
-  await expect(view).toContainText('1 of 2 items complete.');
+  await expect(view).toContainText('1 of 2 done');
   await expect(view.getByRole('checkbox', { name: 'consent' })).toBeChecked();
-  await expect(view.getByRole('checkbox', { name: 'debrief' })).not.toBeChecked();
-  await page.keyboard.press('Escape');
+  await view.getByRole('checkbox', { name: 'debrief' }).check();
+  await expect(view).toContainText('2 of 2 done');
+  await view.getByRole('textbox', { name: 'New checklist item' }).fill('pay');
+  await view.getByRole('textbox', { name: 'New checklist item' }).press('Enter');
+  await expect(view).toContainText('2 of 3 done');
+  await view.getByRole('button', { name: 'Close views' }).click();
 
   // A many-valued enum is a checkbox per literal, and a tick lands in the study.
-  await addSchemaPaletteElement(page, 'Reachy Mini', 'Interaction Recording', { x: 340, y: 380 });
-  await page.keyboard.press('Escape');
+  await addSkillElement(page, 'Reachy Mini', 'Interaction Recording', { x: 340, y: 380 });
   await inspector.getByRole('tab', { name: 'Reachy Mini' }).click();
   await inspector.getByRole('checkbox', { name: 'Audio' }).check();
   const study = yaml.load(await readDownloadText(await exportDiagram(page, 'studyflow'))) as any;
@@ -56,12 +66,29 @@ test("inspector fields: an optional one opens when ticked and clears unticked, a
   expect(recording.extensions['reachy:InteractionRecording'].streams).toEqual(['audio']);
 });
 
+test('closed, the inspector leaves a step the inline inspector on the canvas: its name and essential fields, and All properties to open the rest', async ({ page }) => {
+  await gotoModeler(page, { inspector: false });
+  await expect(page.getByTestId('inspector-root')).toBeHidden();
+  await addPaletteElement(page, 'Activities', 'Task', { x: 340, y: 180 });
+  await page.keyboard.press('Escape');
+
+  const card = page.getByTestId('inline-inspector');
+  await expect(card.getByText('Duration')).toBeVisible();
+  await card.locator('[name="bpmn:name"]').fill('Read the rules');
+  await card.locator('[name="bpmn:name"]').press('Tab');
+
+  // The inspector opens on the step, holding what the card wrote; the pad is a pad again.
+  await page.getByRole('button', { name: 'All properties' }).click();
+  await expect(page.getByTestId('inspector-root').locator('[name="bpmn:name"]')).toHaveValue('Read the rules');
+  await expect(card).toHaveCount(0);
+});
+
 test("the code modals: a schema's columns are saved as the table is left, in the format picked, which the schema then names, and a script's code in the language picked; each modal's save is one undo step", async ({ page }) => {
   await gotoModeler(page);
   const inspector = page.getByTestId('inspector-root');
   const dialog = page.getByRole('dialog');
 
-  await addSchemaPaletteElement(page, 'Core', 'Schema', { x: 340, y: 180 });
+  await addSkillElement(page, 'Core', 'Schema', { x: 340, y: 180 });
   await page.keyboard.press('Escape');
   await addPaletteElement(page, 'Activities', 'Script', { x: 340, y: 380 });
   await page.keyboard.press('Escape');
@@ -78,7 +105,7 @@ test("the code modals: a schema's columns are saved as the table is left, in the
   await expect(dialog.getByRole('radio', { name: 'CSVW JSON-LD' })).toBeChecked();
   // Three columns, the last moved up past the second and the first removed.
   for (const name of ['rt', 'trial', 'acc']) {
-    await dialog.getByRole('button', { name: '+ Add column' }).click();
+    await dialog.getByRole('button', { name: 'Add column' }).click();
     await dialog.getByPlaceholder('column_name').last().fill(name);
   }
   await dialog.getByRole('combobox').last().selectOption('number');

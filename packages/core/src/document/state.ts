@@ -3,7 +3,7 @@ import { isElement, type Element, type StudyModel, type Value } from '@core/mode
 import type { StateTree } from '@core/model/state';
 
 /**
- * The retrospective `state` tree (docs/developers.qmd, "What a run leaves behind"): keyed by element id, stored as a JSON string on
+ * The retrospective `state` tree (docs/reference.qmd, "State"): keyed by element id, stored as a JSON string on
  * the `studyflow:Study` extension, lifted to the top-level `state:` mapping of a `.studyflow` file.
  */
 

@@ -7,7 +7,7 @@ import { isScopeContainer } from '@modeler/inspector/stateProperties';
 
 export function isAttributeVisible(model: StudyModel, attrDef: AttributeSpec | undefined, element: Element | undefined): boolean {
   if (!attrDef || !element) return true;
-  if (attrDef.meta?.pinned) return false;
+  if (attrDef.meta?.hidden) return false;
   if (!attrDef.meta?.condition) return true;
 
   const conditions = attrDef.meta.condition;
@@ -109,4 +109,15 @@ export function getAttributesByCategory(model: StudyModel, element: Element): Re
         (declared.get(a)?.order ?? UNDECLARED_CATEGORY_ORDER)
         - (declared.get(b)?.order ?? UNDECLARED_CATEGORY_ORDER))
   );
+}
+
+/** The inline inspector's fields (`InlineInspector.tsx`): the name, then the ones the type's schema marks `showInline`,
+ * in the inspector's order, each once. */
+export function inlineFields(model: StudyModel, element: Element): AttributeSpec[] {
+  const all = Object.values(getAttributesByCategory(model, element)).flat();
+  const keyOf = (attrDef: AttributeSpec): string => attrDef.ns?.name ?? attrDef.name;
+  const name = all.filter((attrDef) => keyOf(attrDef) === 'bpmn:name').slice(0, 1);
+  const marked = all.filter((attrDef, index) => attrDef.meta?.showInline
+    && all.findIndex((other) => keyOf(other) === keyOf(attrDef)) === index);
+  return [...name, ...marked];
 }

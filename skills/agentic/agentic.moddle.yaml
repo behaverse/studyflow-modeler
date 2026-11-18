@@ -60,6 +60,7 @@ types:
         isAttr: false
         type: studyflow:MarkdownString
         meta:
+          showInline: true
           order: 1
       - name: delivery
         # `every` message (the default; a reminder of the rule before each trial), or `once`, with the step's first

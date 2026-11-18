@@ -1,4 +1,4 @@
-import { getCatalog, type AttributeSpec, type TypeRole } from '@core/notation';
+import { getCatalog, type AttributeSpec, type TypeTag } from '@core/notation';
 import { idOf, isElement, yamlText, type Element, type StudyModel, type Value } from '@core/model/index';
 import { isDataOperationIn } from '@core/model/parameters';
 import { exportDiagramName } from '@modeler/diagram/name';
@@ -15,8 +15,8 @@ export type ExportedElement = {
   /** Declared attributes that carry a value, keyed by local name. */
   attributes: Record<string, unknown>;
   specs: AttributeSpec[];
-  /** Catalog roles of both the BPMN type and the schema type. */
-  roles: readonly TypeRole[];
+  /** The tags of both its BPMN type and its schema type (`meta.tags`). */
+  typeTags: readonly TypeTag[];
   isDataElement: boolean;
   isDataOperation: boolean;
   /** Ids of the elements this one reads and writes; empty unless `isDataOperation`. */
@@ -34,8 +34,8 @@ export type ExportModel = {
   byId: ReadonlyMap<string, ExportedElement>;
 };
 
-export function hasRole(element: ExportedElement, role: TypeRole): boolean {
-  return element.roles.includes(role);
+export function hasTag(element: ExportedElement, tag: TypeTag): boolean {
+  return element.typeTags.includes(tag);
 }
 
 /** The one walk over the study the interchange exporters are built from. */
@@ -63,7 +63,7 @@ function readElement(model: StudyModel, element: Element): ExportedElement {
   const id = element.id ?? '';
   const host = model.host(element);
   const extensionType = model.extensionType(element);
-  const roles = rolesOf(host, extensionType);
+  const typeTags = typeTagsOf(host, extensionType);
   const isDataOperation = isDataOperationIn(model, element);
 
   const attributes: Record<string, unknown> = {};
@@ -88,8 +88,8 @@ function readElement(model: StudyModel, element: Element): ExportedElement {
     documentation: documentation.length > 0 ? documentation.join('\n\n') : undefined,
     attributes,
     specs,
-    roles,
-    isDataElement: roles.includes('data-element'),
+    typeTags,
+    isDataElement: typeTags.includes('data-element'),
     isDataOperation,
     inputs: isDataOperation ? listIn(element.dataInputAssociations).filter(isElement).flatMap((association) => listIn(association.sourceRef).map(idOf)).filter(isId) : [],
     outputs: isDataOperation ? listIn(element.dataOutputAssociations).filter(isElement).map((association) => idOf(association.targetRef)).filter(isId) : [],
@@ -100,14 +100,14 @@ const listIn = (value: Value | undefined): Value[] => (Array.isArray(value) ? va
 
 const isId = (id: string | null): id is string => typeof id === 'string' && id !== '';
 
-/** A wrapper element carries roles under both its BPMN host type and the schema type it wraps. */
-function rolesOf(host: string, extensionType: string | undefined): TypeRole[] {
+/** A wrapper element carries tags under both its BPMN host type and the schema type it wraps. */
+function typeTagsOf(host: string, extensionType: string | undefined): TypeTag[] {
   const catalog = getCatalog();
-  const roles = new Set<TypeRole>();
+  const tags = new Set<TypeTag>();
   for (const name of [host, extensionType]) {
-    for (const role of catalog.getType(name ?? '')?.roles ?? []) roles.add(role);
+    for (const tag of catalog.getType(name ?? '')?.tags ?? []) tags.add(tag);
   }
-  return [...roles];
+  return [...tags];
 }
 
 function declaredAttributes(host: string, extensionType: string | undefined): AttributeSpec[] {

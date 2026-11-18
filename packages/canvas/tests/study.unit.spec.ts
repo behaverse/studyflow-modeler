@@ -103,6 +103,29 @@ test('a load replaces the document, read as a file opens, in one change, and the
   expect(study.revision, 'the revision carries on').toBe(2);
 });
 
+test('adopt takes another version of the file as one edit and one undo step, and says what it added, changed and removed', async () => {
+  const study = open();
+  // The version another tool wrote: Task_1 renamed, Sub_1 moved, a task added, and the one inside Sub_1 taken away.
+  const next = YAML
+    .replace('name: Read', 'name: Read twice')
+    .replace('bounds: 200 250 100 80', 'bounds: 220 250 100 80')
+    .replace('    Sub_1:', '    Task_2:\n      type: Task\n      name: New\n      bounds: 400 80 100 80\n    Sub_1:')
+    .replace('      flowElements:\n        Task_In:\n          type: Task\n          name: Deep\n          bounds: 400 400 100 80\n', '');
+  const heard: StudyChange[] = [];
+  study.on('change', (change) => heard.push(change));
+
+  // A container is not changed by what changes inside it: the process holding all three is no change of its own.
+  expect(await study.adopt(next)).toEqual({ ok: true, added: ['Task_2'], changed: ['Task_1', 'Sub_1'], removed: ['Task_In'] });
+  expect(heard.map((change) => change.cause)).toEqual(['edit']);
+  expect(study.get('Task_1')?.name).toBe('Read twice');
+
+  study.undo();
+  expect([study.get('Task_1')?.name, study.get('Task_2'), study.get('Task_In')?.name]).toEqual(['Read', undefined, 'Deep']);
+  // The version the study holds, as its own writer spells it, is no change at all: nothing written, the redo kept.
+  expect(await study.adopt(study.toYaml())).toEqual({ ok: true, added: [], changed: [], removed: [] });
+  expect(study.canRedo).toBe(true);
+});
+
 test('a study writes its file as a file holds it, XML or YAML, without touching what it edits, and reopens it the same', async () => {
   const study = await Study.open(CHOREOGRAPHY, { metamodel: freshMetamodel() });
 
@@ -358,6 +381,27 @@ test('creation takes plain data: the caller\'s id, a container by its id, a free
   expect(study.add({ type: 'bpmn:Task', into: 'Task_1' })).toMatchObject({ ok: false, reason: "a bpmn:Task cannot go into 'Task_1'" });
   expect(study.connect({ from: 'Consent', to: 'Nope' })).toMatchObject({ ok: false, reason: "no shape 'Nope'" });
   expect(study.revision, 'what was refused wrote nothing').toBe(2);
+});
+
+test('insert puts a step on a flow, between its ends, as one edit: the flow ends at it, a new one leaves it, and what lies past moves to make room', () => {
+  const study = open();
+  study.add({ type: 'bpmn:Task', id: 'Next', at: { x: 400, y: 120 } });
+  const flow = study.connect({ from: 'Task_1', to: 'Next' }).id!;
+  const revision = study.revision;
+
+  const made = study.insert({ type: 'bpmn:UserTask', into: flow });
+  expect(made.ok).toBe(true);
+  expect(study.revision, 'one edit').toBe(revision + 1);
+  expect(study.get(flow), 'the flow keeps its id and ends at the new step').toMatchObject({ source: 'Task_1', target: made.id });
+  expect(study.list({ kind: 'edge' }).some((edge) => edge.source === made.id && edge.target === 'Next')).toBe(true);
+  const [before, inserted, after] = ['Task_1', made.id!, 'Next'].map((id) => nodeOf(study, id));
+  expect(inserted.x).toBeGreaterThanOrEqual(before.x + before.width);
+  expect(after.x, 'what lay past moved along').toBeGreaterThanOrEqual(inserted.x + inserted.width);
+
+  study.undo();
+  expect(study.get(flow)).toMatchObject({ target: 'Next' });
+  expect(study.insert({ type: 'bpmn:StartEvent', into: flow }), 'no flow enters a start event').toMatchObject({ ok: false });
+  expect(study.insert({ type: 'bpmn:Task', into: 'Task_1' })).toMatchObject({ ok: false, reason: "no sequence flow 'Task_1'" });
 });
 
 test('a flow drawn between two pools is a message flow the collaboration holds', () => {

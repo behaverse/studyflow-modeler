@@ -1,84 +1,75 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type MouseEvent as ReactMouseEvent,
-  type MouseEventHandler,
-  type ReactNode,
-} from 'react';
+/**
+ * The tools column, on the left, where a study is made: the five kinds (events, activities, gateways, data,
+ * containers), each opening its flyout; the entries a person pinned; and the +, which opens the Add panel
+ * (`popup/addMenu.ts`) with everything the enabled skills add. However many skills are on, the column stays this
+ * short: a skill's elements join their kind's flyout and the panel, not the column.
+ */
+
+import { useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type MouseEvent as ReactMouseEvent } from 'react';
 import { useModeler } from '@modeler/app/useModeler';
-import { executeCommand } from '@modeler/commandBus';
-import { CREATE_MENU } from '@modeler/editor/popupMenus';
+import { addEntries, type AddEntry } from '@modeler/palette/catalog';
+import { useCatalogVersion } from '@modeler/app/skills';
 import { PALETTE_GROUPS } from '@modeler/palette/groups';
-import { t } from '@modeler/i18n';
-import { usePaletteDrag } from '@modeler/palette/usePaletteDrag';
+import { usePinned } from '@modeler/palette/pins';
+import { usePaletteDrag, type PaletteDragHandlers } from '@modeler/palette/usePaletteDrag';
 import { PaletteIcon } from '@modeler/palette/PaletteIcon';
-import { Popup, SchemaPopup } from '@modeler/palette/flyouts';
+import { Popup } from '@modeler/palette/flyouts';
 import { palette } from '@modeler/palette/styles';
-import type { PaletteSchema } from '@modeler/palette/commands';
-import type { Editor } from '@modeler/editor/port';
+import { addMenu } from '@modeler/popup/addMenu';
+import { PopupMenu } from '@modeler/popup/PopupMenu';
+import type { PopupPosition } from '@modeler/editor/popupMenus';
 import { ICONS } from '@modeler/icons';
 
-type ButtonProps = {
-  title: string;
-  onClick?: MouseEventHandler<HTMLButtonElement>;
-  onPointerUp?: () => void;
-  onPointerLeave?: () => void;
-  ariaExpanded?: boolean;
-  className?: string;
-  children: ReactNode;
-};
+/** The +'s key among the flyouts': its panel opens where they do, and one thing is open at a time. */
+const ADD = 'add';
 
-function PaletteButton({
-  title,
-  onClick,
-  onPointerUp,
-  onPointerLeave,
-  ariaExpanded,
-  className = '',
-  children,
-}: ButtonProps) {
+/** A tool's glyph, as the context pad draws its own: 18 in the 28px tool, room round it for a kind's corner mark. */
+const GLYPH = 18;
+
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { title: string; ariaExpanded?: boolean };
+
+function PaletteButton({ ariaExpanded, className = palette.toolButton, children, ...rest }: ButtonProps) {
   return (
-    <button
-      type="button"
-      title={title}
-      className={`${palette.toolButton} ${className}`.trim()}
-      aria-expanded={ariaExpanded}
-      onClick={onClick}
-      onPointerUp={onPointerUp}
-      onPointerLeave={onPointerLeave}
-    >
+    <button type="button" className={className} aria-expanded={ariaExpanded} {...rest}>
       {children}
     </button>
   );
 }
 
-function usePaletteSchemas(modeler: Editor): PaletteSchema[] {
-  const [schemas, setSchemas] = useState<PaletteSchema[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    executeCommand(modeler, { type: 'ResolvePaletteSchemas' })
-      .then((next: PaletteSchema[]) => {
-        if (!cancelled) setSchemas(next);
-      })
-      .catch((err: unknown) => {
-        console.error('Failed to resolve palette schemas; the palette will be empty.', err);
-        if (!cancelled) setSchemas([]);
-      });
-
-    return () => { cancelled = true; };
-  }, [modeler]);
-
-  return schemas;
+/** A pinned entry: a tool like the kinds' tiles, clicked to arm it or dragged out onto the canvas. */
+function PinnedTool({ entry, handlers }: { entry: AddEntry; handlers: PaletteDragHandlers }) {
+  return (
+    <PaletteButton
+      title={entry.skill ? `${entry.label} (${entry.skill.name})` : entry.label}
+      className={`${palette.toolButton} touch-pan-y select-none`}
+      onPointerDown={(e) => handlers.onPointerDown(entry, e)}
+      onPointerMove={(e) => handlers.onPointerMove(entry, e)}
+      onPointerUp={handlers.onPointerUp}
+      onPointerLeave={handlers.onPointerUp}
+      onPointerCancel={handlers.onPointerUp}
+      onClick={(e) => handlers.onClick(entry, e)}
+    >
+      <PaletteIcon icon={entry.icon} size={GLYPH} />
+    </PaletteButton>
+  );
 }
 
 export function Palette({ className = '' }: { className?: string }) {
   const modeler = useModeler();
-  const schemas = usePaletteSchemas(modeler);
+  // Read once: the catalog is installed before the modeler mounts, and turning a skill off reloads the app.
+  // Read again when a skill turned on replaces the catalog.
+  const catalog = useCatalogVersion();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `catalog` stands in for the catalog
+  const entries = useMemo(() => addEntries(), [catalog]);
+  const pinnedIds = usePinned();
+  const pinned = useMemo(
+    () => pinnedIds.flatMap((id) => entries.find((entry) => entry.id === id) ?? []),
+    [pinnedIds, entries],
+  );
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [pinnedGroup, setPinnedGroup] = useState<string | null>(null);
+  /** Where the Add panel opens: beside the column, level with the +. */
+  const [addAnchor, setAddAnchor] = useState<PopupPosition | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const closeAll = () => {
@@ -95,7 +86,11 @@ export function Palette({ className = '' }: { className?: string }) {
       if (!rootRef.current.contains(e.target as Node)) closeAll();
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeAll();
+      // Esc closes the innermost thing open: here the flyout, not the selection (`composer/Composer.tsx`).
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeAll();
+      }
     };
     document.addEventListener('mousedown', onDocClick);
     document.addEventListener('keydown', onKey);
@@ -104,25 +99,6 @@ export function Palette({ className = '' }: { className?: string }) {
       document.removeEventListener('keydown', onKey);
     };
   }, [openGroup, pinnedGroup]);
-
-  const getPopupPosition = (e: ReactMouseEvent<HTMLButtonElement>) => {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    return {
-      x: rect.left + rect.width / 2 + 35,
-      y: rect.top + rect.height / 2 + 10,
-      cursor: { x: e.clientX, y: e.clientY },
-    };
-  };
-
-  const handleMoreElementsClick = (e: ReactMouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    executeCommand(modeler, {
-      type: 'PaletteOpenPopup',
-      popupType: CREATE_MENU,
-      position: getPopupPosition(e),
-      title: t('Create BPMN element'),
-    });
-  };
 
   const flyoutHandlers = (key: string) => {
     const isOpen = openGroup === key;
@@ -139,6 +115,26 @@ export function Palette({ className = '' }: { className?: string }) {
     };
   };
 
+  const addOpen = pinnedGroup === ADD;
+  const toggleAdd = (e: ReactMouseEvent<HTMLButtonElement>) => {
+    if (addOpen) {
+      closeAll();
+      return;
+    }
+    const column = rootRef.current!.getBoundingClientRect();
+    const button = e.currentTarget.getBoundingClientRect();
+    // 6 right of the column, as a flyout opens; its top level with the +'s, as a menu opens from its trigger.
+    const x = Math.round(column.right + 6);
+    const y = Math.round(button.top - 6);
+    setAddAnchor({ x, y, cursor: { x, y: Math.round(button.top + button.height / 2) } });
+    setPinnedGroup(ADD);
+    setOpenGroup(ADD);
+  };
+  const addPanel = useMemo(
+    () => (addOpen && addAnchor ? addMenu(modeler, { kind: 'pointer' }, pinnedIds, addAnchor) : null),
+    [addOpen, addAnchor, modeler, pinnedIds],
+  );
+
   return (
     <div
       className={`${palette.wrapper} ${className}`}
@@ -148,9 +144,6 @@ export function Palette({ className = '' }: { className?: string }) {
     >
       {PALETTE_GROUPS.map((group) => {
         const { isOpen, onMouseEnter, onMouseLeave, onClick } = flyoutHandlers(group.label);
-        const extraItems = schemas.flatMap((schema) =>
-          schema.items.filter((item) => item.categories[0] === group.label),
-        );
         return (
           <div
             key={group.label}
@@ -159,52 +152,36 @@ export function Palette({ className = '' }: { className?: string }) {
             onMouseLeave={onMouseLeave}
           >
             <PaletteButton title={group.label} ariaExpanded={isOpen} onClick={onClick}>
-              <PaletteIcon icon={group.icon} size={22} />
-              <span className={palette.groupChevron} />
+              <PaletteIcon icon={group.icon} size={GLYPH} />
+              <span className={palette.groupMark} aria-hidden="true" />
             </PaletteButton>
-            <Popup group={group} extraItems={extraItems} isOpen={isOpen} handlers={dragHandlers} />
+            <Popup
+              group={group}
+              entries={entries.filter((entry) => entry.kind === group.label && !entry.template)}
+              isOpen={isOpen}
+              handlers={dragHandlers}
+            />
           </div>
         );
       })}
 
       <div className={palette.separator} />
 
-      {schemas
-        .filter((schema) => schema.items.length > 0 || schema.templates.length > 0)
-        .map((schema) => {
-          const { isOpen, onMouseEnter, onMouseLeave, onClick } = flyoutHandlers(`schema:${schema.prefix}`);
-          return (
-            <div
-              key={`more-${schema.prefix}`}
-              className={palette.groupWithFlyout}
-              onMouseEnter={onMouseEnter}
-              onMouseLeave={onMouseLeave}
-            >
-              <PaletteButton title={`${schema.name} elements...`} ariaExpanded={isOpen} onClick={onClick}>
-                <PaletteIcon icon={schema.icon ?? ICONS.hexagon} size={24} />
-                <span className={palette.groupChevron} />
-              </PaletteButton>
-              <span className={palette.tooltip}>{schema.name} elements...</span>
-              <SchemaPopup schema={schema} isOpen={isOpen} handlers={dragHandlers} />
-            </div>
-          );
-        })}
-
-      <div
-        key="more-bpmn"
-        className={palette.group}
-        onMouseEnter={() => { if (!pinnedGroup) setOpenGroup(null); }}
-      >
+      {/* Moving onto a pin or the + closes a flyout the pointer opened on the way. */}
+      <div className={palette.stack} onMouseEnter={() => { if (!pinnedGroup) setOpenGroup(null); }}>
+        {pinned.map((entry) => <PinnedTool key={entry.id} entry={entry} handlers={dragHandlers} />)}
         <PaletteButton
-          title="BPMN elements..."
-          onPointerUp={dragHandlers.onPointerUp}
-          onPointerLeave={dragHandlers.onPointerUp}
-          onClick={handleMoreElementsClick}
+          title="Add..."
+          className={palette.addButton}
+          ariaExpanded={addOpen}
+          onClick={toggleAdd}
+          data-popup-toggle
         >
-          <PaletteIcon icon={ICONS.threeDots} size={22} />
+          <i className={ICONS.plus} style={{ fontSize: GLYPH }} aria-hidden="true" />
         </PaletteButton>
-        <span className={palette.tooltip}>BPMN elements...</span>
       </div>
+
+      {addPanel && addAnchor && <PopupMenu anchor={addAnchor} menu={addPanel} onClose={closeAll} />}
     </div>
   );
 }

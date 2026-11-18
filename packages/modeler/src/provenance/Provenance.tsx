@@ -1,5 +1,4 @@
 import { useContext, useEffect, useMemo, useReducer, useState } from 'react';
-import { Modal } from '@modeler/ui/Modal';
 import { ModeContext } from '@modeler/app/contexts';
 import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
@@ -14,19 +13,29 @@ import {
   recordDetails,
   shortWhen,
 } from '@modeler/provenance/records';
-import { dialog as d } from '@modeler/ui/styles';
-import { DialogHelp } from '@modeler/ui/DialogHelp';
+import { chip, dialog as d } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
-
-type Props = { isOpen: boolean; onClose: () => void; scopeId?: string };
+import { pressRun } from '@modeler/composer/run';
+import { useSelection } from '@modeler/composer/hooks';
+import { showElement } from '@modeler/views/hooks';
+import { clearViewScope, closeView, useViews } from '@modeler/views/store';
+import { drawer as v } from '@modeler/views/styles';
 
 const LANE_W = 12;
 const laneX = (lane: number) => lane * LANE_W + 4.5;
 // The element-shape icons sit in their own left column, outside the tree, so they align.
 const ICON_GUTTER = 22;
 
-export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
+/**
+ * The provenance, a view in the drawer under the canvas: who changed the study and who ran it, oldest first, as the
+ * modeler and the runner stamped it into the file. Invalidating a run record appends a marker, so the next run
+ * re-executes that step and what depends on it; the replay plays the timeline on the canvas. The selection's records
+ * are marked, a press on a record selects its element, and `p` shows one element's records alone.
+ */
+export function ProvenanceView() {
   const modeler = useModeler();
+  const selection = useSelection(modeler);
+  const { scope } = useViews();
   const { openReplay } = useContext(ModeContext);
   const [revision, bumpRevision] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
@@ -34,8 +43,6 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
     return () => modeler.events.off('HistoryChanged', bumpRevision);
   }, [modeler]);
 
-  // The dialog unmounts on close, so the scope filter re-arms from the prop on every open.
-  const [scope, setScope] = useState(scopeId);
   const [showReused, setShowReused] = useState(true);
   const allRecords = useMemo(
     () => collectProvenance(modeler.study.model),
@@ -80,70 +87,19 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Provenance View"
-      size="xl"
-      help={<DialogHelp>
-                Who changed this studyflow and who ran it, oldest first — marked by the modeler and the runner, and stored inside the studyflow diagram itself.
-                Invalidating a run record (<i className={ICONS.close} aria-hidden="true" />)
-                appends a marker rather than deleting anything, so the next run re-executes only that step and what depends on it.
-                The replay button (<i className={ICONS.replay} aria-hidden="true" />) plays this timeline back on the canvas, step by step.
-              </DialogHelp>}
-      actions={(
-        <>
-          <button
-            type="button"
-            onClick={() => { onClose(); openReplay(); }}
-            className={d.titleAction}
-            title="Replay this timeline on the canvas — elements light up in order and a token marks each step"
-            aria-label="Replay on the canvas"
-          >
-            <i className={`${ICONS.replay} size-4 block`}></i>
-          </button>
-          <button
-            type="button"
-            onClick={() => executeCommand(modeler, { type: 'Undo' })}
-            disabled={!canUndo}
-            className={d.titleAction}
-            title="Undo the last edit (an invalidation, say)"
-            aria-label="Undo"
-          >
-            <i className={`${ICONS.undo} size-4 block`}></i>
-          </button>
-          <button
-            type="button"
-            onClick={() => executeCommand(modeler, { type: 'Redo' })}
-            disabled={!canRedo}
-            className={d.titleAction}
-            title="Redo the undone edit"
-            aria-label="Redo"
-          >
-            <i className={`${ICONS.redo} size-4 block`}></i>
-          </button>
-        </>
-      )}
-    >
-            {scope && (
-              <p className="text-xs text-stone-500 pb-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-200/70 px-2 py-0.5">
-                  <i className={`${ICONS.filter} size-3 shrink-0`} aria-hidden="true" />
-                  <span className="font-mono truncate max-w-[16rem]">{scope}</span>
-                  <button
-                    type="button"
-                    onClick={() => setScope(undefined)}
-                    className="text-stone-500 hover:text-stone-700 transition-colors cursor-pointer pt-1 "
-                    title="Clear the filter and show the whole timeline"
-                    aria-label="Clear provenance filter"
-                  >
-                    <i className={ICONS.close} aria-hidden="true" />
-                  </button>
-                </span>
-              </p>
-            )}
-            {allRecords.length > 0 && (
-              <p className="text-xs text-stone-500 pb-3 flex items-center">
+    <>
+      <div className={v.bar}>
+        {scope && (
+          <span className={chip.base}>
+            <i className={`${ICONS.filter} size-3 shrink-0`} aria-hidden="true" />
+            <span className="font-mono truncate max-w-[16rem]">{scope}</span>
+            <button type="button" onClick={clearViewScope} className={chip.clear} title="Show every record" aria-label="Clear provenance filter">
+              <i className={ICONS.close} aria-hidden="true" />
+            </button>
+          </span>
+        )}
+        {allRecords.length > 0 && (
+          <>
                 <span>
                   <strong>{visible.length}</strong> {visible.length === 1 ? 'entry' : 'entries'}
                   {studyRuns > 0 && (
@@ -160,29 +116,29 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                 {hasReused && (
                   <label
                     className="inline-flex items-center gap-1.5 ml-3 cursor-pointer select-none"
-                    title="Show the dimmed reused lines — steps a run skipped, trusting an earlier record"
+                    title="Show steps a run reused"
                   >
                     <input
                       type="checkbox"
                       checked={showReused}
                       onChange={(e) => setShowReused(e.target.checked)}
-                      className="size-3 accent-stone-500 cursor-pointer"
+                      className={d.checkbox}
                     />
                     reused
                   </label>
                 )}
                 {repoRecipe && (
-                  <span className="inline-flex items-center gap-1.5 ml-auto pl-4">
+                  <span className="inline-flex items-center gap-1.5 min-w-0">
                     <code
                       className="text-[0.6875rem] font-mono text-stone-500 truncate max-w-[22rem]"
-                      title="The repository's history — each run is a started/finished commit pair, each post-invalidation re-run a run/<stamp> branch"
+                      title="The run repository's history"
                     >
                       {repoRecipe}
                     </code>
                     <button
                       type="button"
                       onClick={copyRecipe}
-                      className="text-stone-500 hover:text-stone-700 transition-colors cursor-pointer"
+                      className="text-stone-500 hover:text-stone-900 transition-colors cursor-pointer"
                       title="Copy the git command"
                       aria-label="Copy the git history command"
                     >
@@ -190,16 +146,27 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                     </button>
                   </span>
                 )}
-              </p>
-            )}
+          </>
+        )}
+        <span className="ml-auto flex items-center gap-0.5">
+          <button type="button" onClick={() => { closeView(); openReplay(); }} className={d.headerButton} title="Replay on the canvas" aria-label="Replay on the canvas" disabled={allRecords.length === 0}>
+            <i className={`${ICONS.replay} size-4 block`}></i>
+          </button>
+          <button type="button" onClick={() => executeCommand(modeler, { type: 'Undo' })} disabled={!canUndo} className={d.headerButton} title="Undo" aria-label="Undo">
+            <i className={`${ICONS.undo} size-4 block`}></i>
+          </button>
+          <button type="button" onClick={() => executeCommand(modeler, { type: 'Redo' })} disabled={!canRedo} className={d.headerButton} title="Redo" aria-label="Redo">
+            <i className={`${ICONS.redo} size-4 block`}></i>
+          </button>
+        </span>
+      </div>
             {visible.length === 0 ? (
-              <p className="text-sm text-stone-500 italic">
-                {scope
-                  ? <>No provenance recorded for <span className="font-mono not-italic">{scope}</span> yet.</>
-                  : 'No provenance yet.'}
-              </p>
+              <div className={v.empty}>
+                <p>{scope ? <>Nothing recorded for <span className="font-mono">{scope}</span> yet.</> : 'No runs yet.'}</p>
+                {!scope && <button type="button" className={v.emptyAction} onClick={() => pressRun(modeler)}>Run the study</button>}
+              </div>
             ) : (
-              <ol className={`${d.panelBody} relative overflow-x-clip`} data-testid="provenance-log">
+              <ol className="relative overflow-x-clip" data-testid="provenance-log">
                 {visible.map((r, idx) => {
                   const voided = !!r.invalidated;
                   // A consumed marker is inert history, a `reused` line is a skip; both grey and dimmed.
@@ -209,8 +176,9 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                   return (
                     <li
                       key={idx}
-                      className="relative py-1"
+                      className={`relative py-1 cursor-pointer rounded-md ${!r.isDocument && selection.includes(r.scopeId) ? v.selected : ''}`}
                       style={{ paddingLeft: ICON_GUTTER + gutter + 8 }}
+                      onClick={() => { if (!r.isDocument) showElement(modeler, r.scopeId); }}
                     >
                       {r.icon && (
                         <i
@@ -270,7 +238,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                         {g.pendingBranch && (
                           <span
                             className="inline-flex items-center gap-1 text-[0.6875rem] text-red-500/90 whitespace-nowrap"
-                            title="The next run starts a new run/<stamp> branch just before this step — only the step and what depends on it re-execute"
+                            title="The next run re-runs from here"
                           >
                             <i className={`${ICONS.branch} size-3 shrink-0`} aria-hidden="true" />
                             branches here
@@ -279,7 +247,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                         {r.action === 'invalidated' && !r.isDocument && !r.what && (
                           <span
                             className="inline-flex items-center gap-1 text-[0.6875rem] text-amber-600/90 whitespace-nowrap"
-                            title="A marker naming no specific record: this step re-runs every time, in place — it never branches and never ages out"
+                            title="Re-runs on every run"
                           >
                             <i className={`${ICONS.pin} size-3 shrink-0`} aria-hidden="true" />
                             re-run pin
@@ -308,9 +276,9 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                         {r.standing && (
                           <button
                             type="button"
-                            onClick={() => invalidate(r)}
+                            onClick={(event) => { event.stopPropagation(); void invalidate(r); }}
                             className="text-stone-500 hover:text-red-600 transition-colors cursor-pointer"
-                            title="Invalidate this run record — kept in the timeline; the next run branches just before this step and re-executes only what depends on it"
+                            title="Invalidate: the next run re-runs this step and what depends on it"
                             aria-label={`Invalidate ${r.action} record of ${r.scopeId}`}
                           >
                             <i className={`${ICONS.close} size-3.5 block`} aria-hidden="true"></i>
@@ -325,6 +293,6 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
                 })}
               </ol>
             )}
-    </Modal>
+    </>
   );
 }

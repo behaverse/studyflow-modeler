@@ -154,10 +154,10 @@ types:
       - bpmn:ChoreographyTask
     meta:
       icon: iconify tabler--puzzle
-      roles:
+      tags:
         - instrument
       # The upper band of the task: a template over its attributes, read raw.
-      presenter: "<platform>"
+      choreographyBandLabel: "<platform>"
     properties:
       - name: platform
         # PsychoPy, jsPsych, Behaverse.
@@ -165,15 +165,16 @@ types:
         isAttr: true
         type: ExperimentSoftwareEnum
         meta:
+          showInline: true
           order: 1
-          editable: true
+          allowCustom: true
       - name: construct
         description: What the task measures (`working memory`, `inhibition`).
         isAttr: true
         type: String
         meta:
           order: 2
-          optional: true
+          nullable: true
           categories:
             - Documentation
       - name: implementation
@@ -202,6 +203,7 @@ types:
         type: RestEyesEnum
         default: open
         meta:
+          showInline: true
           order: 2
 
   # A questionnaire is an exchange too, as a cognitive task is: the form, presented, and the actor who answers it,
@@ -212,17 +214,18 @@ types:
       - bpmn:ChoreographyTask
     meta:
       icon: iconify tabler--clipboard-text
-      roles:
+      tags:
         - instrument
       # The upper band of the task: a template over its attributes, read raw.
-      presenter: "<instrument>"
+      choreographyBandLabel: "<instrument>"
     properties:
       - name: instrument
         description: A standard questionnaire, or a name of your own.
         isAttr: true
         type: QuestionnaireInstrumentEnum
         meta:
-          editable: true
+          showInline: true
+          allowCustom: true
 
   - name: Instruction
     description: 'Text the participant reads: instructions, a briefing, a debrief.'
@@ -235,6 +238,8 @@ types:
         description: What the participant reads, in markdown.
         isAttr: true
         type: studyflow:MarkdownString
+        meta:
+          showInline: true
 
   - name: RandomGateway
     description: Allocates each participant to one outgoing branch at random.
@@ -243,7 +248,7 @@ types:
     meta:
       icon: iconify tabler--dice-5
       # The runner reads this and picks a branch at random instead of evaluating conditions.
-      branching: random
+      strategy: random
     properties:
       - name: algorithm
         description: How participants are allocated to arms.
@@ -258,7 +263,7 @@ types:
         type: String
         meta:
           order: 2
-          optional: true
+          nullable: true
       - name: blockSize
         description: Participants per permuted block.
         isAttr: true
@@ -276,7 +281,7 @@ types:
         type: String
         meta:
           order: 4
-          optional: true
+          nullable: true
       - name: strata
         # The walk deals within whatever values participants bring.
         description: 'The strata, one per entry (`age_band: 18-29`), for the reader.'
@@ -295,7 +300,7 @@ types:
         type: String
         meta:
           order: 6
-          optional: true
+          nullable: true
 
   - name: EligibilityGateway
     description: Lets eligible participants through; everyone else is screened out.
@@ -304,7 +309,7 @@ types:
     meta:
       icon: iconify tabler--filter
       # A participant flow reads this role: whoever takes no flow onward from here was assessed and excluded.
-      roles:
+      tags:
         - screening
     properties:
       - name: inclusionCriteria

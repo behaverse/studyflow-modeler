@@ -26,6 +26,7 @@ import {
   rulesOf,
   sceneOf,
   svgOf,
+  toScreen,
   xmlOf,
   type Loaded,
 } from './canvasHarness';
@@ -473,7 +474,7 @@ test('deleting a caption clears its owner\'s name', async () => {
   expect(node(canvas, 'Start_1')).toBe(start);
 });
 
-test('a host element anchored to elements is shown beside them, and steps aside for a gesture and for what the view does not draw', async () => {
+test('a host element anchored to elements is shown beside them or under them, and steps aside for a gesture and for what the view does not draw', async () => {
   const { canvas } = load();
   const pad = installDocument().createElement('div');
   const task = node(canvas, 'Task_1');
@@ -498,6 +499,30 @@ test('a host element anchored to elements is shown beside them, and steps aside 
   pointerUp(canvas, { x: centre(task).x + 60, y: centre(task).y + 40 });
   expect(pad.style.visibility, 'back once it lands').toBe('visible');
   expect(offset(), 'beside where it landed').toEqual(beside);
+
+  // Under it instead, level with the outline's left: an inline inspector, which beside it would cover the next step.
+  canvas.anchor(pad, ['Task_1'], 'below');
+  const box = canvas.screenBox('Task_1')!;
+  const [x, y] = pad.style.transform.match(/-?[\d.]+/g)!.map(Number);
+  expect({ left: x - box.x, below: y - (box.y + box.height) }).toEqual({ left: -4, below: 12 });
+
+  // Clear of what the host's panels cover: with no room left under the shape, over it.
+  let bottom = 0;
+  const covered = loadYaml(YAML, { insets: () => ({ bottom }) }).canvas;
+  covered.getContainer().getBoundingClientRect = canvas.getContainer().getBoundingClientRect;
+  const shape = covered.screenBox('Task_1')!;
+  bottom = height - (shape.y + shape.height);
+  let padHeight = 40;
+  Object.defineProperty(pad, 'offsetHeight', { get: () => padHeight });
+  covered.anchor(pad, ['Task_1'], 'below');
+  const [, over] = pad.style.transform.match(/-?[\d.]+/g)!.map(Number);
+  expect(over, 'its bottom 8 above the outline\'s top').toBe(shape.y - 4 - 8 - 40);
+  // With room neither under nor over it, beside it.
+  padHeight = height;
+  covered.anchor(pad, ['Task_1'], 'below');
+  const [aside] = pad.style.transform.match(/-?[\d.]+/g)!.map(Number);
+  expect(aside).toBe(shape.x + shape.width + 4 + 8);
+  covered.anchor(pad, null);
 
   canvas.anchor(pad, ['Task_In']);
   expect(pad.style.visibility, 'the contents of a closed container are not drawn').toBe('hidden');
@@ -615,7 +640,7 @@ test('expanding a container frames its contents and re-docks its flows, and coll
   expect(isHiddenGraphics(canvas, 'Task_In')).toBe(true);
 });
 
-test('a double click opens or shuts a container in place; on an open one\'s caption strip, or with `e`, it renames it', async () => {
+test('a double click opens or shuts a container in place, on an open one\'s caption strip renames it, and on the background asks for the add menu', async () => {
   const { canvas } = load();
   const scene = sceneOf(canvas);
   const sub = node(canvas, 'Sub_1');
@@ -645,6 +670,27 @@ test('a double click opens or shuts a container in place; on an open one\'s capt
   canvas.select(sub.id);
   canvas.getContainer().dispatchEvent(keyEvent('keydown', { key: 'e' }));
   expect(labelEditingOf(canvas).getSession()?.element).toBe(sub);
+  labelEditingOf(canvas).cancel();
+
+  // On the background it asks the host for its add menu, at that point on screen, and changes nothing.
+  const asked: { x: number; y: number }[] = [];
+  canvas.on('addMenu', (at) => asked.push(at));
+  revision = scene.revision;
+  doubleClick(canvas, { x: 700, y: 120 });
+  expect(asked).toEqual([toScreen(canvas, { x: 700, y: 120 })]);
+  expect(scene.revision).toBe(revision);
+  // What the host picks there lands there, as a drop would: centred on the point, selected, and named when task-like.
+  expect(canvas.addAt({ type: 'bpmn:Task' }, asked[0])).toBe(true);
+  const added = node(canvas, canvas.selection[0]);
+  expect(added.parent).toBeUndefined();
+  expect(centre(added)).toEqual({ x: 700, y: 120 });
+  expect(labelEditingOf(canvas).getSession()?.element).toBe(added);
+  labelEditingOf(canvas).cancel();
+  // Over an open container's body, into the container.
+  const inside = { x: sub.x + 30, y: sub.y + sub.height - 30 };
+  expect(hitAt(canvas, inside)?.id).toBe(sub.id);
+  expect(canvas.addAt({ type: 'bpmn:IntermediateThrowEvent' }, toScreen(canvas, inside))).toBe(true);
+  expect(node(canvas, canvas.selection[0]).parent).toBe(sub);
 });
 
 test('drilling into a container shows only its contents until the trail leads back out', async () => {

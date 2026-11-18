@@ -1,6 +1,6 @@
 /** The state sections: the `bpmn:Property` declarations of a scope, the study's `bpmn:DataStore`s, each with its item
  * type, and the store a data store reference shows. Pure helpers in `stateProperties.ts`. */
-import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions, Input } from '@headlessui/react';
+import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from '@headlessui/react';
 import { useState, type ChangeEvent } from 'react';
 import { ICONS } from '@modeler/icons';
 import { wiredPropertiesIn } from '@core/model/parameters';
@@ -10,12 +10,11 @@ import { useInspectedElement, useInspectedModel } from '@modeler/inspector/hooks
 import { HelpTooltip } from '@modeler/inspector/widgets';
 import { getDataStores, getStateProperties, isScopeContainer, itemTypeOptions, storeOf } from '@modeler/inspector/stateProperties';
 import { field as s } from '@modeler/inspector/styles';
+import { WrapInput } from '@modeler/inspector/WrapInput';
 
-const SCOPE_DESCRIPTION =
-  'This element opens a scope and values declared here live for one instance of it';
+const SCOPE_DESCRIPTION = 'Values that last while this runs.';
 
-const STORES_DESCRIPTION =
-  'Values the study keeps for all its participants and from run to run; a step reads and writes one through a data store reference';
+const STORES_DESCRIPTION = 'Values kept across participants and runs. A step reaches one through a data store.';
 
 export function StateSection() {
   const element = useInspectedElement();
@@ -57,17 +56,16 @@ export function StateSection() {
           </span>
         </div>
 
-        {properties.length + wired.length > 0 && (
-        <div className={s.arrayList}>
+        {properties.length > 0 && (
+        <div className={s.boxList}>
           {properties.map((property) => (
-            <div key={property.id} className={s.stateRow}>
-              <Input
+            <div key={property.id} className={s.listRow}>
+              <WrapInput
                 name={`property-${property.id}`}
                 aria-label={`Property name (${property.id})`}
-                type="text"
                 placeholder="name"
                 value={property.name}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
                   dispatch({ action: 'rename', propertyId: property.id, name: e.target.value })}
                 className={s.stateNameInput}
               />
@@ -88,6 +86,11 @@ export function StateSection() {
               </button>
             </div>
           ))}
+        </div>
+        )}
+        {/* What the Parameters wired in is read-only, each with a note: apart from the boxes above. */}
+        {wired.length > 0 && (
+        <div className={s.arrayList}>
           {wired.map(({ name, value, source }) => (
             <div key={`wired:${name}`} data-testid={`wired-property-${name}`}>
               <div className={s.stateLocked}>
@@ -150,16 +153,15 @@ export function DataStoresSection() {
         </div>
 
         {stores.length > 0 && (
-        <div className={s.arrayList}>
+        <div className={s.boxList}>
           {stores.map((store) => (
-            <div key={store.id} className={s.stateRow}>
-              <Input
+            <div key={store.id} className={s.listRow}>
+              <WrapInput
                 name={`store-${store.id}`}
                 aria-label={`Data store name (${store.id})`}
-                type="text"
                 placeholder="name"
                 value={store.name}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
                   dispatch({ action: 'rename', storeId: store.id, name: e.target.value })}
                 className={s.stateNameInput}
               />

@@ -75,7 +75,7 @@ skill
 
 program
   .command('mcp')
-  .description('Serve a studyflow to an AI assistant as a Model Context Protocol server on stdio: the canvas\'s study tools, `check`, and `save` back to the file.')
+  .description('Serve a studyflow to an AI assistant as a Model Context Protocol server on stdio: the canvas\'s study tools, `check`, and `save` back to the file, which the modeler, with the file open, brings up for review.')
   .argument('<file>', 'the .studyflow.yaml or BPMN XML file to edit')
   .action(async (file: string) => {
     await mcp(file);

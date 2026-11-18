@@ -143,7 +143,7 @@ export function wiredPropertiesIn(model: StudyModel, element: Element): { name: 
 /** Derived, not stored: an activity of `extensionType` that names `implementation`, unless it is an instrument; the
  * canvas marks it, and the exporters read it. */
 export function isDataOperation(extensionType: string | undefined, implementation: unknown): boolean {
-  if (extensionType && hasCatalog() && getCatalog().hasRole(extensionType, 'instrument')) return false;
+  if (extensionType && hasCatalog() && getCatalog().hasTag(extensionType, 'instrument')) return false;
   return typeof implementation === 'string' && implementation.trim() !== '';
 }
 

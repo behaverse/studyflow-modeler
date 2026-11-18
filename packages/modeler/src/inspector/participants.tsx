@@ -24,11 +24,11 @@ import { HelpTooltip } from '@modeler/inspector/widgets';
 import { PlainEnumSelect } from '@modeler/inspector/inputs';
 import { field as s } from '@modeler/inspector/styles';
 
-const TOP_HELP = 'The actor on the top band: a pool the study draws, or a name, which draws a new one.';
-const BOTTOM_HELP = 'The actor on the bottom band: a pool the study draws, or a name, which draws a new one.';
-const TAKER_HELP = 'The actor who takes this task: a pool the study draws, or a name, which draws a new one as a collapsed pool. Empty, whoever walks the pool the task sits in takes it.';
-const INITIATOR_HELP = 'Which band starts the exchange; it is drawn light, the other shaded.';
-const KIND_HELP = 'What kind of actor this pool is, among the kinds the loaded extensions declare; the settings of that kind follow.';
+const TOP_HELP = 'Who is on the top band: a pool, or a new name.';
+const BOTTOM_HELP = 'Who is on the bottom band: a pool, or a new name.';
+const TAKER_HELP = 'Who takes this task: a pool, or a new name. Empty, whoever runs its pool.';
+const INITIATOR_HELP = 'Which band starts. It is drawn light.';
+const KIND_HELP = 'What kind of actor plays this pool.';
 
 export function ChoreographyParticipantsSection({ element }: { element: any }) {
   const model = useInspectedModel();

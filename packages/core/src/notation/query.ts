@@ -8,7 +8,7 @@ import type {
   SchemaEntry,
   Template,
   TypeEntry,
-  TypeRole,
+  TypeTag,
 } from '@core/notation/types';
 
 /** Super-class refs that never lead to a BPMN attach point: moddle built-ins, plus bare `BaseElement` (the metamodel root). */
@@ -107,9 +107,9 @@ export class TypeCatalog {
     return this.schemas.find((schema) => schema.prefix === prefix);
   }
 
-  hasRole(typeName: string | undefined, role: TypeRole): boolean {
+  hasTag(typeName: string | undefined, tag: TypeTag): boolean {
     if (!typeName) return false;
-    return this.typesByName.get(typeName)?.roles.includes(role) === true;
+    return this.typesByName.get(typeName)?.tags.includes(tag) === true;
   }
 
   categories(): CategoryEntry[] {

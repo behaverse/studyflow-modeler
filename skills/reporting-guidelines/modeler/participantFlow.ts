@@ -4,9 +4,9 @@
  * end. A guideline's participant flow (CONSORT's) words and draws this; none of it is CONSORT's own.
  *
  * It reads only these:
- * - the allocation gateway is the one whose schema type draws its branch (`meta.branching: random`), and each flow
+ * - the allocation gateway is the one whose schema type draws its branch (`meta.strategy: random`), and each flow
  *   out of it is an arm;
- * - an eligibility screen is a gateway whose schema type has the `screening` role;
+ * - an eligibility screen is a gateway whose schema type has the `screening` tag;
  * - before allocation, every way out that cannot come to the allocation gateway is an exclusion;
  * - after it, a participant leaves through a boundary event whose path never comes to a plain end event (BPMN's
  *   exception flow), or along a flow into an error end event; either may say what leaving there counts as
@@ -80,9 +80,9 @@ function schemaTypeOf(model: StudyModel, element: Element) {
   return type && hasCatalog() ? getCatalog().getType(type) : undefined;
 }
 
-/** Whether `element`'s schema type has `role`, its own or inherited. */
-export function hasRole(model: StudyModel, element: Element, role: string): boolean {
-  return schemaTypeOf(model, element)?.roles.includes(role) ?? false;
+/** Whether `element`'s schema type has `tag` (`meta.tags`), its own or inherited. */
+export function hasTag(model: StudyModel, element: Element, tag: string): boolean {
+  return schemaTypeOf(model, element)?.tags.includes(tag) ?? false;
 }
 
 /** How often a token reached `id`, an element or a flow; 0 where no run did. */
@@ -202,7 +202,7 @@ function screeningReason(model: StudyModel, screen: Element): string {
  */
 export function participantFlowOf(model: StudyModel): ParticipantFlow | undefined {
   for (const allocation of model.elements()) {
-    if (schemaTypeOf(model, allocation)?.meta.branching !== 'random') continue;
+    if (schemaTypeOf(model, allocation)?.meta.strategy !== 'random') continue;
     const container = model.parentOf(allocation);
     if (!container || typeof allocation.id !== 'string') continue;
     const graph = new Graph(model, container);
@@ -237,7 +237,7 @@ function readFlow(model: StudyModel, container: Element, allocation: Element, gr
   };
 
   // Before allocation: whoever takes a way out that cannot come to the gateway was assessed and excluded.
-  const screening = [...before].map((id) => graph.nodes.get(id)).find((node): node is Element => !!node && hasRole(model, node, 'screening'));
+  const screening = [...before].map((id) => graph.nodes.get(id)).find((node): node is Element => !!node && hasTag(model, node, 'screening'));
   const excluded: Exit[] = [];
   for (const item of listIn(container.flowElements).filter(isElement)) {
     const id = item.id;
@@ -245,7 +245,7 @@ function readFlow(model: StudyModel, container: Element, allocation: Element, gr
     const flow = graph.flows.find((candidate) => candidate.id === id);
     if (flow && before.has(flow.source) && flow.target !== at && !before.has(flow.target)) {
       const source = graph.nodes.get(flow.source);
-      const reason = source && hasRole(model, source, 'screening')
+      const reason = source && hasTag(model, source, 'screening')
         ? screeningReason(model, source)
         : nameOf(model, flow.element) || nameOf(model, graph.nodes.get(flow.target)) || UNSAID;
       excluded.push({ id, reason, n: reached(model, id), attrition: 'excluded' });

@@ -10,13 +10,9 @@ import { getInferredDataNeighbors, supportsDataAssociations, type DataNeighbor }
 import { getPropertiesInScope } from '@modeler/inspector/stateProperties';
 import { field as s } from '@modeler/inspector/styles';
 
-const INPUT_DESCRIPTION =
-  'What this step reads: each row gives the slot on the left the element on the '
-  + 'right (`X = folds[\'train\']`), and + adds one.';
+const INPUT_DESCRIPTION = 'What this step reads, slot by slot (`X = folds[\'train\']`).';
 
-const OUTPUT_DESCRIPTION =
-  'Where this step\'s return value lands: each row gives the element on the left a '
-  + 'selection over `result` (blank lands the whole value), and + adds one.';
+const OUTPUT_DESCRIPTION = 'Where its result goes: a part of `result`, or all of it when blank.';
 
 type Direction = 'input' | 'output';
 
@@ -102,7 +98,7 @@ export function DataFlowSection({ direction }: { direction: Direction }) {
       />
     );
     return (
-      <div key={associationId} className={s.stateRow}>
+      <div key={associationId} className={s.listRow}>
         {direction === 'output' ? <>{name}{equals}{binding}</> : <>{binding}{equals}{name}</>}
         <button
           type="button"
@@ -153,7 +149,7 @@ export function DataFlowSection({ direction }: { direction: Direction }) {
           </span>
         </div>
         {neighbors[direction].length > 0 && (
-          <div className={s.arrayList}>{neighbors[direction].map((n) => row(direction, n))}</div>
+          <div className={s.boxList}>{neighbors[direction].map((n) => row(direction, n))}</div>
         )}
       </div>
     );

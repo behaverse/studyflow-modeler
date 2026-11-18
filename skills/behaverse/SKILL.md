@@ -99,7 +99,7 @@ a trial carries what the study says it reads and nothing else.
 
 ## The result
 
-A task's result is a `behaverse:TaskResult`. The schema declares it as the task type's `meta.result`, and
+A task's result is a `behaverse:TaskResult`. The schema declares it as the task type's `meta.returns`, and
 `studyflow validate` checks the fields a data edge's `transformation` reads of it.
 
 | Field | Value |

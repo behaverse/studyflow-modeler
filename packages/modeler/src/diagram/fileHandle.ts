@@ -122,6 +122,17 @@ export function markOpened(): void {
 }
 
 /**
+ * The file on disk now holds the version written at `seenModified` by something else (`review/`): the canvas holds it
+ * too once taken (`inSync`), else the canvas is ahead of the file and the next save writes it back.
+ */
+export function markDiskVersion(seenModified: number, { inSync }: { inSync: boolean }): void {
+  if (!snapshot.file) return;
+  if (inSync) writtenSeq = capturedSeq = editSeq;
+  else editSeq += 1;
+  setSnapshot({ file: { ...snapshot.file, seenModified }, state: settledState() });
+}
+
+/**
  * The file the canvas came from when the browser handed over no handle to write it with (Firefox's and Safari's file
  * input, a drop without one): its name and format, so a save still writes that file's name in that file's format,
  * as a download or the picker's suggestion. A link supersedes it, and the next open or New forgets it.

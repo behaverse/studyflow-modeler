@@ -44,6 +44,34 @@ export type ReportingDocument = {
   draw(modeler: Pick<Editor, 'study'>): { svg: string } | { unavailable: string };
 };
 
+/** What someone is building, as the New dialog asks it. */
+export type StarterIntent = 'experiment' | 'analysis' | 'robot';
+
+/** A step a starter appends. */
+export type StarterStep = {
+  name: string;
+  /** A schema's type, added as the Add panel adds it; else `type`, a BPMN type. */
+  extension?: string;
+  type?: string;
+  attributes?: Record<string, unknown>;
+};
+
+/**
+ * A part of a study the New dialog offers for what someone is building, laid out from its steps: a skill's own, so
+ * picking it turns the skill on.
+ */
+export type Starter = {
+  /** What it adds, as the dialog lists it: `Cognitive tasks`. */
+  label: string;
+  intent: StarterIntent;
+  /** Where its steps go in the session, smallest first: instructions 10, tasks 50, a questionnaire 80. */
+  order: number;
+  /** The steps it appends, in order: each one of the skill's types (as the Add panel adds it), or a BPMN type, named. */
+  steps: StarterStep[];
+  /** Picked from the start. */
+  checked?: boolean;
+};
+
 /** The default export of a skill's `modeler.ts`: the projections the modeler writes, the foreign formats it opens,
  * the inspector sections it adds, its pages of Settings, the places "Save" can send a study besides this machine, and
  * the reporting documents it draws. */
@@ -54,6 +82,7 @@ export type ModelerModule = {
   settings?: SettingsSection[];
   destinations?: SaveDestination[];
   documents?: ReportingDocument[];
+  starters?: Starter[];
 };
 
 // Loads every skill's `modeler.ts` eagerly, because the format lists are built once, at load. The module is
@@ -78,6 +107,12 @@ const BY_SKILL = loadSkillModules();
 const LOADED = BY_SKILL.map(({ module }) => module);
 
 export const SKILL_EXPORT_FORMATS: ExportFormat[] = LOADED.flatMap((module) => module.exports ?? []);
+/** Every skill's starters, each with the schemas its skill contributes: what picking it turns on. Offered whether the
+ * skill is on or not. */
+export const SKILL_STARTERS: (Starter & { schemas: string[] })[] = BY_SKILL.flatMap(({ skill, module }) => (module.starters ?? []).map((starter) => ({
+  ...starter,
+  schemas: SCHEMA_MODELS.map((model) => model.prefix).filter((prefix) => skillOfSchema(prefix) === skill),
+})));
 export const SKILL_OPENERS: Opener[] = LOADED.flatMap((module) => module.opens ?? []);
 export const SKILL_INSPECTOR_SECTIONS: InspectorSection[] = LOADED.flatMap((module) => module.sections ?? []);
 export const SKILL_SETTINGS_SECTIONS: SettingsSection[] = LOADED.flatMap((module) => module.settings ?? []);

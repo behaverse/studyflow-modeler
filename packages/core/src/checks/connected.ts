@@ -37,9 +37,17 @@ export function checkConnected(model: StudyModel): Issue[] {
     const boundary = ({ node }: GraphNode): boolean => model.isA(node, BPMN.BoundaryEvent);
     const starts = all.filter((graphNode) => (adHoc ? graphNode.incoming.length === 0 && !boundary(graphNode) : model.isA(graphNode.node, BPMN.StartEvent)));
     const ends = all.filter((graphNode) => model.isA(graphNode.node, BPMN.EndEvent) || (adHoc && graphNode.outgoing.length === 0));
+    // Where a path stops short, an end event after it mends it: the first such node when the container has no end.
+    const endAfter = (graphNode: GraphNode | undefined): Pick<Issue, 'fix'> =>
+      (graphNode?.node.id && graphNode.outgoing.length === 0 ? { fix: { append: BPMN.EndEvent, after: graphNode.node.id } } : {});
     for (const [kind, found] of [['start', starts], ['end', ends]] as const) {
       if (found.length > 0 || adHoc) continue;
-      issues.push({ severity: 'error', elementId: container.id, message: `${quoted(container)} has sequence flows but no ${kind} event` });
+      issues.push({
+        severity: 'error',
+        elementId: container.id,
+        message: `${quoted(container)} has no ${kind} event`,
+        ...(kind === 'end' ? endAfter(all.find((graphNode) => graphNode.outgoing.length === 0)) : {}),
+      });
     }
     if (!adHoc && (starts.length === 0 || ends.length === 0)) continue;
 
@@ -47,15 +55,15 @@ export function checkConnected(model: StudyModel): Issue[] {
     const ending = reach(model, nodes, ends, 'incoming');
     for (const graphNode of all) {
       if (started.has(graphNode) && ending.has(graphNode)) continue;
-      const why = adHoc
-        ? (started.has(graphNode) ? 'it leads to no node where a path ends' : 'it lies on a cycle no node nothing flows into leads to')
-        : (started.has(graphNode) ? 'it leads to no end event' : 'no start event leads to it');
+      const name = quoted(graphNode.node);
+      const message = adHoc
+        ? `${name} lies on no path through ${quoted(container)}: ${started.has(graphNode) ? 'it leads to no node where a path ends' : 'it lies on a cycle no node nothing flows into leads to'}`
+        : (started.has(graphNode) ? `${name} leads to no end event` : `no start event leads to ${name}`);
       issues.push({
         severity: 'error',
         elementId: graphNode.node.id,
-        message: adHoc
-          ? `${quoted(graphNode.node)} lies on no path through ${quoted(container)}: ${why}`
-          : `${quoted(graphNode.node)} lies on no path from a start event to an end event: ${why}`,
+        message,
+        ...(!adHoc && started.has(graphNode) ? endAfter(graphNode) : {}),
       });
     }
   }

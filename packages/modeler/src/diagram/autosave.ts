@@ -17,6 +17,18 @@ import type { Editor } from '@modeler/editor/port';
 
 const AUTOSAVE_DEBOUNCE_MS = 600;
 
+/** Held while a version the user has not taken yet stands on the canvas (`review/`): nothing is written, to the file or
+ * this browser, and the edit that put it there counts for nothing. */
+let held = false;
+/** Arms the timer of the auto-save attached now, for a release. */
+let rearm: (() => void) | undefined;
+
+/** Hold auto-save, or let it go: let go, it writes what the canvas holds by then, as after any edit. */
+export function holdAutosave(on: boolean): void {
+  held = on;
+  if (!on) rearm?.();
+}
+
 /** The copy in this browser, which survives a reload. */
 const localIsOn = () => getSettings().diagramAutoSave === 'local';
 
@@ -33,6 +45,7 @@ export function attachAutosave(modeler: Editor): () => void {
   let timer: number | undefined;
 
   const flush = () => {
+    if (held) return;
     // The copy in this browser holds the study's text alone. Restored with its linked file, a save would write that file
     // without the pasted images, so a study holding any keeps no copy here.
     if (localIsOn() && modeler.study.pastedImages().size > 0) clearAutosavedDiagram();
@@ -51,15 +64,17 @@ export function attachAutosave(modeler: Editor): () => void {
   };
 
   const schedule = () => {
-    if (!localIsOn() && !fileIsOn()) return;
+    if (held || (!localIsOn() && !fileIsOn())) return;
     if (timer) window.clearTimeout(timer);
     timer = window.setTimeout(flush, AUTOSAVE_DEBOUNCE_MS);
   };
 
   const onEdited = () => {
+    if (held) return;
     markDirty();
     schedule();
   };
+  rearm = schedule;
 
   modeler.events.on('HistoryChanged', onEdited);
   modeler.events.on('ImportDone', schedule);
@@ -78,6 +93,7 @@ export function attachAutosave(modeler: Editor): () => void {
   });
 
   return () => {
+    if (rearm === schedule) rearm = undefined;
     modeler.events.off('HistoryChanged', onEdited);
     modeler.events.off('ImportDone', schedule);
     unsub();

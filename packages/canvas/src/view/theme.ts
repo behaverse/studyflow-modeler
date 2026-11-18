@@ -66,6 +66,10 @@ const CANVAS_CSS = `
 
 .sf-canvas .sf-bendpoint-visual { fill: #ffffff; stroke: var(--sf-accent); stroke-width: 1.5px; }
 .sf-canvas .sf-bendpoint-hit { fill: none; pointer-events: all; cursor: move; }
+.sf-canvas .sf-insert { cursor: pointer; }
+.sf-canvas .sf-insert-hit { fill: none; pointer-events: all; }
+.sf-canvas .sf-insert-visual { fill: var(--sf-accent); }
+.sf-canvas .sf-insert-plus { fill: none; stroke: #ffffff; stroke-width: 1.75px; stroke-linecap: round; pointer-events: none; }
 
 .sf-canvas .sf-ghost { opacity: 0.55; pointer-events: none; }
 .sf-canvas .sf-preview { pointer-events: none; }

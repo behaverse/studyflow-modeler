@@ -22,10 +22,11 @@ const entry = (page: Page, action: string): Locator => page.getByTestId(`context
  * the shape instead of the flow every few runs. `getPointAtLength` is exact for any
  * path shape.
  */
+/** A point a quarter along the flow: its middle holds the + that puts a step on it. */
 async function pointOnPath(locator: Locator): Promise<{ x: number; y: number }> {
   return locator.evaluate((el) => {
     const path = el as unknown as SVGPathElement;
-    const point = path.getPointAtLength(path.getTotalLength() / 2);
+    const point = path.getPointAtLength(path.getTotalLength() / 4);
     const screen = point.matrixTransform(path.getScreenCTM()!);
     return { x: screen.x, y: screen.y };
   });

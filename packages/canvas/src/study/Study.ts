@@ -17,7 +17,7 @@ import { attributeOf, patchDoc } from '@core/model/patch.ts';
 import { readStudy, studyText, writeStudy, type YamlDoc } from '@core/model/yaml.ts';
 import { drawActors, namedActors, settleActors } from '@canvas/study/actors.ts';
 import { attributesOf, type AttributeRecord } from '@canvas/study/attributes.ts';
-import { appendSpot, freeSpot } from '@canvas/study/autoplace.ts';
+import { APPEND_DISTANCE, appendSpot, freeSpot } from '@canvas/study/autoplace.ts';
 import { declares, describeType, extensionMisfit, NOTHING, refused, runRead, runStep, shapeFor } from '@canvas/study/calls.ts';
 import { installedCatalog, type Catalog } from '@canvas/study/catalog.ts';
 import { tasksReferencing } from '@canvas/study/choreography.ts';
@@ -33,7 +33,8 @@ import { Mutator, type AddShapeSpec, type Commit } from '@canvas/study/mutator.t
 import { layoutScene } from '@canvas/study/layout.ts';
 import { rerouteEdge, rerouteEdges, routableEnd, routeFor } from '@canvas/study/orthogonal.ts';
 import { defaultSizeFor, prototypeOf, shapeSpec, type CreatePrototype, type NewElement, type NewShape } from '@canvas/study/prototype.ts';
-import { openForDrop, Rules } from '@canvas/study/rules.ts';
+import { openForDrop, Rules, type RuleElement } from '@canvas/study/rules.ts';
+import { flowMiddle } from '@canvas/study/text.ts';
 import { spreadEdges } from '@canvas/study/spread.ts';
 import type { Bounds, Drawable, ElementColors, FontPatch, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { recordOf, type ElementRecord } from '@canvas/study/records.ts';
@@ -189,6 +190,24 @@ export class Study {
     this.imageUrls.clear();
     for (const [id, png] of pastedImages) this.imageUrls.set(id, pngToDataUrl(png));
     this.swap(model, 'load');
+  }
+
+  /**
+   * Take `source`, file text or a study model, as the study's next version: one edit and one undo step, where a load
+   * starts the history over. A version another tool wrote into the file comes in this way, as an edit the user can take
+   * back. Answers what it added, changed (an element's own text or its drawing) and removed, by id; a version that
+   * differs in nothing changes nothing.
+   */
+  async adopt(source: string | StudyModel): Promise<StudyResult> {
+    const model = typeof source === 'string' ? await parseStudy(source, this.model.metamodel, this.options) : source;
+    const ids = versionIds(this.model, model);
+    if (ids.added.length + ids.changed.length + ids.removed.length === 0) return { ok: true, ...NOTHING };
+    const before = own(this).scene;
+    const after = this.read(model, before.revision + 1);
+    this.history.push(snapshotOf(model));
+    // Every view reads the new version afresh, as after an undo; the caller is told what it brought.
+    this.announce({ cause: 'edit', ...idsOf(byId(before, after)) });
+    return { ok: true, ...ids };
   }
 
   /** The study as a `.studyflow.yaml` file holds it, without its pasted images but for the text a `.studyflow.png` keeps. */
@@ -505,6 +524,50 @@ export class Study {
       const node = this.drop(args, prototype, at, source.parent ? { parent: source.parent } : {});
       this.link(source, node);
       return node;
+    });
+  }
+
+  /**
+   * Put `what` on the sequence flow `into`, between its ends, as one edit: the flow now ends at it, keeping its name and
+   * condition, and a new flow leaves it for the old end. When the ends sit closer than it needs, what lies past it, in
+   * the flow's direction and its container, moves along to make room.
+   */
+  insert(args: NewElement & { into: string; id?: string }): StudyResult {
+    const { scene, rules } = own(this);
+    const { into, ...what } = args;
+    const flow = scene.elementsById.get(into);
+    const source = flow?.kind === 'edge' ? flow.source : undefined;
+    const target = flow?.kind === 'edge' ? flow.target : undefined;
+    if (flow?.type !== BPMN.SequenceFlow || source?.kind !== 'node' || target?.kind !== 'node') return refused(`no sequence flow '${into}'`);
+    const shape = shapeFor(what as NewElement);
+    if (typeof shape === 'string') return refused(shape);
+    if (this.taken(args.id)) return refused(`the id '${args.id}' is taken`);
+    const prototype = prototypeOf(shape);
+    const probe: RuleElement = { type: prototype.type, element: prototype.element, parent: source.parent };
+    if (!rules.canConnect(source, probe) || !rules.canConnect(probe, target)) {
+      return refused(`a ${shape.type} cannot go between '${source.id}' and '${target.id}'`);
+    }
+    const across = Math.abs(target.x + target.width / 2 - (source.x + source.width / 2))
+      >= Math.abs(target.y + target.height / 2 - (source.y + source.height / 2));
+    const room = across ? target.x - (source.x + source.width) : target.y - (source.y + source.height);
+    const needed = (across ? prototype.width : prototype.height) + 2 * APPEND_DISTANCE - room;
+    const siblings = (source.parent ?? scene.rootElement).children;
+    const past = needed <= 0 ? [] : siblings
+      .filter((node): node is SceneNode => node.kind === 'node' && node.type !== BPMN.BoundaryEvent)
+      .filter((node) => (across ? node.x >= target.x : node.y >= target.y))
+      .map((node) => node.id);
+    return this.atomic(() => {
+      if (past.length > 0) {
+        const moved = this.move({ ids: past, by: across ? { x: needed, y: 0 } : { x: 0, y: needed } });
+        if (!moved.ok) return moved;
+      }
+      const at = flowMiddle((scene.elementsById.get(into) as SceneEdge).waypoints);
+      const added = this.add({ ...what, at, into: source.parent?.id ?? scene.rootElement.id } as NewElement & { at: Point; into: string });
+      if (!added.ok || added.id === undefined) return added;
+      const rewired = this.reconnect({ id: into, to: added.id });
+      if (!rewired.ok) return rewired;
+      const linked = this.connect({ from: added.id, to: target.id });
+      return linked.ok ? { ...linked, id: added.id } : linked;
     });
   }
 
@@ -1122,6 +1185,35 @@ function revisedIds(before: StudyModel, after: StudyModel): ChangedIds {
   return {
     added: [...is.keys()].filter((id) => !was.has(id)),
     changed: root && !changed.includes(root) && JSON.stringify(before.study.state) !== JSON.stringify(after.study.state) ? [...changed, root] : changed,
+    removed: [...was.keys()].filter((id) => !is.has(id)),
+  };
+}
+
+/** A value's text with every object's keys in order, so two spellings of one version read the same. */
+function canonical(value: unknown, self?: Element): string {
+  return JSON.stringify(value, (_key, held: unknown) => {
+    // What an element holds is spelled on its own: a change inside a container is the change of what changed, not the
+    // container's. One it names is its id; a list of what it contains is left out, each one read where it stands.
+    if (held !== self && isElement(held) && typeof held.id === 'string') return `#${held.id}`;
+    if (Array.isArray(held) && held.length > 0 && held.every((item) => isElement(item) && typeof item.id === 'string')) return undefined;
+    if (!held || typeof held !== 'object' || Array.isArray(held)) return held;
+    return Object.fromEntries(Object.entries(held).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+  });
+}
+
+/** What `after` adds, changes and removes of `before`, by id: an element changes when its own text or its drawing does. */
+function versionIds(before: StudyModel, after: StudyModel): ChangedIds {
+  const spelled = (model: StudyModel): Map<string, string> => new Map([...model.elements()]
+    .filter((element) => typeof element.id === 'string')
+    .map((element) => [element.id!, `${canonical(element, element)} ${canonical(model.study.layout[element.id!] ?? null)}`]));
+  const was = spelled(before);
+  const is = spelled(after);
+  const changed = [...is].filter(([id, text]) => was.has(id) && was.get(id) !== text).map(([id]) => id);
+  const root = after.primaryRoot()?.id;
+  const stateMoved = canonical(before.study.state ?? {}) !== canonical(after.study.state ?? {});
+  return {
+    added: [...is.keys()].filter((id) => !was.has(id)),
+    changed: root && stateMoved && !changed.includes(root) ? [...changed, root] : changed,
     removed: [...was.keys()].filter((id) => !is.has(id)),
   };
 }

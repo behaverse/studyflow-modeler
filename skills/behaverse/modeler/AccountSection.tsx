@@ -53,7 +53,7 @@ export function AccountSection() {
 
   function loginWithGoogle() {
     if (!API_BASE_ORIGIN) {
-      setLoginError('Sign-in is unavailable: this build has no server address. Keep working as a guest.');
+      setLoginError('Sign-in is unavailable: this build has no server address.');
       return;
     }
     setLoginError(undefined);
@@ -110,13 +110,13 @@ export function AccountSection() {
 
   return (
     <>
-      <SectionHeader title="Behaverse" description="Sign in to publish studies to the Behaverse server, and record runs on its data server." />
+      <SectionHeader title="Behaverse" />
 
       <Row
         label="Status"
         help={
           isGuest
-            ? 'You are working as a guest. Studies stay on this device.'
+            ? 'Guest'
             : email
               ? <>Signed in as <strong className="font-semibold text-stone-900">{email}</strong></>
               : 'Signed in.'
@@ -151,7 +151,7 @@ export function AccountSection() {
       {!isGuest && (
         <Row
           label="API key"
-          help="Stored in this browser only. Keep it secret, anyone holding it can act as you."
+          help="Kept in this browser. Keep it secret."
           control={
             <div className="relative inline-block">
               <input
@@ -178,7 +178,6 @@ export function AccountSection() {
 
       <Row
         label="Record run data"
-        help="Send each run's session, variables and task events to the Behaverse Data Server. Off by default; the browser runner's own switch is this one."
         control={
           <ToggleControl
             label="Record run data"

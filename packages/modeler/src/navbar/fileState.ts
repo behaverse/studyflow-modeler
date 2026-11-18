@@ -74,21 +74,21 @@ function statusOf({ link, canPickFiles }: FileStateInput, place: Place, writesEa
 function detailOf({ link, canPickFiles, formatAutoSaves }: FileStateInput, place: Place, writesEachEdit: boolean): string {
   if (place === 'copy') {
     return canPickFiles
-      ? 'This page cannot write back into the file it opened, so a save asks where to put the study.'
-      : 'This browser cannot write into files, so a save downloads a new copy.';
+      ? 'Save asks where to put it.'
+      : 'Save downloads a copy.';
   }
-  if (place === 'browser') return 'Auto-save keeps the study in this browser until you save it to a file.';
-  if (place === 'unsaved') return 'Auto-save is off in Settings, so closing the tab loses the study.';
-  if (link.state === 'blocked') return 'After a reload, the browser asks again before this page may write the file.';
+  if (place === 'browser') return 'Kept in this browser until you save it.';
+  if (place === 'unsaved') return 'Auto-save is off: closing the tab loses it.';
+  if (link.state === 'blocked') return 'After a reload, the browser asks again.';
   if (link.state === 'conflict') return link.message ?? '';
   if (link.state === 'error') return link.message ? `The last write failed: ${link.message}` : 'The last write failed.';
   if (writesEachEdit) return 'Every edit is written into this file.';
   return formatAutoSaves
-    ? `Write to the opened file is off in Settings, so edits wait for ${MOD_LABEL}S.`
-    : `An image is too slow to render on every edit, so edits wait for ${MOD_LABEL}S.`;
+    ? `Writing to the file is off, so edits wait for ${MOD_LABEL}S.`
+    : `An image waits for ${MOD_LABEL}S.`;
 }
 
-/** The save the state calls for, then Save As. */
+/** The one save the state calls for, if any. Saving elsewhere is the app menu's Save As. */
 function actionsOf({ link, canPickFiles }: FileStateInput, place: Place, writesEachEdit: boolean): FileAction[] {
   // With no file there is no name or format to save as, so the Save dialog asks for both.
   if (place === 'browser' || place === 'unsaved') return [{ label: 'Save...', run: 'saveAs', primary: true }];
@@ -98,7 +98,6 @@ function actionsOf({ link, canPickFiles }: FileStateInput, place: Place, writesE
   else if (link.state === 'conflict') actions.push({ label: 'Replace the file', run: 'save', primary: true });
   else if (link.state === 'error') actions.push({ label: 'Try again', run: 'save', primary: true });
   else if (link.state === 'dirty' && !writesEachEdit) actions.push({ label: 'Save', run: 'save', primary: true });
-  actions.push({ label: 'Save as...', run: 'saveAs' });
   return actions;
 }
 

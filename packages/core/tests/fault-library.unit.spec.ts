@@ -195,7 +195,7 @@ const FAULTS: Fault[] = [
     check: 'soundness',
     into: 'plan',
     edit: swap('    Done:\n', '    Pilot:\n      type: Task\n      name: Pilot session\n    Done:\n'),
-    says: ['error: "Pilot session" lies on no path from a start event to an end event: no start event leads to it'],
+    says: ['error: no start event leads to "Pilot session"'],
   },
   {
     fault: 'A parameter changed after the run',

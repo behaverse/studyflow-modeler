@@ -2,6 +2,9 @@
  * Token simulation: dry runs of the study (core's walk, the engine every runtime hosts, executing nothing), each
  * shown as tokens gliding along the flows it takes. A token is one pool's walk, so a simulation shows what a run
  * does: it waits where a run waits for a message, and it stops where a run would stop.
+ *
+ * It plays like a transport: paused, the clock stands still (no token moves, no run starts); a step plays on until
+ * the next token reaches an element, and pauses again.
  */
 
 import { Walk, dryHost, planOf, type Plan } from '@core/engine';
@@ -23,6 +26,8 @@ const TOKEN_SPEED = 200;
 const ACTIVITY_PAUSE_MS = 500;
 const SPAWN_INTERVAL_MS = 1000;
 const MAX_BOUNCING_PER_ELEMENT = 5;
+/** How long a step may play before it gives up waiting for a token to arrive (a walk that waits on another). */
+const STEP_LIMIT_MS = 4000;
 
 /** A token's outline, drawn around its centre; each shape's box is centred on it. */
 type Shape = (x: number, y: number) => string;
@@ -102,6 +107,11 @@ export default class TokenSimulator {
   private looks = 0;
   private lastTimestamp = 0;
   private plan: Plan | undefined;
+  private paused = false;
+  /** Playing one step: the clock runs until a token arrives somewhere, then stops again. */
+  private stepping = false;
+  private stepPlayed = 0;
+  private arrived = false;
 
   constructor(host: SimulationHost) {
     this.host = host;
@@ -119,6 +129,10 @@ export default class TokenSimulator {
     return this.active;
   }
 
+  isPaused(): boolean {
+    return this.active && this.paused;
+  }
+
   toggle(): void {
     if (this.active) this.stop();
     else this.start();
@@ -127,26 +141,73 @@ export default class TokenSimulator {
   start(): void {
     if (this.active) return;
     this.active = true;
+    this.paused = this.stepping = false;
     this.ensureKeyframes();
     this.layer = this.host.canvas.layer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
     this.readPlan();
     this.spawnRun();
-    this.spawning = window.setInterval(() => {
-      if (this.tokens().filter((token) => !token.done && !token.hidden && !token.bouncing).length < TOKEN_LOOKS.length) this.spawnRun();
-    }, SPAWN_INTERVAL_MS);
-    this.lastTimestamp = performance.now();
-    this.frame = requestAnimationFrame(this.tick);
-    this.host.events.fire(TOGGLE_SIMULATION_EVENT, { active: true });
+    this.runClock(true);
+    this.announce();
   }
 
   stop(): void {
     if (!this.active) return;
     this.active = false;
+    this.paused = this.stepping = false;
+    this.haltClock();
+    this.clearRuns();
+    this.announce();
+  }
+
+  /** Holds every token where it is, and starts no run, until `resume` or `step`. */
+  pause(): void {
+    if (!this.active || this.paused) return;
+    this.paused = true;
+    this.stepping = false;
+    this.haltClock();
+    this.announce();
+  }
+
+  resume(): void {
+    if (!this.active || !this.paused) return;
+    this.paused = this.stepping = false;
+    this.runClock(true);
+    this.announce();
+  }
+
+  /** From a pause: plays until the next token reaches an element (a new run's first, when none is under way). */
+  step(): void {
+    if (!this.active || !this.paused || this.stepping) return;
+    const underWay = this.tokens().some((token) => !token.done && !token.bouncing);
+    this.stepping = true;
+    this.stepPlayed = 0;
+    this.arrived = false;
+    if (!underWay) this.spawnRun();
+    this.runClock(false);
+  }
+
+  /** The clock: the frame that moves the tokens and, unless stepping, the interval that starts new runs. */
+  private runClock(spawn: boolean): void {
+    this.layer?.classList.remove('studyflow-simulation-paused');
+    if (spawn && !this.spawning) {
+      this.spawning = window.setInterval(() => {
+        if (this.tokens().filter((token) => !token.done && !token.hidden && !token.bouncing).length < TOKEN_LOOKS.length) this.spawnRun();
+      }, SPAWN_INTERVAL_MS);
+    }
+    this.lastTimestamp = performance.now();
+    if (!this.frame) this.frame = requestAnimationFrame(this.tick);
+  }
+
+  private haltClock(): void {
     if (this.spawning) clearInterval(this.spawning);
     if (this.frame) cancelAnimationFrame(this.frame);
     this.spawning = this.frame = null;
-    this.clearRuns();
-    this.host.events.fire(TOGGLE_SIMULATION_EVENT, { active: false });
+    // What CSS animates (a bounce, a pop) holds still with the rest.
+    if (this.active) this.layer?.classList.add('studyflow-simulation-paused');
+  }
+
+  private announce(): void {
+    this.host.events.fire(TOGGLE_SIMULATION_EVENT, { active: this.active, paused: this.isPaused() });
   }
 
   /** A new document: every token refers to elements that are gone, so start over. */
@@ -163,7 +224,7 @@ export default class TokenSimulator {
   private handleRootSet = (): void => {
     if (!this.active) return;
     for (const token of this.tokens()) this.syncVisibility(token);
-    this.spawnRun();
+    if (!this.paused) this.spawnRun();
   };
 
   /** The plan of the study as it stands; a study with nothing to walk has no tokens. */
@@ -228,6 +289,7 @@ export default class TokenSimulator {
     if (!token || token.done) {
       token = this.createToken(run.look, anchor, to);
       run.tokens.set(pool, token);
+      this.arrived = true;
       return Promise.resolve();
     }
     const waypoints = along === undefined ? [] : this.host.study.get(along)?.waypoints ?? [];
@@ -264,6 +326,7 @@ export default class TokenSimulator {
   }
 
   private tick = (timestamp: number): void => {
+    this.frame = null;
     if (!this.active) return;
     const dt = Math.min((timestamp - this.lastTimestamp) / 1000, 0.1);
     this.lastTimestamp = timestamp;
@@ -280,12 +343,21 @@ export default class TokenSimulator {
         this.place(token, point.x, point.y);
         if (progress >= 1) {
           token.totalDist = 0;
+          this.arrived = true;
           token.arrive?.();
         }
       }
     }
     for (const run of this.runs) for (const [pool, token] of run.tokens) if (token.done) run.tokens.delete(pool);
     this.runs = this.runs.filter((run) => run.tokens.size > 0 || !run.over);
+    if (this.stepping) {
+      this.stepPlayed += dt * 1000;
+      if (this.arrived || this.stepPlayed >= STEP_LIMIT_MS) {
+        this.stepping = false;
+        this.haltClock();
+        return;
+      }
+    }
     this.frame = requestAnimationFrame(this.tick);
   };
 
@@ -359,6 +431,7 @@ export default class TokenSimulator {
       40%  { transform: scale(1.8); opacity: 0.8; }
       100% { transform: scale(2.5); opacity: 0; }
     }
+    .studyflow-simulation-paused .studyflow-simulation-token { animation-play-state: paused; }
   `;
     document.head.appendChild(style);
   }

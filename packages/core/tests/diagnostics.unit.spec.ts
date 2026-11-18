@@ -18,9 +18,9 @@ test('each authoring mistake gets a diagnostic that names it', () => {
 enumerations: [{ name: Mode, literalValues: [{ name: A, value: a }] }]
 types: [{ name: Thing, properties: [{ name: mode, isAttr: true, type: Mode, default: zzz }] }]`)],
       /Thing\.mode.*zzz.*lab:Mode/],
-    ['a meta.editor naming no editor', [lab('types: [{ name: Thing, properties: [{ name: body, isAttr: true, type: String, meta: { editor: yamll } }] }]')],
-      /Thing\.body.*editor.*yamll/],
-    ['a type\'s meta.editor naming no editor', [lab('types: [{ name: Thing, superClass: [bpmn:Task], meta: { editor: yamll } }]')], /lab Thing\].*editor.*yamll/],
+    ['a meta.widget naming no widget', [lab('types: [{ name: Thing, properties: [{ name: body, isAttr: true, type: String, meta: { widget: yamll } }] }]')],
+      /Thing\.body.*widget.*yamll/],
+    ['a type\'s meta.widget naming no widget', [lab('types: [{ name: Thing, superClass: [bpmn:Task], meta: { widget: yamll } }]')], /lab Thing\].*widget.*yamll/],
     ['an enum extending one no schema declares', [lab('enumerations: [{ extends: NoSuchEnum, literalValues: [{ name: X, value: x }] }]')],
       /\[lab\].*unknown enum.*NoSuchEnum/],
     ['an enum extension repeating a literal', [lab(`

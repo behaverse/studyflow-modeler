@@ -6,7 +6,7 @@
  *   (the tasks of a session are marked at the session). Allocation takes a column of its own;
  * - a study period is a lane, named as the diagram names it, over the columns of the elements in it;
  * - a row is a scheduled element: what comes before the allocation gateway under enrollment, what only one arm does
- *   under interventions, a task or a questionnaire (the `instrument` role) under assessments, and the rest under the
+ *   under interventions, a task or a questionnaire (the `instrument` tag) under assessments, and the rest under the
  *   lane it sits in;
  * - a wait (a timer event) is no visit: it is drawn as a bar from the visit before it to where it ends.
  */
@@ -14,7 +14,7 @@ import { isExpandable } from '@core/document/outline';
 import { idOf, isElement, type Element, type StudyModel } from '@core/model/index';
 import { collectScheduleRows, tickLabel, type Row } from '@modeler/schedule/rows';
 import type { Guideline } from '@skills/reporting-guidelines/modeler/guideline';
-import { hasRole, laneOf, nameOf, participantFlowOf, topLevelIn, type ParticipantFlow } from '@skills/reporting-guidelines/modeler/participantFlow';
+import { hasTag, laneOf, nameOf, participantFlowOf, topLevelIn, type ParticipantFlow } from '@skills/reporting-guidelines/modeler/participantFlow';
 import { INK, escapeXml, num, svgDocument, withoutCount, wrap } from '@skills/reporting-guidelines/modeler/svg';
 
 const WORDS = {
@@ -77,7 +77,7 @@ export function spiritSchedule(model: StudyModel, rows: readonly Row[], flow: Pa
     const place = placeOf(model, element);
     const section = region === 'before' ? 'enrollment'
       : typeof region === 'object' && top === element && !wait ? 'interventions'
-        : hasRole(model, element, 'instrument') ? 'assessments'
+        : hasTag(model, element, 'instrument') ? 'assessments'
           : `in ${place ?? ''}`;
     return [{ row, wait, place, section, phase: (region === 'before' ? 0 : 2) as Phase, time: visit.onsetMin }];
   });

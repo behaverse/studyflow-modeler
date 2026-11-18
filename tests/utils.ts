@@ -4,7 +4,7 @@ import path from 'node:path';
 import { expect, type Download, type Locator, type Page } from '@playwright/test';
 
 import { studyToXml } from '@core/document';
-import { diagramHandoffKey, type DiagramHandoffEnvelope } from '@core/storage';
+import { diagramHandoffKey, STORAGE_KEYS, type DiagramHandoffEnvelope } from '@core/storage';
 
 const SKILLS_DIR = path.join(process.cwd(), 'skills');
 
@@ -61,9 +61,20 @@ async function withoutFileSystemAccess(page: Page): Promise<void> {
   });
 }
 
-/** `pickers: true` keeps the File System Access pickers, for tests that stub them themselves. */
-export async function gotoModeler(page: Page, { pickers = false, url = '/app' } = {}): Promise<void> {
+/** The inspector open, as a person who opened it keeps it: set before the app loads, unless Settings are stored. */
+async function withInspector(page: Page): Promise<void> {
+  await page.addInitScript((key) => {
+    if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify({ showInspector: true }));
+  }, STORAGE_KEYS.settings);
+}
+
+/**
+ * `pickers: true` keeps the File System Access pickers, for tests that stub them themselves. `inspector: false` opens
+ * the app as it first opens, with the inspector closed and the inline inspector on the canvas.
+ */
+export async function gotoModeler(page: Page, { pickers = false, inspector = true, url = '/app' } = {}): Promise<void> {
   if (!pickers) await withoutFileSystemAccess(page);
+  if (inspector) await withInspector(page);
   await page.goto(url);
   await expect(page.getByTestId('modeler-app')).toBeAttached();
   await expect(page.getByTestId('modeler-ready')).toBeAttached({ timeout: 30_000 });
@@ -77,7 +88,7 @@ export function fileTitle(page: Page): Locator {
 
 /** The study's name: the inspector's name field, which shows the study while nothing is selected. */
 export function studyName(page: Page): Locator {
-  return page.locator('input[name="bpmn:name"]');
+  return page.locator('[name="bpmn:name"]');
 }
 
 export async function renameStudy(page: Page, name: string): Promise<void> {
@@ -99,11 +110,15 @@ export async function openCommandPalette(page: Page): Promise<void> {
   await expect(page.getByRole('dialog').getByRole('textbox', { name: /search/i })).toBeVisible();
 }
 
-/** Run palette commands by label: a string is the exact label, a regex its key word (`/^Save As/`) matched on the row. */
+/**
+ * Run palette commands by label: a string is the exact label, a regex its key word (`/^Save As/`) matched on the row.
+ * The palette lists only what is at hand until something is typed, so each label is typed first, as a person would.
+ */
 export async function runPaletteCommand(page: Page, ...labels: (string | RegExp)[]): Promise<void> {
   await openCommandPalette(page);
   const dialog = page.getByRole('dialog');
   for (const label of labels) {
+    await dialog.getByRole('textbox', { name: /search/i }).fill(typeof label === 'string' ? label : label.source.replace(/[\^$\\]/g, ''));
     const row = typeof label === 'string' ? dialog.getByText(label, { exact: true }) : dialog.getByRole('button', { name: label });
     await row.click();
   }
@@ -150,19 +165,23 @@ export async function addPaletteElement(
   await page.getByTestId('modeler-canvas').click({ position });
 }
 
-export async function addSchemaPaletteElement(
+/** Add a skill's element through the tools' +: found by name in the Add panel, narrowed to its skill, then placed with a click. */
+export async function addSkillElement(
   page: Page,
-  schemaName: string,
+  skill: string,
   label: string,
   position: { x: number; y: number },
 ): Promise<void> {
-  await page.getByRole('button', { name: `${schemaName} elements...` }).click();
-  await clickPaletteTile(page, label);
+  await page.getByRole('button', { name: 'Add...' }).click();
+  const panel = page.getByTestId('popup-menu');
+  await panel.getByTestId('popup-menu-search').fill(label);
+  await panel.getByRole('group', { name: 'Show' }).getByRole('button', { name: skill, exact: true }).click();
+  await panel.locator('[data-testid^="popup-menu-entry-"]').filter({ has: page.getByText(label, { exact: true }) }).first().click();
   await page.getByTestId('modeler-canvas').click({ position });
 }
 
 export async function setSelectedElementName(page: Page, value: string): Promise<void> {
-  const nameInput = page.locator('input[name="bpmn:name"]');
+  const nameInput = page.locator('[name="bpmn:name"]');
   await expect(nameInput).toBeVisible();
   await nameInput.fill(value);
 }

@@ -47,8 +47,7 @@ export function PublishPanel() {
           <Label className={d.label}>Behaverse API key</Label>
           <Input name="api_key" type="password" className={d.input} placeholder="Paste your key" defaultValue={getApiKey() ?? ''} />
           <Description className={d.helpText}>
-            Sign in from Settings &gt; Behaverse to get one, or see the{' '}
-            <a className={d.bodyLink} href={API_DOCS} target="_blank" rel="noreferrer">API docs</a>.
+            From Settings, Behaverse, or the <a className={d.bodyLink} href={API_DOCS} target="_blank" rel="noreferrer">API docs</a>.
           </Description>
         </Field>
       </div>
@@ -56,7 +55,7 @@ export function PublishPanel() {
       <div className={s.footer}>
         <span className={s.filename} data-testid="export-filename">Sent to the Behaverse server</span>
         {previewUrl ? (
-          <a href={previewUrl} target="_blank" rel="noreferrer" className={`shrink-0 ${d.previewBtn}`}>Preview</a>
+          <a href={previewUrl} target="_blank" rel="noreferrer" className={d.secondaryBtn}>Preview</a>
         ) : (
           <Button type="submit" disabled={busy} data-testid="save-submit" className={s.primaryBtn}>
             <i className={ICONS.cloudUpload}></i>

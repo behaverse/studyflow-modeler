@@ -6,11 +6,10 @@ import { ELEMENT_COLORS } from '@modeler/shape/colors';
 import { addPaletteElement, gotoModeler, pressOnCanvas } from './utils';
 
 /**
- * The app-rendered popup menus: the create menu behind the palette's more-elements
- * button, the append menu the context pad and the `a` key open, the replace menu behind
- * the pad's wrench, and the style menu. Which entries they list is
- * `tests/popup-menu.unit.spec.ts`'s; where an appended element lands is canvas-autoplace's,
- * what a retype writes canvas-replace's, and what a style writes canvas.unit's.
+ * The app-rendered popup menus: the Add panel, its elements and its drawn templates, from the tools' +, from a double
+ * click on the canvas and from the selection's append (the context pad, the `a` key); the replace menu behind the pad's wrench; and the style menu. What
+ * the panel lists and how its search finds a row is `tests/palette-catalog.unit.spec.ts`'s; where an appended element
+ * lands is canvas-autoplace's, what a retype writes canvas-replace's, and what a style writes canvas.unit's.
  */
 
 const popup = (page: Page) => page.getByTestId('popup-menu');
@@ -19,26 +18,59 @@ const popup = (page: Page) => page.getByTestId('popup-menu');
 const swatch = (label: string, half: 'fill' | 'stroke'): RegExp => new RegExp(`^${ELEMENT_COLORS.find((c) => c.label === label)![half]!}$`, 'i');
 
 test.describe('App popup menus', () => {
-  test('the create and append menus search and place what you pick, and the replace menu retypes as one undo step', async ({ page }) => {
+  test('the Add panel finds, narrows, pins and adds what you pick, from the +, a double click and the append; the replace menu retypes as one undo step', async ({ page }) => {
     await gotoModeler(page);
+    const add = page.getByRole('button', { name: 'Add...' });
+    const entry = (id: string) => page.getByTestId(`popup-menu-entry-${id}`);
 
-    // The palette's more-elements button: a searchable create menu. Searching narrows the
-    // list, and picking arms a create gesture, as a palette tile does: the next click places it.
-    await page.getByRole('button', { name: /^BPMN elements/ }).click();
-    await expect(popup(page)).toBeVisible();
+    // The tools' +: everything the skills add, found by name and narrowed to a skill. A pick arms a create
+    // gesture, as a tool does: the next click places it.
+    await add.click();
+    await page.getByTestId('popup-menu-search').fill('task');
+    await expect(entry('create-cognitive:CognitiveTask')).toBeVisible();
+    await expect(entry('create-reachy:LookAt')).toHaveCount(0);
+    await page.getByTestId('popup-menu-filter-bpmn').click();
+    await expect(entry('create-cognitive:CognitiveTask')).toHaveCount(0);
     await page.getByTestId('popup-menu-search').fill('service');
-    await expect(page.getByTestId('popup-menu-entry-create-User')).toHaveCount(0);
-    await page.getByTestId('popup-menu-entry-create-Service').click();
+    await entry('create-Service').click();
     await expect(popup(page)).toHaveCount(0);
     await page.getByTestId('modeler-canvas').click({ position: { x: 340, y: 200 } });
     const service = page.locator('g[data-element-id^="ServiceTask_"]');
     await expect(service).toHaveCount(1);
-    // A new task opens its label editor, which has the keys until it closes.
-    await pressOnCanvas(page, 'Escape');
+    // A new task opens its label editor, which has the keys until Escape closes it; the task stays selected.
+    await page.keyboard.press('Escape');
 
-    // The canvas's `a` key opens the append menu on the selection.
+    // A pin puts a row in the tools column, as a tool; the + closes the panel it opened.
+    await add.click();
+    await page.getByTestId('popup-menu-search').fill('look');
+    await page.getByTestId('popup-menu-pin-create-reachy:LookAt').click();
+    await expect(page.getByTestId('popup-menu-pin-create-reachy:LookAt')).toHaveAttribute('aria-pressed', 'true');
+    await add.click();
+    await expect(popup(page)).toHaveCount(0);
+    await expect(page.getByTestId('palette-root').getByRole('button', { name: 'Look At (Reachy Mini)' })).toBeVisible();
+
+    // Its Templates view: a card per template, a picture of what it drops; a pick arms the drop, as an element's does.
+    await add.click();
+    await page.getByTestId('popup-menu-view-templates').click();
+    const trial = page.locator('[data-testid^="popup-menu-entry-template-"]').filter({ hasText: 'Each trial' });
+    await expect(trial.locator('img')).toHaveAttribute('src', /^blob:/);
+    await trial.click();
+    await page.getByTestId('modeler-canvas').click({ position: { x: 520, y: 160 } });
+    await expect(page.locator('g[data-element-type="bpmn:SubProcess"]')).toHaveCount(1);
+    await page.keyboard.press('Escape');
+
+    // A double click on the canvas's background opens it there, and a pick lands there.
+    await page.getByTestId('modeler-canvas').dblclick({ position: { x: 640, y: 420 } });
+    await expect(page.getByTestId('popup-menu-search')).toHaveAttribute('placeholder', 'Add here...');
+    await page.getByTestId('popup-menu-search').fill('exclusive');
+    await page.keyboard.press('Enter');
+    await expect(popup(page)).toHaveCount(0);
+    await expect(page.locator('g[data-element-id^="ExclusiveGateway_"]')).toHaveCount(1);
+
+    // The canvas's `a` key opens it on the selection, to append to it.
+    await service.click();
     await pressOnCanvas(page, 'a');
-    await expect(popup(page)).toContainText(/append/i);
+    await expect(page.getByTestId('popup-menu-search')).toHaveAttribute('placeholder', /^Append to /);
     await page.keyboard.press('Escape');
     await expect(popup(page)).toHaveCount(0);
 
@@ -47,7 +79,7 @@ test.describe('App popup menus', () => {
     await page.getByTestId('context-pad-append').click();
     await expect(popup(page)).toBeVisible();
     await page.getByTestId('popup-menu-search').fill('end');
-    await page.getByTestId('popup-menu-entry-create-End').click();
+    await entry('create-End').click();
     await expect(popup(page)).toHaveCount(0);
     await expect(page.locator('g[data-element-id^="EndEvent_"]')).toHaveCount(1);
 
@@ -56,7 +88,7 @@ test.describe('App popup menus', () => {
     await service.click();
     await page.getByTestId('context-pad-replace').click();
     await expect(popup(page)).toBeVisible();
-    await page.getByTestId('popup-menu-entry-create-User').click();
+    await entry('create-User').click();
     await expect(service).toHaveCount(0);
     await expect(page.locator('g[data-element-id^="UserTask_"]')).toHaveCount(1);
     await pressOnCanvas(page, 'ControlOrMeta+z');

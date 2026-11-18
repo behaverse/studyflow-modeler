@@ -21,6 +21,10 @@ export type Settings = {
   snapToGrid: boolean;
   /** Moddle prefixes of the shipped schemas the user turned off; a required one is never among them. */
   disabledSchemas: string[];
+  /** The Add panel's entries pinned to the tools, by id (`palette/catalog.ts`), in the order they were pinned. */
+  pinnedTools: string[];
+  /** The inspector, open beside the canvas. Closed, a selected step shows the inline inspector on the canvas instead. */
+  showInspector: boolean;
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -28,6 +32,8 @@ const DEFAULT_SETTINGS: Settings = {
   autoSaveToFile: true,
   snapToGrid: true,
   disabledSchemas: [],
+  pinnedTools: [],
+  showInspector: false,
 };
 
 /** The settings the user changed: one left at its default is not stored, so a later default reaches whoever never
@@ -149,10 +155,8 @@ function reportOnce(kind: 'quota' | 'unavailable'): void {
   warnedFor.add(kind);
   notify('warning',
     kind === 'quota'
-      ? 'Auto-save could not store the study: browser storage is full. The stale entry was '
-        + 'cleared so a truncated study is never restored. Save the study to keep it.'
-      : 'Auto-save could not store the study: this browser does not provide local storage. '
-        + 'Save the study to keep it.');
+      ? 'Browser storage is full, so auto-save stopped. Save the study to keep it.'
+      : 'This browser keeps no local storage, so auto-save is off. Save the study to keep it.');
 }
 
 export function clearAutosavedDiagram(): void {

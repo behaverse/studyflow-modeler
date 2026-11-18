@@ -53,19 +53,19 @@ const BATTERY = `    Battery:
 `;
 
 test('each flow node lies on a path from a start event, or a boundary event, to an end event', () => {
-  // Each issue as `<element id>: <message>`.
+  // Each issue as `<element id>: <message>`, and `-> end after <id>` where an end event there mends it.
   const CASES: [label: string, elements: string, issues: string[]][] = [
     ['a boundary event starts a path', SOUND, []],
     ['an activity with no flow out of it leaves through its boundary event', SOUND.replace('    F2: Play -> Gate\n', '    F2: Failed -> Gate\n').replace('    F3: Failed -> Stopped\n', '    F3: Start -> Stopped\n'), []],
     ['a node no start event leads to', `${SOUND}    Pilot:\n      type: Task\n      name: Pilot session\n    F4: Pilot -> Done\n`, [
-      'Pilot: "Pilot session" lies on no path from a start event to an end event: no start event leads to it',
+      'Pilot: no start event leads to "Pilot session"',
     ]],
     ['a dead end', `${SOUND}    Check:\n      type: Task\n      name: Check again\n    F4: Gate -> Check\n`, [
-      'Check: "Check again" lies on no path from a start event to an end event: it leads to no end event',
+      'Check: "Check again" leads to no end event -> end after Check',
     ]],
     ['a sub-process with sequence flows but no start or end event', SOUND.replace('    F1: Start -> Play\n', `    F1: Start -> Battery\n${BATTERY}`), [
-      'Battery: "Battery" has sequence flows but no start event',
-      'Battery: "Battery" has sequence flows but no end event',
+      'Battery: "Battery" has no start event',
+      'Battery: "Battery" has no end event -> end after B',
     ]],
     // An ad-hoc sub-process has neither in BPMN: its paths start where nothing flows in and end where nothing flows on.
     ['an ad-hoc sub-process, which has neither', SOUND.replace('    F1: Start -> Play\n', `    F1: Start -> Battery\n${BATTERY.replace('SubProcess', 'AdHocSubProcess')}`), []],
@@ -77,7 +77,7 @@ test('each flow node lies on a path from a start event, or a boundary event, to 
   ];
   for (const [label, elements, messages] of CASES) {
     const issues = checkConnected(studyModel(study(elements)));
-    expect(issues.map((issue) => `${issue.elementId}: ${issue.message}`), label).toEqual(messages);
+    expect(issues.map((issue) => `${issue.elementId}: ${issue.message}${issue.fix ? ` -> end after ${issue.fix.after}` : ''}`), label).toEqual(messages);
     expect(issues.every((issue) => issue.severity === 'error'), label).toBe(true);
   }
 });

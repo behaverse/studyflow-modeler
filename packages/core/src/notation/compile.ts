@@ -8,9 +8,9 @@ import {
   type SchemaTypeModel,
 } from '@core/notation/moddlePackage';
 import { BPMN_ANCESTORS, isBpmnSubtypeOf } from '@core/notation/bpmn';
-import { humanizeLabel, isHiddenFromPalette, paletteCategories, trimBpmnSuffix } from '@core/notation/palette';
+import { humanizeLabel, isHiddenFromPalette, paletteGroup, trimBpmnSuffix } from '@core/notation/palette';
 import { compileTemplates } from '@core/notation/templates';
-import { EDITOR_NAMES, type EditorName } from '@core/notation/types';
+import { WIDGET_NAMES, type WidgetName } from '@core/notation/types';
 import {
   NON_BPMN_SUPER_CLASSES,
   TypeCatalog,
@@ -24,7 +24,7 @@ import type {
   NsInfo,
   SchemaEntry,
   TypeEntry,
-  TypeRole,
+  TypeTag,
 } from '@core/notation/types';
 
 export function buildCatalog(models: SchemaModel[]): TypeCatalog {
@@ -128,14 +128,14 @@ function checkAttributeMeta(catalog: TypeCatalog): void {
             push(`${where} default '${String(spec.default)}' is not a literal of ${spec.type}`);
           }
         }
-        const editor = spec.meta?.editor;
-        if (typeof editor === 'string' && !EDITOR_NAMES.includes(editor as EditorName)) {
-          push(`${where} names unknown editor '${editor}' (known: ${EDITOR_NAMES.join(', ')})`);
+        const widget = spec.meta?.widget;
+        if (typeof widget === 'string' && !WIDGET_NAMES.includes(widget as WidgetName)) {
+          push(`${where} names unknown widget '${widget}' (known: ${WIDGET_NAMES.join(', ')})`);
         }
       }
-      const typeEditor = type.meta?.editor;
-      if (typeof typeEditor === 'string' && !EDITOR_NAMES.includes(typeEditor as EditorName)) {
-        push(`[${schema.prefix} ${type.ns.localName}] names unknown editor '${typeEditor}' (known: ${EDITOR_NAMES.join(', ')})`);
+      const typeWidget = type.meta?.widget;
+      if (typeof typeWidget === 'string' && !WIDGET_NAMES.includes(typeWidget as WidgetName)) {
+        push(`[${schema.prefix} ${type.ns.localName}] names unknown widget '${typeWidget}' (known: ${WIDGET_NAMES.join(', ')})`);
       }
     }
   }
@@ -154,8 +154,8 @@ function compileCategories(raw: unknown): CategoryEntry[] {
     }));
 }
 
-/** The one role a type's BPMN attach point implies; every other role is a skill's to declare in `meta.roles`. */
-function inferRoles(bpmnType: string | null): TypeRole[] {
+/** The one tag a type's BPMN attach point implies; every other tag is a skill's to declare in `meta.tags`. */
+function inferTags(bpmnType: string | null): TypeTag[] {
   return bpmnType && isBpmnSubtypeOf(bpmnType, 'bpmn:ItemAwareElement') ? ['data-element'] : [];
 }
 
@@ -208,13 +208,13 @@ class Compiler {
       bpmnType,
       attributes,
       defaults,
-      roles: [...new Set([
-        ...inferRoles(bpmnType),
-        ...this.effectiveRoles(qualified),
+      tags: [...new Set([
+        ...inferTags(bpmnType),
+        ...this.effectiveTags(qualified),
       ])],
       hiddenFromPalette: isHiddenFromPalette(qualified, rawType, style),
       paletteLabel: humanizeLabel(trimBpmnSuffix(rawType.name, bpmnType ?? '')),
-      paletteCategories: paletteCategories(meta, bpmnType),
+      paletteGroup: paletteGroup(meta, bpmnType),
     };
   }
 
@@ -241,7 +241,7 @@ class Compiler {
     return targets;
   }
 
-  /** Highest precedence first, self excluded; the reverse of moddle's property-application order, so build-up folds (attributes, roles) re-reverse it while nearest-answer folds (the BPMN attach point) read it as-is. */
+  /** Highest precedence first, self excluded; the reverse of moddle's property-application order, so build-up folds (attributes, tags) re-reverse it while nearest-answer folds (the BPMN attach point) read it as-is. */
   private ancestorsOf(qualified: string): string[] {
     const cached = this.ancestorCache.get(qualified);
     if (cached) return cached;
@@ -306,14 +306,14 @@ class Compiler {
     return null;
   }
 
-  private effectiveRoles(qualified: string): TypeRole[] {
-    const roles = new Set<TypeRole>();
+  private effectiveTags(qualified: string): TypeTag[] {
+    const tags = new Set<TypeTag>();
     for (const step of this.selfAndAncestors(qualified).reverse()) {
-      for (const role of this.rawByName.get(step)?.raw.meta?.roles ?? []) {
-        if (typeof role === 'string') roles.add(role);
+      for (const tag of this.rawByName.get(step)?.raw.meta?.tags ?? []) {
+        if (typeof tag === 'string') tags.add(tag);
       }
     }
-    return [...roles];
+    return [...tags];
   }
 
   private effectiveAttributes(qualified: string): AttributeSpec[] {
@@ -400,15 +400,15 @@ class Compiler {
       spec.bodyType = 'String';
     }
 
-    spec.typeEditor = this.editorOfType(spec.bodyType) ?? this.editorOfType(type);
+    spec.typeWidget = this.widgetOfType(spec.bodyType) ?? this.widgetOfType(type);
 
     return spec;
   }
 
-  private editorOfType(ref: string | undefined): string | undefined {
+  private widgetOfType(ref: string | undefined): string | undefined {
     if (!ref || !ref.includes(':') || ref.startsWith('bpmn:')) return undefined;
-    const editor = this.rawByName.get(ref)?.raw.meta?.editor;
-    return typeof editor === 'string' ? editor : undefined;
+    const widget = this.rawByName.get(ref)?.raw.meta?.widget;
+    return typeof widget === 'string' ? widget : undefined;
   }
 
   private qualifyTypeRef(ref: string, ownerPrefix: string): string {

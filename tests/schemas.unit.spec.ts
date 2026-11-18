@@ -154,9 +154,9 @@ test('the inspector tabs are General, one per other schema, Documentation, Sched
 });
 
 // A mode the runners lack takes the default branch, so the declared set is pinned to the arms they have.
-test('gateways declare only branching modes the runners implement', () => {
+test('gateways declare only the strategies the runners implement', () => {
   for (const type of catalog.allTypes()) {
-    if (type.meta.branching !== undefined) expect(['random', 'condition'], type.name).toContain(type.meta.branching);
+    if (type.meta.strategy !== undefined) expect(['random', 'condition'], type.name).toContain(type.meta.strategy);
   }
-  expect(catalog.getType('cognitive:RandomGateway')?.meta.branching, 'an allocation gateway draws its branch').toBe('random');
+  expect(catalog.getType('cognitive:RandomGateway')?.meta.strategy, 'an allocation gateway draws its branch').toBe('random');
 });

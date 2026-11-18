@@ -25,11 +25,11 @@ view (and the command with the last of them) and its one attribute leaves the in
 `modeler/participantFlow.ts` reads who entered, who left and where, and who came to the end. It is no guideline's
 own: CONSORT words and draws it (`modeler/consort.ts`), and another guideline's flow can word the same reading.
 
-- The allocation gateway is the one whose schema type draws its branch (`meta.branching: random`,
+- The allocation gateway is the one whose schema type draws its branch (`meta.strategy: random`,
   `cognitive:RandomGateway`), and each flow out of it is an arm, named as the flow is. A study with none has no
   participant flow.
 - Before it, whoever takes a way out that cannot come to the gateway was excluded. The reason is the name of the flow
-  taken, else of the event, else of the end it leads to; at a gateway with the `screening` role
+  taken, else of the event, else of the end it leads to; at a gateway with the `screening` tag
   (`cognitive:EligibilityGateway`) it is CONSORT's "Not meeting inclusion criteria", with the criterion when the
   gateway lists exactly one.
 - After it, a participant leaves through a boundary event whose path never comes to a plain end event, or along a flow
@@ -49,7 +49,7 @@ own: CONSORT words and draws it (`modeler/consort.ts`), and another guideline's 
   before the gateway ends.
 - A study period is a lane, over the columns of the elements in it, named as the diagram names it.
 - A row is a scheduled element, under enrollment when it comes before the allocation gateway, under interventions when
-  only one arm does it, under assessments when it is a task or a questionnaire (the `instrument` role), and otherwise
+  only one arm does it, under assessments when it is a task or a questionnaire (the `instrument` tag), and otherwise
   under the lane it sits in.
 - A wait (a timer event) is no visit. It is drawn as a bar from the visit before it to where it ends, and an
   intervention that lasts over later visits as a bar across them.

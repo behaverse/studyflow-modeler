@@ -1,0 +1,47 @@
+/* The modeler's chrome, on top of assets/css/app.css: macOS's typeface and sizes. The runner's screens load app.css too
+ * and keep theirs. Plain rules on the root, so they win over the theme's variables everywhere `font-sans`, `text-sm` and
+ * `text-base` are used. The canvas draws its labels in IBM Plex (packages/canvas/src/render/labels.ts), so a diagram
+ * looks the same on every machine. */
+:root {
+  /* The system's typeface: SF on a Mac, Segoe on Windows, the desktop's own on Linux. */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Ubuntu, Cantarell, "Noto Sans", sans-serif;
+
+  /* macOS's body (13px) and title (15px) sizes; 11 and 12 stay. */
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.375rem;
+}
+
+/* The composer's face, coming in: a short rise and fade, so a change of face reads as the same bar turning. */
+@keyframes composer-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* The selection wears the app's accent on the canvas too (its outline, handles and the drag's preview), as it does on
+ * the context pad, the inspector's header and the composer's chip. More specific than the canvas's own `.sf-canvas`. */
+[data-testid="modeler-canvas"] .sf-canvas {
+  --sf-accent: var(--color-accent);
+  --sf-accent-soft: rgba(107, 85, 200, 0.1);
+}
+
+/* Keyboard focus the macOS way, in the accent (M2): a soft halo on whatever takes the focus by key. In the base layer,
+ * so a control that draws its own ring (`focus-visible:ring-*`, `outline-none`) keeps it; the canvas keeps none. */
+@layer base {
+  :focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+    outline-offset: 1px;
+  }
+  .sf-canvas:focus-visible {
+    outline: none;
+  }
+}
+
+/* A version under review marks what it brings: what it adds glows green, what it changes amber (`review/commands.ts`). */
+[data-testid="modeler-canvas"] .sf-mark-review-added {
+  filter: drop-shadow(0 0 3px rgba(22, 163, 74, 0.95));
+}
+[data-testid="modeler-canvas"] .sf-mark-review-changed {
+  filter: drop-shadow(0 0 3px rgba(217, 119, 6, 0.95));
+}

@@ -7,7 +7,6 @@ import {
   ComboboxOption,
   ComboboxOptions,
   Field,
-  Input,
   Label,
   Listbox,
   ListboxButton,
@@ -29,6 +28,7 @@ import { readAttribute } from '@core/model/index';
 import { filterOptions, resolveTyped, toggleLiteral, toOptions, type Option } from '@modeler/inspector/options';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
 import { field as s } from '@modeler/inspector/styles';
+import { WrapInput } from '@modeler/inspector/WrapInput';
 
 type Props = { attrDef: AttributeSpec };
 
@@ -44,7 +44,7 @@ export function ExpressionRow({ name, placeholder, value, onCommit }: {
     <div className="flex items-stretch gap-1">
       <span
         title={error ?? 'FEEL, the expression language of DMN, in every runtime'}
-        className={`shrink-0 w-11 grid place-items-center rounded-md border border-black/[0.08] bg-cream-200
+        className={`shrink-0 w-11 grid place-items-center rounded-md border border-black/[0.10] bg-field
           text-[0.6875rem] ${error ? 'text-red-600' : 'text-stone-500'}`}
       >
         FEEL
@@ -125,7 +125,7 @@ export function ArrayInput({ attrDef }: Props) {
   const fullName = attrDef.ns?.name ?? attrDef.name;
 
   const { value: values, commit: persist, flush } = useAttributeState<string[]>(attrDef, toArray, { debounceMs: 400 });
-  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const inputRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const focusIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -135,7 +135,7 @@ export function ArrayInput({ attrDef }: Props) {
     }
   }, [values]);
 
-  function handleChangeAt(index: number, event: ChangeEvent<HTMLInputElement>) {
+  function handleChangeAt(index: number, event: ChangeEvent<HTMLTextAreaElement>) {
     const next = values.slice();
     next[index] = event.target.value;
     persist(next);
@@ -170,25 +170,24 @@ export function ArrayInput({ attrDef }: Props) {
         </span>
       </Label>
 
-      <div className={s.arrayList}>
+      <div className={s.boxList}>
         {values.map((value, i) => (
-          <div key={i} className={s.arrayRow}>
-            <Input
-              ref={(el: HTMLInputElement | null) => { inputRefs.current[i] = el; }}
+          <div key={i} className={s.listRow}>
+            <WrapInput
+              ref={(el: HTMLTextAreaElement | null) => { inputRefs.current[i] = el; }}
               name={`${fullName}[${i}]`}
-              type="text"
               value={value}
               onChange={(e) => handleChangeAt(i, e)}
               onBlur={flush}
-              className={s.arrayInput}
+              className={s.stateNameInput}
             />
             <button
               type="button"
               aria-label="Remove"
               onClick={() => handleRemoveAt(i)}
-              className={s.arrayRemoveBtn}
+              className={s.stateRemoveBtn}
             >
-              <i className={`${ICONS.close} text-lg`} />
+              <i className={`${ICONS.close} text-sm`} />
             </button>
           </div>
         ))}
@@ -203,7 +202,7 @@ export function ChecklistInput({ attrDef }: { attrDef: AttributeSpec }) {
   const { value, commit, flush } = useAttributeState<string>(attrDef, (raw) => raw || '', { debounceMs: 400 });
   const name = attrDef.ns.name;
   const lines = parseChecklistLines(value);
-  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const inputRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const focusIndexRef = useRef<number | null>(null);
 
   // Focus the item Enter or the add button minted, once it has rendered.
@@ -224,7 +223,7 @@ export function ChecklistInput({ attrDef }: { attrDef: AttributeSpec }) {
     update([...lines.slice(0, at), item, ...lines.slice(at)]);
   };
 
-  const onKeyDown = (index: number) => (e: KeyboardEvent<HTMLInputElement>) => {
+  const onKeyDown = (index: number) => (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       addItem(index);
@@ -248,9 +247,9 @@ export function ChecklistInput({ attrDef }: { attrDef: AttributeSpec }) {
         </span>
       </Label>
       {lines.length > 0 && (
-        <div className={s.arrayList}>
+        <div className={s.boxList}>
           {lines.map((line, index) => (
-            <div key={index} className={s.stateRow}>
+            <div key={index} className={s.listRow}>
               {line.kind === 'task' ? (
                 <input
                   type="checkbox"
@@ -263,13 +262,12 @@ export function ChecklistInput({ attrDef }: { attrDef: AttributeSpec }) {
               ) : (
                 <span className="ml-2 my-auto shrink-0 text-stone-500" aria-hidden="true">•</span>
               )}
-              <Input
-                ref={(el: HTMLInputElement | null) => { inputRefs.current[index] = el; }}
-                type="text"
+              <WrapInput
+                ref={(el: HTMLTextAreaElement | null) => { inputRefs.current[index] = el; }}
                 aria-label={`Checklist item ${index + 1}`}
                 value={line.text}
                 placeholder={line.kind === 'task' ? 'item…' : ''}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => patch(index, { ...line, text: e.target.value })}
+                onChange={(e: ChangeEvent<HTMLTextAreaElement>) => patch(index, { ...line, text: e.target.value })}
                 onBlur={flush}
                 onKeyDown={onKeyDown(index)}
                 className={`${s.stateNameInput} ${line.kind === 'task' && line.checked ? 'line-through text-stone-500' : ''}`}
@@ -294,8 +292,8 @@ export function EnumInput({ attrDef }: Props) {
   const { value, commit } = useAttributeState<string>(attrDef, (raw) => raw || '');
   const name = attrDef.ns.name;
   const literalValues = toOptions(getCatalog().enumOf(attrDef.type)?.literals);
-  const isEditable = attrDef.meta?.editable === true;
-  const Picker = isEditable ? EditableEnumCombobox : PlainEnumSelect;
+  const allowsCustom = attrDef.meta?.allowCustom === true;
+  const Picker = allowsCustom ? EditableEnumCombobox : PlainEnumSelect;
 
   return (
     <>

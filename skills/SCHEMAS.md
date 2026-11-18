@@ -1,185 +1,166 @@
-# Schema reference
+# Writing a schema
 
-Every key a skill's `*.moddle.yaml` can carry, and what reads it. [README.md](README.md) says what a skill is.
+A skill's vocabulary is a schema: a `*.moddle.yaml` file its `SKILL.md` names under `schema`. It declares element
+types, their attributes, lists of values, and templates. [README.md](README.md) says what a skill is.
 
-## Schemas
+The format is a [moddle](https://github.com/bpmn-io/moddle) package, the one bpmn-moddle reads BPMN itself from,
+written in YAML. Moddle's own keys describe the XML. What only the app reads sits under `meta`.
 
-A skill's vocabulary is a moddle package written in YAML, named by the `schema` key of its `SKILL.md` (several,
-comma-separated, each with a prefix of its own) and loaded with no registration. It has the shape of bpmn-moddle's own BPMN package
-(`node_modules/bpmn-moddle/resources/bpmn/json/bpmn.json`), plus keys only the app reads, most of them under
-`meta`; `SchemaModel` in `packages/core/src/notation/moddlePackage.ts` describes it. bpmn-moddle reads and
-writes the BPMN XML with it, and the catalog (`packages/core/src/notation/compile.ts`) compiles it into the palette,
-inspector, rendering, templates, connection rules, and round-tripping. This file lists every key the app reads,
-and where; a key not listed here is moddle's alone. The compiler warns on the ones it can check.
+To start, copy `eeg/eeg.moddle.yaml`. The vocabulary every study uses is `studyflow/studyflow.moddle.yaml`.
 
-The first line, `# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json`, lets an
-editor check moddle's own keys as you type. That schema requires `name`, `prefix`, `uri` and `types` (`types: []`
-when there are none) and allows any other key, so the app's keys pass.
+## A schema
 
-To start a schema, copy `eeg/eeg.moddle.yaml`, the domain pack: it shows
-inheritance from core types, wrappers, enums, roles, and templates.
-`studyflow/studyflow.moddle.yaml` is the vocabulary every diagram uses. It alone
-declares app-wide powers (the inspector tab set, `bpmn:*` redefines, expression
-traits), which a domain pack must not copy; its `Scheduling` is the plainest trait.
+```yaml
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
+name: My lab                            # shown in Settings, the Add panel and its inspector tab
+prefix: mylab                           # its elements are mylab:Calibration
+uri: http://example.org/schemas/mylab   # its XML namespace
+version: '26.11.0'
+description: Eye-tracking steps for my lab.
+icon: iconify tabler--eye
+xml:
+  tagAlias: lowerCase
+enumerations: []
+types: []
+templates: []
+```
 
-## Conventions
-
-- A `description` is one sentence the inspector shows in a 256px tooltip, of 90 characters at most; the schema's own, the Settings blurb, may run longer. Rationale, engine notes, and endpoint details go in YAML comments beside the key, never in the description.
-- A plain YAML scalar cannot contain a colon followed by a space; quote a description that does.
-- Attribute names are camelCase nouns. Put a unit in the attribute's meta (`samplingRate` → `meta.unit: Hz`). Do not put units in the attribute name (`samplingRateHz` is wrong).
-- An enum attribute that allows values outside its list is `meta.editable: true`.
-- A property a type adds to a BPMN element (a type that `extends` one) is an attribute, `isAttr: true`: BPMN's XML schema takes another namespace's attributes on any element, and no child element but `extensionElements`, so the file stays valid BPMN. A wrapper type, one that sits in `extensionElements`, may hold child elements.
-- A placeholder in a value is `{name}` (dotted paths allowed: `{Play.trials}`). Every reader resolves it by one rule, [Placeholders](../docs/reference.qmd#placeholders), and nothing reads `$name`, `${name}` or `{{name}}`.
-- A reference to software, a model, or a device is `<scheme>://<ref>` (`python://`, `shell://`), whatever attribute holds it.
-- Element icons are Iconify classes, picked for what they say from any set `assets/css/app.css` loads: a glyph drawn at a 2px line where one fits (Tabler, Lucide, MDI's outline), else Phosphor's regular weight (`iconify ph--<name>`), never a weight variant. Verify a glyph exists in `node_modules/@iconify/json/json/<set>.json` before using it; an unknown name falls back to the BPMN ancestor's icon.
-- Reuse core types by inheritance rather than restating fields: a BIDS dataset is a `studyflow:Dataset`, a battery task a `cognitive:CognitiveTask`.
-- Name the schema's own types bare (`type: DeviceEnum`) and another schema's with its prefix (`superClass: [studyflow:Dataset]`, `type: studyflow:YAMLString`); moddle reads a bare name as the schema's own. The catalog also looks a bare name up in every schema and takes the first it finds, so no two schemas declare the same name.
-
-## Schema-level keys
-
-| Key | Meaning |
+| Key | Says |
 | --- | --- |
-| `name` | The name the app shows: the Settings row, the palette flyout, and the schema's own inspector tab. |
-| `prefix` | The prefix its elements are named under (`eeg:Session`), in lowercase. Unique; a duplicate is a load diagnostic (first wins). |
-| `description` | First sentence becomes the Settings row blurb. |
-| `uri` | The XML namespace of its elements: an http(s) URI no other schema uses. |
-| `icon` | Iconify class (or URL) for the palette flyout header. |
-| `order` | Load/display order; unordered schemas sort after ordered ones, then by prefix. |
-| `required` | `true`: the schema always loads, and the modeler's settings mark it with a lock and cannot switch it off. Left out, it is `false`: a skill the user can switch off. |
-| `xml.tagAlias` | `lowerCase`, in every schema: moddle writes each element's tag in lowerCamelCase (`<eeg:session>`). |
-| `version` | `'YY.M.N'`, quoted, like the app's own version. |
-| `categories` | Inspector tabs, in the studyflow schema only (the tab set is app-wide and pinned by `tests/schemas.unit.spec.ts`): each a `name`, an `order`, a `description`, and `synthetic: true` for a tab drawn by its own section. An attribute joins one in its `meta.categories`. Every other schema gets a tab of its own `name`, right after General, where its attributes file by default. |
-| `enumerations`, `types`, `templates` | The content; below. |
-
-`templates` come last in the file: what the schema is, then what it declares, then what the palette offers.
-`tests/schemas.unit.spec.ts` checks the forms: a lowercase `prefix`, an http(s) `uri` no other schema shares, a
-quoted `YY.M.N` `version`, a `lowerCase` `xml.tagAlias`, a blurb that fits a Settings row, PascalCase type and
-enumeration names that no other schema declares, and descriptions that fit the tooltip.
+| `name`, `prefix`, `uri` | Required. The prefix is lowercase, and no other schema shares it or the `uri`. |
+| `description` | Its first sentence is the blurb in Settings. |
+| `icon` | The skill's glyph, an Iconify class. |
+| `version` | `'YY.M.N'`, quoted. |
+| `required: true` | The schema always loads and cannot be switched off. |
+| `order` | Where it loads and lists, among the others. |
+| `xml.tagAlias: lowerCase` | In every schema: tags are written `<mylab:calibration>`. |
+| `categories` | The inspector's tabs, each a `name`, an `order` and a `description`. The core schema's alone; any other schema gets one tab, under its `name`. |
+| `synthetic: true` | On a tab: it shows even when no attribute files under it, because the app draws sections of its own there (Execution: data in and out, state). |
 
 ## Types
 
-| Key | Meaning |
-| --- | --- |
-| `name` | The type's name; the schema's prefix qualifies it (`eeg:Session`). |
-| `description` | Palette and inspector tooltip. |
-| `superClass: [bpmn:X]` | A **wrapper**: created as that BPMN element, with its own element inside `extensionElements`. The wrapper is no X itself: it carries none of X's attributes, and no trait on X reaches it, so an attribute lives in one place (an own `icon` goes on the element). A file names such an element by the wrapper's type (`type: eeg:Session`), its attributes beside the element's, and the X it attaches to follows. |
-| `superClass: [Type]` | Inherits another type, which decides the BPMN element (`eeg:BIDSDataset` is a `studyflow:Dataset`). |
-| `extends: [bpmn:X, …]` with `isAbstract: true` | A **trait**: its attributes mix onto those BPMN types and their subtypes. It has no `superClass` and is never created itself. |
-| `isAbstract: true` | Not creatable. |
-| `meta` | The app's own keys; below. |
-| `properties` | Its attributes; below. |
+A type is one of three kinds:
 
-A type whose `superClass` is a moddle built-in (`String`) is a value type: text an attribute holds, with an
-editor of its own (`MarkdownString`, `YAMLString`). Any other type with no BPMN ancestor is a value holder other
-types point at (`prov:Activity`), and writes `superClass: [Element]`, moddle's root;
-`superClass: [bpmn:BaseElement]` gives one BPMN's `id` and documentation but no place on the canvas
-(`studyflow:DataCatalog`).
-
-### Type `meta`
-
-| Key | Consumer |
-| --- | --- |
-| `icon` | Canvas + palette + append-menu glyph (Iconify class). |
-| `editor` (on a value type or any other type) | Default editor for every attribute of that type (see editor names below). |
-| `roles` | What the type stands for to exporters, the data-operation marker and the reporting documents (`instrument`, `signal`, `acquisition`, `screening`, …). `data-element` alone follows from the BPMN attach point; don't restate it. |
-| `presenter` | The upper band of a typed choreography task: a template naming the extension's attributes in angle brackets (`"Behaverse · <instrument>"`), never a run's `{placeholder}`. Empty or absent, the band reads "Task software". |
-| `glyph` | The attribute whose value is drawn as text over the type icon (`instrument`). |
-| `participantKind` (on a `bpmn:Participant` type) | What a band-only actor can be: the name of one of the type's enum attributes, one kind per literal (`actorType`), or the label of the one kind the type itself is (`Reachy Mini`). |
-| `branching` | Gateway semantics for both runners (`random`, `condition`); the allowed set is pinned by `tests/schemas.unit.spec.ts`. The plan carries it to the walk (`packages/core/src/engine`). |
-| `eventDefinition` (on an event type) | The event definition a new event of the type gets, from the palette or `add`: its `type` and what it holds (`{ type: bpmn:TimerEventDefinition, timeDuration: PT1M }` makes a timer event). |
-| `categories` | Palette-group override (rarely needed: groups derive from the BPMN ancestor). Distinct from an attribute's `meta.categories`, which is its inspector tab. |
-| `connectsTo` | Connection-rule allow-list; wired but currently exercised only by tests. |
-
-A `meta` value is any YAML: a scalar, a list (`roles: [signal]`), or a mapping (an attribute's `condition`).
-
-## Properties
-
-Each entry of a type's `properties` is one attribute.
-
-| Key | Meaning |
-| --- | --- |
-| `name` | The attribute's name. Spelled `bpmn:<property>`, it is BPMN's own and stays in the BPMN namespace (`bpmn:implementation`). |
-| `description` | Inspector tooltip. |
-| `type` | The value's type: moddle's `String`, `Boolean`, `Integer` or `Real`, an enumeration, a value type, a type, or a BPMN element (below). Written on every attribute, `String` included. The inspector edits a `Boolean` with a checkbox. |
-| `isAttr: true` | An XML attribute; below. |
-| `isMany: true` | A list, one child element per entry. |
-| `isBody: true` | The element's text body: the one attribute of a value holder. |
-| `default` | The value a new element starts with, as plain YAML of the attribute's type (`csv`, `3`, `0.5`, `true`); `tests/schemas.unit.spec.ts` checks the type. Quote a value YAML would read as another type (`default: '50'`). On an enum attribute it must be one of the literal values (checked at compile). |
-| `redefines: Type#property`, `replaces: Type#property` | Overrides an inherited property; see precedence below. The type is named like any other (`cognitive:CognitiveTask#platform`, `bpmn:ServiceTask#implementation`); anything not spelled `Type#property` overrides nothing (a diagnostic). Overriding a BPMN property also names it `bpmn:<property>`, or the value is written in the schema's own namespace. |
-| `xml.serialize: xsi:type` | On a `bpmn:Expression` attribute: moddle writes the element with its `xsi:type`, as BPMN writes an expression. |
-| `meta` | The app's own keys; below. |
-
-An attribute with `isAttr: true` is an XML attribute, which holds one line. Without it, the attribute is a child
-element. Use a child element for multi-line text (`MarkdownString`, `YAMLString`, code), and to nest a value holder.
-When `type` names a BPMN element, moddle writes the value as that element. `bpmn:Documentation` and `bpmn:Expression` are text the inspector edits as a string; other BPMN
-elements (`bpmn:DataInputAssociation`) are structure the canvas draws, never an inspector field. An expression
-takes `type: bpmn:Expression`, `xml.serialize: xsi:type` and `meta.expression: true` together, as studyflow's
-`SequenceFlow` trait shows, redefining a BPMN property:
+| Kind | Written | For | Example |
+| --- | --- | --- | --- |
+| wrapper | `superClass: [bpmn:Task]` | a new element, drawn as that BPMN element | `cognitive:Instruction` |
+| subtype | `superClass: [studyflow:Dataset]` | a narrower version of another type | `eeg:BIDSDataset` |
+| trait | `extends: [bpmn:Activity]` and `isAbstract: true` | attributes added to existing BPMN elements | `studyflow:Scheduling` |
 
 ```yaml
 types:
-  - name: SequenceFlow
-    description: Lets a flow carry the condition it is taken on.
-    extends:
-      - bpmn:SequenceFlow
-    isAbstract: true
+  - name: Calibration
+    description: Calibrates the eye tracker before a block.
+    superClass:
+      - bpmn:Task
+    meta:
+      icon: iconify tabler--focus-2
     properties:
-      - name: bpmn:conditionExpression
-        description: Take this flow when the expression holds (`accuracy >= 0.9`).
-        type: bpmn:Expression
-        xml:
-          serialize: xsi:type
-        redefines: bpmn:SequenceFlow#conditionExpression
+      - name: points
+        description: How many points the calibration shows.
+        isAttr: true
+        type: Integer
+        default: 9
         meta:
-          expression: true
+          showInline: true
 ```
 
-### Attribute `meta`
+Two more kinds hold values rather than draw elements. A type whose `superClass` is `String` is text with a widget
+of its own (`MarkdownString`). A type whose `superClass` is `Element` is a record other types point at
+(`prov:Activity`).
 
-| Key | Consumer |
+### A type's `meta`
+
+| Key | Says |
 | --- | --- |
-| `order` | Sort within the inspector tab. |
-| `categories: [Tab]` | The inspector tab. Omitted, an attribute files under its schema's own tab (`Cognitive`, `EEG & Biosignals`), and a studyflow one under `General`, so General stays identity plus core fields. |
-| `pinned` | Fixed value, never rendered. |
-| `optional` | Renders the opt-in checkbox editor (`String` attributes; declarative intent elsewhere). |
-| `editable` | Enum that also accepts free text. |
-| `condition` | Visibility predicate over sibling attributes: `{attr: value}`, with `$set` for a non-empty value, a list for any of several, `{$not: value}`. |
-| `editor` | Named editor override. Known names (checked at compile): `csvw-table`, `code`, `markdown`, `checklist`; the list lives in `packages/core/src/notation/types.ts` (`EDITOR_NAMES`) and the inspector registry is typed off it. |
-| `expression` | With `type: bpmn:Expression`: the inspector edits it as a string of FEEL, and flags one that does not parse ([Expressions](../docs/reference.qmd#expressions)). |
-| `languageAttr` | Sibling attribute holding the code editor's language (e.g. `bpmn:scriptFormat`). |
-| `icon` | Event overlay glyph drawn when the attribute has a value. A type's `icon` means something else. |
-| `unit` | Unit of a numeric attribute (`Hz`, `s`, `rad`); shown after the field label. Never part of the name. |
-| `label` | The field's label, where the one every attribute of its name shares would say too little: a Behaverse task's `implementation` is its `Build`. |
+| `icon` | Its glyph on the canvas and in the tools. |
+| `glyph` | The attribute whose value is written over the icon (`instrument`). |
+| `choreographyBandLabel` | The upper band's text on a task drawn as a choreography task: `"Behaverse - <instrument>"`. |
+| `paletteGroup` | Its group in the tools (Events, Activities, Gateways, Data, Containers), when its BPMN ancestor does not say. |
+| `tags` | Labels other parts of the app look types up by, inherited by subtypes: see [Tags](#tags). |
+| `strategy` | How a gateway of this type decides: `random` or `condition`. |
+| `eventDefinition` | What a new event of this type waits for: `{ type: bpmn:TimerEventDefinition, timeDuration: PT1M }`. |
+| `actorKind` | On a pool type: the kinds of actor it offers, as the name of an enumeration attribute (`actorType`), or the one kind it is (`Reachy Mini`). |
+| `returns` | The type that describes what a step of this type hands back, so a study reading `result.<field>` is checked. |
+| `widget` | The widget every attribute of this type opens in. |
+
+### Tags
+
+| Tag | Read by |
+| --- | --- |
+| `instrument` | SPIRIT lists the step under assessments, and the ARTEM-IS export under tasks. It is never a data operation, though it names an `implementation`. |
+| `screening` | CONSORT's participant flow reads the gateway as the eligibility screen. |
+| `acquisition`, `signal` | The ARTEM-IS export includes the element, an `acquisition` step under acquisition. |
+| `data-element` | Never written: a type attached to a BPMN data element has it. The exports read it. |
+
+## Attributes
+
+Each entry of a type's `properties` is one attribute.
+
+| Key | Says |
+| --- | --- |
+| `name` | Its name, a camelCase noun. `bpmn:<property>` names BPMN's own. |
+| `description` | One sentence, the inspector's tooltip. |
+| `type` | `String`, `Boolean`, `Integer`, `Real`, an enumeration, or a type. Always written. |
+| `isAttr: true` | One line of text, stored as an XML attribute. Leave it out for multi-line text, which becomes a child element. |
+| `isMany: true` | A list. |
+| `default` | The value a new element starts with. |
+| `redefines: Type#property` | Replaces an attribute the type inherits. |
+
+### An attribute's `meta`
+
+Where it shows:
+
+| Key | Says |
+| --- | --- |
+| `categories: [Tab]` | Its inspector tab. Left out, the schema's own tab. |
+| `order` | Its place in the tab. |
+| `showInline: true` | Also in the inline inspector on the canvas: the few fields set on most steps of the type. |
+| `hidden: true` | Never shown: files, templates or runners set it. |
+| `condition` | Shown only when sibling attributes match: `{attr: value}`, `$set` for any value, a list for any of several, `{$not: value}`. The app's own key, not a BPMN condition. |
+| `label` | Its label, where the name says too little. |
+| `unit` | Its unit (`Hz`), shown after the label. |
+
+How it is edited:
+
+| Key | Says |
+| --- | --- |
+| `widget` | A named input: `csvw-table`, `code`, `markdown`, `checklist`. |
+| `nullable: true` | A checkbox opens the field. |
+| `allowCustom: true` | An enumeration that also takes free text. |
+| `expression: true` | FEEL. Goes with `type: bpmn:Expression` and `xml: {serialize: xsi:type}`. |
+| `codeEditorLanguage` | The sibling attribute that holds the language of the `code` widget. |
+| `icon` | On an event's attribute: a glyph drawn on the event when the attribute has a value. |
 
 ## Attribute precedence
 
-An attribute lives in one place. A wrapper is no BPMN element, so it carries none of its host's attributes and no
-trait on the host reaches it; `resolveAttribute` in `packages/core/src/element/handle.ts` reads and writes it there:
+An attribute lives in one place:
 
-1. declared by the element's own type, traits included: on the element (`bpmn:id` and `bpmn:name` read as `id` and `name`);
-2. else declared by the wrapper: on the wrapper, and under the name it redefines when it `redefines` an attribute of a
-   wrapper it extends (`behaverse:Task` redefines `cognitive:CognitiveTask#platform`);
-3. else: on the element, under its local name.
+1. on the element, when the element's own type or a trait declares it;
+2. else on the wrapper, when the wrapper declares it;
+3. else on the element, under its local name.
 
-A write that resolves to no target is dropped with a console warning. `redefines` of a BPMN property belongs on a
-trait (`studyflow:Implementation` redefines `bpmn:ServiceTask#implementation`), never on a wrapper, where the element
-already holds it. `packages/core/tests/element.unit.spec.ts` pins each case.
+A wrapper is not the BPMN element it attaches to, so no trait on that element reaches it. `redefines` of a BPMN
+property therefore belongs on a trait, never on a wrapper.
 
 ## Enumerations
 
-An enumeration has a `name`, a `description`, and `literalValues`, each with a `name` (the label shown), a
-`value` (what the file stores), an optional `description`, and an optional `icon` (rendered in the enum input; may
-name a raw-SVG key from `packages/canvas/src/render/icons.ts`'s `SVG_ICON_PATHS`). Quote a value YAML would read
-as a number or a boolean (`value: '50'`).
+```yaml
+enumerations:
+  - name: RestEyesEnum
+    description: Eye condition during a rest period.
+    literalValues:
+      - name: Eyes open       # the label shown
+        value: open           # what the file stores
+      - name: Eyes closed
+        value: closed
+```
 
-An enumeration is open: another schema adds literals to it with an entry that `extends` it instead of declaring a
-`name`, so a small skill grows a shared list rather than redeclaring it. A literal whose value the target already
-has is dropped with a diagnostic, as is an `extends` that names no enumeration.
+Another schema adds values to an enumeration by extending it:
 
 ```yaml
 enumerations:
   - extends: studyflow:ActorTypeEnum
-    description: What an actor pool can be, beyond cognitive's human, software, and hardware.
     literalValues:
       - name: Large language model
         value: llm
@@ -187,12 +168,8 @@ enumerations:
 
 ## Templates
 
-`templates` lists the schema's palette flyout entries. Each has a `description` and `elements`: the elements a
-drop adds, id-keyed and spelled as in a `.studyflow.yaml` file. The first is the element dropped and what the
-palette shows (its `name`, and its own `icon` or its type's); a pool's `processRef` names the process holding its
-flow. `tests/schemas.unit.spec.ts` reads each template as a studyflow and fails on any warning, such as an
-undeclared attribute. Prefer templates over new types: a verb ("fit a model", "5-fold CV") is a template over a
-generic type, not a type; see the end of `eeg.moddle.yaml`.
+A template is a ready-made piece of a study the Add panel offers, drawn as what it drops. Prefer one over a new
+type: "fit a model" is a template over a service task, not a type.
 
 ```yaml
 templates:
@@ -202,34 +179,25 @@ templates:
         type: ServiceTask
         name: EEGPrep
         icon: iconify tabler--wave-sine
-        …
 ```
 
-## Examples
+`elements` is spelled as in a `.studyflow.yaml` file. The first element is the one dropped, and names the template.
 
-A skill ships whole diagrams in its `examples/` folder, not in its schema, each a `.studyflow.yaml`, never a
-picture; the gallery shows them, and the skill is the shelf, so an example lands with the vocabulary or runner it
-exercises. The gallery draws an example's card when it opens: the main canvas, without glyphs.
+## Conventions
 
-## Icons
+- A description is one sentence of 90 characters at most. Notes for maintainers go in YAML comments.
+- Quote a description that holds a colon followed by a space.
+- A unit goes in `meta.unit`, never in the name: `samplingRate`, not `samplingRateHz`.
+- Name the schema's own types bare (`type: DeviceEnum`) and another schema's with its prefix (`studyflow:Dataset`).
+- Reuse a core type by inheritance rather than restating its fields.
+- A reference to software, a model or a device is `<scheme>://<ref>`.
+- A placeholder in a value is `{name}` ([Placeholders](../docs/reference.qmd#placeholders)); an expression is FEEL ([Expressions](../docs/reference.qmd#expressions)).
+- An icon is an Iconify class from a set `assets/css/app.css` loads: `tabler`, `lucide` or `mdi`, else `ph` at its regular weight.
 
-Iconify classes must use a prefix enabled in `assets/css/app.css`
-(`@plugin "@iconify/tailwind4"` block); an unlisted prefix renders an empty
-box, and is left out of PNG/SVG exports; every listed icon is inlined from the
-stylesheet, so exports need no network. The block lists `tabler` (a skill's
-lettered hexagon among them), `lucide` and `mdi`, which draw a 2px line; `ph`,
-at its regular weight, for a glyph none of them has; and `bpmn`, bpmn-io's
-shapes, kept only where nothing else draws a BPMN element.
+## Checking a schema
 
-## Reserved local names
+- The first line of the file lets an editor check moddle's keys as you type.
+- A schema that fails to load is listed in Settings, Extensions with its error, and the app starts without it.
+- `npm run test:unit -- schemas` checks the shipped schemas: their names, versions, descriptions, defaults and templates.
 
-`studyflow:Study`, `studyflow:StartEvent`, `studyflow:EndEvent`, and
-`studyflow:SequenceFlow` are backed by the static palette groups instead of
-schema tiles.
-
-## Failure surfacing
-
-A file that fails to parse is quarantined (the app boots without it) and shown
-in Settings → Extensions with its error. Compile diagnostics (all of the
-checks above) print to the console at load and badge the schema's Settings
-row. `npm run test:unit -- schemas catalog diagnostics moddle-package` runs those specs locally in about a second.
+`AttributeMeta` and `TypeMeta` in `packages/core/src/notation/types.ts` list every `meta` key the app reads.

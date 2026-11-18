@@ -1,10 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
-import {
-  getPaletteIconForBpmnType,
-  type PaletteEntry,
-  type PaletteGroup,
-} from '@modeler/palette/groups';
-import type { PaletteSchema } from '@modeler/palette/commands';
+import type { PaletteGroup } from '@modeler/palette/groups';
+import type { AddEntry } from '@modeler/palette/catalog';
 import type { PaletteDraggable, PaletteDragHandlers } from '@modeler/palette/usePaletteDrag';
 import { paletteFlyout } from '@modeler/palette/styles';
 import { PaletteIcon } from '@modeler/palette/PaletteIcon';
@@ -65,96 +61,49 @@ function PaletteTile({ draggable, icon, title, label, handlers }: TileProps) {
 
 type PopupProps = {
   group: PaletteGroup;
-  extraItems: PaletteEntry[];
+  /** The kind's entries: BPMN's own, then the skills' (`catalog.ts`). */
+  entries: AddEntry[];
   isOpen: boolean;
   handlers: PaletteDragHandlers;
 };
 
-export function Popup({ group, extraItems, isOpen, handlers }: PopupProps) {
+/**
+ * A kind's flyout: what is always there (BPMN's own, then the types of the skills that always load, as Core), then,
+ * under a rule, what the skills a person turned on add of that kind.
+ */
+export function Popup({ group, entries, isOpen, handlers }: PopupProps) {
   const { ref } = useFlyoutPosition(isOpen);
+  const tiles = (shown: AddEntry[]) => (
+    <div className={paletteFlyout.grid}>
+      {shown.map((entry) => (
+        <PaletteTile
+          key={entry.id}
+          draggable={entry}
+          icon={entry.icon}
+          title={`Create ${entry.label}${entry.skill ? ` (${entry.skill.name})` : ''}`}
+          label={entry.label}
+          handlers={handlers}
+        />
+      ))}
+    </div>
+  );
+  const always = (entry: AddEntry): boolean => !entry.skill || entry.skill.required;
+  const added = entries.filter((entry) => !always(entry));
   return (
     <div ref={ref} className={paletteFlyout.panel(isOpen)}>
       <span className={paletteFlyout.gapBridge} aria-hidden="true" />
 
       <div className={paletteFlyout.header}>{group.label}</div>
 
-      <div className={paletteFlyout.grid}>
-        {[...group.items, ...extraItems].map((item) => (
-          <PaletteTile
-            key={item.label}
-            draggable={item}
-            icon={item.icon ?? getPaletteIconForBpmnType(item.bpmnType) ?? group.icon}
-            title={`Create ${item.label}`}
-            label={item.label}
-            handlers={handlers}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-type SchemaPopupProps = {
-  schema: PaletteSchema;
-  isOpen: boolean;
-  handlers: PaletteDragHandlers;
-};
-
-export function SchemaPopup({ schema, isOpen, handlers }: SchemaPopupProps) {
-  const { ref } = useFlyoutPosition(isOpen);
-
-  return (
-    <div ref={ref} className={paletteFlyout.panel(isOpen)}>
-      <span className={paletteFlyout.gapBridge} aria-hidden="true" />
-
-      <div className={`${paletteFlyout.header} flex items-center gap-1.5`}>
-        <PaletteIcon icon={schema.icon} size={14} />
-        <span>{schema.name}</span>
-        {!schema.required && (
-          <span
-            className={`${paletteFlyout.extBadge} ml-auto`}
-            title="Extension. Turn it off in Settings > Extensions."
-          >
-            ext
-          </span>
+      <div className={paletteFlyout.body}>
+        {tiles(entries.filter(always))}
+        {added.length > 0 && (
+          <>
+            <div className={paletteFlyout.rule} role="separator" />
+            {tiles(added)}
+          </>
         )}
       </div>
-
-      {schema.items.length > 0 && (
-        <div className={paletteFlyout.grid}>
-          {schema.items.map((item) => (
-            <PaletteTile
-              key={`type-${item.extensionType}`}
-              draggable={item}
-              icon={item.icon ?? getPaletteIconForBpmnType(item.bpmnType) ?? schema.icon}
-              title={`Create ${item.label}`}
-              label={item.label}
-              handlers={handlers}
-            />
-          ))}
-        </div>
-      )}
-
-      {schema.templates.length > 0 && (
-        <>
-          <div className={paletteFlyout.sectionHeader}>Templates</div>
-          <div className={paletteFlyout.grid}>
-            {schema.templates.map((template) => {
-              const typeIcon = schema.items.find((it) => it.extensionType === template.extensionType)?.icon;
-              return (
-                <PaletteTile
-                  key={`template-${template.id}`}
-                  draggable={{ ...template, __template: true }}
-                  icon={template.icon ?? typeIcon ?? schema.icon ?? getPaletteIconForBpmnType(template.bpmnType)}
-                  title={template.description ? `${template.label}: ${template.description}` : `Create ${template.label}`}
-                  label={template.label}
-                  handlers={handlers}
-                />
-              );
-            })}
-          </div>
-        </>
-      )}
     </div>
   );
 }

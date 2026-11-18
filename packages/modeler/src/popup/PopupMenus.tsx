@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { FontPatch, TextAlign } from '@canvas/index.ts';
 import { eventDefinitionTypeOf } from '@core/element';
+import { humanizeLabel } from '@core/notation';
+import { ModeContext } from '@modeler/app/contexts';
 import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
-import { APPEND_MENU, COLOR_MENU, CREATE_MENU, REPLACE_MENU, registerPopupMenu, type PopupOptions, type PopupPosition } from '@modeler/editor/popupMenus';
+import { ADD_HERE_MENU, APPEND_MENU, COLOR_MENU, INSERT_MENU, REPLACE_MENU, registerPopupMenu, type PopupOptions, type PopupPosition } from '@modeler/editor/popupMenus';
 import { ICONS } from '@modeler/icons';
+import { addEntries, byKind } from '@modeler/palette/catalog';
+import { usePinned } from '@modeler/palette/pins';
 import { BLACK_TEXT, ELEMENT_COLORS, DEFAULT_FILL, DEFAULT_STROKE } from '@modeler/shape/colors';
-import { buildElementEntries } from '@modeler/popup/entries';
-import { mustDragToAppend } from '@modeler/popup/commands';
+import { addMenu } from '@modeler/popup/addMenu';
 import { PopupMenu, type PopupMenuModel, type PopupMenuItem } from '@modeler/popup/PopupMenu';
 import { t } from '@modeler/i18n';
 
@@ -24,6 +27,9 @@ const INKS: { label: string; color: string }[] = [
   ...ELEMENT_COLORS.flatMap((color) => (color.stroke ? [{ label: color.label, color: color.stroke }] : [])),
 ];
 
+/** The Add panel's openers in place. It adds only where the tools show: not while a simulation, a replay or a review holds the study. */
+const ADDS: readonly string[] = [ADD_HERE_MENU, APPEND_MENU, INSERT_MENU];
+
 type OpenMenu = {
   providerId: string;
   position: PopupPosition;
@@ -32,23 +38,17 @@ type OpenMenu = {
   ids: readonly string[];
 };
 
-/**
- * A mouse event the editor's create gesture can read coordinates off. Keyboard selection inside the menu produces
- * no pointer position, so the anchor's own cursor stands in, and the drag starts where the menu was opened from.
- */
-function pointerEventFor(event: ReactMouseEvent, anchor: PopupPosition): MouseEvent {
-  const native = (event as unknown as { nativeEvent?: MouseEvent })?.nativeEvent ?? (event as unknown as MouseEvent);
-  if (typeof native?.clientX === 'number' && (native.clientX !== 0 || native.clientY !== 0)) return native;
-  return new MouseEvent('mousemove', {
-    clientX: anchor.cursor.x,
-    clientY: anchor.cursor.y,
-    bubbles: true,
-  });
-}
-
 export function PopupMenus() {
   const modeler = useModeler();
   const [open, setOpen] = useState<OpenMenu | null>(null);
+  /** Followed so the Add panel's pins show a click at once. */
+  const pinned = usePinned();
+  const { mode } = useContext(ModeContext);
+  const editing = useRef(mode === 'edit');
+  useEffect(() => {
+    editing.current = mode === 'edit';
+    if (!editing.current) setOpen((current) => (current && ADDS.includes(current.providerId) ? null : current));
+  }, [mode]);
   /** Bumped on every edit: the style menu stays open, so its toggles must re-read the font. */
   const [revision, setRevision] = useState(0);
   const close = useCallback(() => setOpen(null), []);
@@ -62,12 +62,13 @@ export function PopupMenus() {
   useEffect(() => {
 
     const opener = (providerId: string) => (position: PopupPosition, options?: PopupOptions) => {
+      if (ADDS.includes(providerId) && !editing.current) return;
       // Snapshot the selection: the menu is chrome outside the diagram, and what it
       // acts on must not drift while it is open.
       setOpen({ providerId, position, options, ids: [...modeler.canvas.selection] });
     };
 
-    const detach = [CREATE_MENU, APPEND_MENU, REPLACE_MENU, COLOR_MENU]
+    const detach = [ADD_HERE_MENU, APPEND_MENU, INSERT_MENU, REPLACE_MENU, COLOR_MENU]
       .map((id) => registerPopupMenu(id, opener(id)));
 
     return () => detach.forEach((off) => off());
@@ -172,10 +173,20 @@ export function PopupMenus() {
       };
     }
 
-    const isAppend = providerId === APPEND_MENU;
+    if (providerId === ADD_HERE_MENU) return addMenu(modeler, { kind: 'point', at: position.cursor }, pinned, position);
+    if (providerId === INSERT_MENU) {
+      const flow = options?.subject === undefined ? undefined : study.get(options.subject);
+      if (flow?.kind !== 'edge' || flow.source === undefined || flow.target === undefined) return null;
+      const nameOf = (id: string): string => {
+        const record = study.get(id);
+        return record?.name?.trim() || humanizeLabel((record?.extension ?? record?.type ?? id).split(':').pop()!);
+      };
+      return addMenu(modeler, { kind: 'flow', id: flow.id, from: flow.source, between: [nameOf(flow.source), nameOf(flow.target)] }, pinned, position);
+    }
+
     const isReplace = providerId === REPLACE_MENU;
     const source = ids[0] === undefined ? undefined : study.get(ids[0]);
-    if ((isAppend || isReplace) && !source) {
+    if (!source) {
       return {
         title: options?.title ?? t(isReplace ? 'Change element' : 'Append element'),
         width: options?.width ?? 260,
@@ -184,108 +195,51 @@ export function PopupMenus() {
       };
     }
 
-    if (isReplace) {
-      // The catalog the create and append menus offer, trimmed to what the editor accepts in this
-      // element's place, and without the element's own type, which would change nothing.
-      const currentBpmn = source?.type;
-      const currentExtension = source?.extension;
-      const currentDefinition = eventDefinitionTypeOf(source && study.element(source.id));
-      const sections = buildElementEntries()
-        .map((group) => ({
-          id: group.id,
-          name: group.name,
-          items: group.entries
-            .filter((entry) => (
-              !(entry.bpmnType === currentBpmn && entry.extensionType === currentExtension
-                && eventDefinitionTypeOf(entry.attributes as never) === currentDefinition)
-              && !!source && study.can('replace', { id: source.id, type: entry.bpmnType }).ok
-            ))
-            .map((entry): PopupMenuItem => ({
-              id: entry.id,
-              label: entry.label,
-              icon: entry.icon,
-              keywords: entry.keywords,
-              title: `Change to ${entry.label}`,
-              onSelect: () => {
-                executeCommand(modeler, {
-                  type: 'ReplaceElement',
-                  id: source!.id,
-                  bpmnType: entry.bpmnType,
-                  extensionType: entry.extensionType,
-                  attributes: entry.attributes,
-                });
-              },
-            })),
-        }))
-        .filter((group) => group.items.length > 0);
-      return {
-        title: options?.title ?? t('Change element'),
-        width: options?.width ?? 260,
-        search: options?.search,
-        sections,
-        emptyText: 'Nothing can replace this element',
-      };
+    if (!isReplace) {
+      const name = source.name?.trim() || humanizeLabel((source.extension ?? source.type).split(':').pop()!);
+      return addMenu(modeler, { kind: 'element', id: source.id, name }, pinned, position);
     }
 
+    // The Add panel's elements, filed the same way, trimmed to what the editor accepts in this element's place, and
+    // without the element's own type, which would change nothing.
+    const currentDefinition = eventDefinitionTypeOf(study.element(source.id));
+    const offered = addEntries().filter((entry) => (
+      !entry.template
+      && !(entry.bpmnType === source.type && entry.extensionType === source.extension
+        && eventDefinitionTypeOf(entry.attributes as never) === currentDefinition)
+      && study.can('replace', { id: source.id, type: entry.bpmnType }).ok
+    ));
     return {
-      title: options?.title ?? (isAppend ? t('Append element') : t('Create BPMN element')),
+      title: options?.title ?? t('Change element'),
       width: options?.width ?? 260,
       search: options?.search,
-      sections: buildElementEntries().map((group) => ({
-        id: group.id,
-        name: group.name,
-        items: group.entries.map((entry): PopupMenuItem => {
-          const startDrag = (event: ReactMouseEvent) => {
-            const native = pointerEventFor(event, position);
-            if (isAppend) {
-              executeCommand(modeler, {
-                type: 'StartAppendElement',
-                bpmnType: entry.bpmnType,
-                extensionType: entry.extensionType,
-                attributes: entry.attributes,
-                event: native,
-              });
-            } else {
-              executeCommand(modeler, {
-                type: 'PaletteStartCreate',
-                bpmnType: entry.bpmnType,
-                event: native,
-                attributes: entry.attributes ?? {},
-                extensionType: entry.extensionType,
-              });
-            }
-          };
-
-          return {
-            id: entry.id,
-            label: entry.label,
-            icon: entry.icon,
-            keywords: entry.keywords,
-            title: isAppend ? `Append ${entry.label}` : `Create ${entry.label}`,
-            onDragStart: startDrag,
-            onSelect: (event) => {
-              // Click-append places the shape outright; a boundary event needs a
-              // host, so it falls back to the drag.
-              if (isAppend && !mustDragToAppend(entry.bpmnType)) {
-                executeCommand(modeler, {
-                  type: 'AppendElement',
-                  from: source!.id,
-                  bpmnType: entry.bpmnType,
-                  extensionType: entry.extensionType,
-                  attributes: entry.attributes,
-                });
-                return;
-              }
-              startDrag(event);
-            },
-          };
-        }),
+      sections: byKind(offered).map(({ kind, entries }) => ({
+        id: kind,
+        name: kind,
+        items: entries.map((entry): PopupMenuItem => ({
+          id: entry.id,
+          label: entry.label,
+          icon: entry.icon,
+          keywords: entry.keywords,
+          ...(entry.skill ? { tag: entry.skill.name } : {}),
+          title: `Change to ${entry.label}`,
+          onSelect: () => {
+            executeCommand(modeler, {
+              type: 'ReplaceElement',
+              id: source.id,
+              bpmnType: entry.bpmnType,
+              extensionType: entry.extensionType,
+              attributes: entry.attributes,
+            });
+          },
+        })),
       })),
+      emptyText: 'Nothing can replace this element',
     };
     // `revision` is read for its dependency alone: it re-runs the build so the style
     // menu's toggles show the font the last click wrote.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, modeler, revision]);
+  }, [open, modeler, revision, pinned]);
 
   if (!open || !menu) return null;
   return <PopupMenu anchor={open.position} menu={menu} onClose={close} />;

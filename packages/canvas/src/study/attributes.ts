@@ -38,7 +38,7 @@ export function attributesOf(model: StudyModel, element: Element): AttributeReco
     ...(name && (model.property(element, 'name') || element.name !== undefined) ? [name] : []),
     ...catalog.instanceAttributesOf(host).filter((spec) => declared(spec) && !redefined.has(localNameOf(spec))),
     ...extension.filter(declared),
-  ].filter((spec, index, all) => !spec.meta?.pinned && all.findIndex((other) => keyOf(other) === keyOf(spec)) === index);
+  ].filter((spec, index, all) => !spec.meta?.hidden && all.findIndex((other) => keyOf(other) === keyOf(spec)) === index);
   const shared = new Set(specs.map(localNameOf).filter((local, index, all) => all.indexOf(local) !== index));
   return specs.map((spec): AttributeRecord => {
     const value = plain(readAttribute(model, element, localNameOf(spec)));

@@ -1,7 +1,7 @@
 /** The eeg skill's contribution to the modeler: the ARTEM-IS export, an EEG methods report over the diagram's acquisition, signal, and instrument elements, and
  * NIDM-Results, the neuroimaging data model's provenance of the diagram's data operations. */
 import type { ExportFormat } from '@modeler/diagram/formats';
-import { hasRole, type ExportedElement, type ExportModel } from '@modeler/export/model';
+import { hasTag, type ExportedElement, type ExportModel } from '@modeler/export/model';
 import type { ModelerModule } from '@modeler/skillModules';
 import { nidmFormat } from '@skills/eeg/modeler/nidm';
 
@@ -15,7 +15,7 @@ function toSnakeCase(name: string): string {
 
 function isEegRelevant(element: ExportedElement): boolean {
   if (!element.type) return false;
-  if (hasRole(element, 'acquisition') || hasRole(element, 'signal') || hasRole(element, 'instrument')) return true;
+  if (hasTag(element, 'acquisition') || hasTag(element, 'signal') || hasTag(element, 'instrument')) return true;
   return element.isDataElement && EEG_DATA_TYPES.has(String(element.attributes.dataType ?? ''));
 }
 
@@ -55,8 +55,8 @@ export function exportToArtemis(model: ExportModel): string {
     eegElementIds.add(element.id);
 
     const entry = toEntry(element);
-    if (hasRole(element, 'acquisition') && !element.isDataElement) acquisition.push(entry);
-    else if (hasRole(element, 'instrument')) tasks.push(entry);
+    if (hasTag(element, 'acquisition') && !element.isDataElement) acquisition.push(entry);
+    else if (hasTag(element, 'instrument')) tasks.push(entry);
     else datasets.push(entry);
   }
 

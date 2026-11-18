@@ -52,22 +52,31 @@
 }
 
 /*
- * The app's surfaces, lightest first (`surface` in packages/modeler/src/ui/styles.ts):
+ * The modeler's look follows macOS (`surface`, `button` and the rest in packages/modeler/src/ui/styles.ts, the typeface
+ * and sizes in assets/css/modeler.css): warm greys that do not glare, and one accent, a softened violet, where macOS
+ * puts the system blue (focus rings, selection, menu highlights, the default button).
  *
- *   cream-50  -> the canvas
- *   cream-100 -> chrome and dialogs (nav bar, palette, inspector)
- *   cream-200 -> recessed surfaces (inputs, cards)
- *   cream-300 -> menus and flyouts
- *   cream-400 -> focus rings
+ *   desk      -> the canvas
+ *   paper     -> every panel, menu and sheet (nav bar, palette, inspector, dialogs), a step lighter than the desk
+ *   field     -> inputs, cards and secondary buttons, lighter again, as fields are on a Mac
+ *   accent    -> the default action, focus, selection and the highlighted menu row
+ *   cream-*   -> the older warm tints, for the few places that still name them
  */
 @theme {
+  --color-desk:  #ebe9e4;
+  --color-paper: #f7f6f3;
+  --color-field: #fdfcfa;
+  --color-accent: #6b55c8;
+  --color-accent-hover: #5d48b8;
+  --color-accent-ink: #4a3a99;
   --color-cream-50:  #faf9f6;
   --color-cream-100: #f7f5ee;
   --color-cream-200: #f0ece1;
   --color-cream-300: #ebe6d4;
   --color-cream-400: #d8d2bc;
 
-  /* The app's typeface: declared here, it is what `font-sans` means. */
+  /* The app's typeface: declared here, it is what `font-sans` means. The modeler's chrome swaps in the system's
+     (assets/css/modeler.css); the runner's screens keep this one. */
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -88,10 +97,10 @@
  */
 [data-testid="modeler-canvas"] {
   position: relative;
-  background-color: var(--color-cream-50);
+  background-color: var(--color-desk);
 }
 
-/* Simulating: the canvas wears a frame in the Simulate button's colour (`button.accentFill`). */
+/* Simulating: the canvas wears a frame in the colour of the composer's playback tint (`composer/styles.ts`). */
 .simulation-active [data-testid="modeler-canvas"] {
   box-shadow: inset 0 0 0 3px #c028b0;
 }
@@ -99,7 +108,7 @@
 /* Browser-native <select> option list - needs explicit colors so the OS
  * dropdown matches the cream surface around it. */
 [data-testid="inspector-root"] select option {
-  background-color: var(--color-cream-100);
+  background-color: var(--color-paper);
   color: #1d1d1f;
 }
 
@@ -109,15 +118,33 @@
   display: none;
 }
 
+/* The participant's storyboard stands in for the canvas (`storyboard/`): the tools step aside, and the canvas hides
+   without giving up its size, so what it does meanwhile (an insert, a selection) keeps its place for the way back. */
+.storyboard-active .studyflow-palette {
+  display: none;
+}
+.storyboard-active [data-testid="modeler-canvas"] {
+  visibility: hidden;
+}
+
 /* --- Provenance replay: violet border; the canvas marks what the records touched (`canvas.mark`). --- */
 
-/* Hide the palette during replay; the replay panel already stands in for the inspector. */
+/* Hide the palette during replay; the replay's minimap stands in for the inspector. */
 .replay-active .studyflow-palette {
   display: none;
 }
-/* `App.tsx` puts `replay-active` on the app while the replay panel is open. */
+/* `App.tsx` puts `replay-active` on the app while a replay walks the run trail. */
 .replay-active [data-testid="modeler-canvas"] {
   box-shadow: inset 0 0 0 3px #8b5cf6;
+}
+
+/* --- Review: a version written into the linked file elsewhere, read-only until accepted or discarded (`review/`). --- */
+/* The tools step aside; the inspector stays, read-only, to show what the version did (`inspector/Panel.tsx`). */
+.review-active .studyflow-palette {
+  display: none;
+}
+.review-active [data-testid="modeler-canvas"] {
+  box-shadow: inset 0 0 0 3px #3f9a68;
 }
 
 /* The replay token: a pulsing circle on the element the active record touches. */

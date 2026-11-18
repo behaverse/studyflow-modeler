@@ -12,7 +12,7 @@ const SCALARS: Record<string, { test: RegExp; is: string }> = {
 /**
  * An attribute holds a value of the type its schema gives it: one of an enumeration's values (`algorithm: block`,
  * never `blocks`), a whole number, a number, or true or false. A runner reads the value, and one it cannot read is a
- * setting it quietly does not apply. An enumeration whose attribute is marked `editable` offers values, and takes
+ * setting it quietly does not apply. An enumeration whose attribute is marked `allowCustom` offers values, and takes
  * others too; a `{placeholder}` is read at run time.
  */
 export function checkValues(model: StudyModel): Issue[] {
@@ -36,7 +36,7 @@ export function checkValues(model: StudyModel): Issue[] {
       }
       const choices = catalog.enumOf(property.type, type.split(':')[0]);
       const spec = catalog.instanceAttributesOf(type).find((candidate) => candidate.name === property.name || candidate.name === property.ns.name);
-      if (!choices || (spec?.meta as { editable?: boolean } | undefined)?.editable) continue;
+      if (!choices || spec?.meta?.allowCustom) continue;
       const allowed = choices.literals.map((literal) => literal.value);
       for (const held of [value].flat()) {
         if (typeof held !== 'string' || held.includes('{') || allowed.includes(held)) continue;

@@ -1,7 +1,7 @@
 /**
  * The `.studyflow.yaml` file as the study model (`./types.ts`) spells it: `readStudy` takes any spelling the file has
  * had (the short forms and the long ones), `writeStudy` writes the one the tools write. The short forms, each
- * reversible, are specified for authors in docs/reference.qmd, "The file", and pinned by
+ * reversible, are specified for authors in docs/format.qmd, and pinned by
  * packages/core/tests/studyflow-yaml.unit.spec.ts.
  */
 import * as yaml from 'js-yaml';
@@ -590,7 +590,7 @@ class Writer {
 
 
 /**
- * An element the {@link Writer} keeps, in the file's spelling (docs/reference.qmd, "The file"). It is written as BPMN
+ * An element the {@link Writer} keeps, in the file's spelling (docs/format.qmd). It is written as BPMN
  * holds it: a schema's typed element as its BPMN type with an entry of the schema's type (a choreography task in a
  * process keeps its type and its bands; the BPMN XML alone writes it as a task marked an exchange, `@core/document`).
  * Each key is its file name ({@link fileKey}), a reference `$id`, its entries under `extensions`, each under its

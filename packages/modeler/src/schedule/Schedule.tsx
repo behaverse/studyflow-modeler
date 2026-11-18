@@ -1,13 +1,15 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Modal } from '@modeler/ui/Modal';
 import { useModeler } from '@modeler/app/useModeler';
-import { OPEN_H, PITCH, ROW_H, ROW_PAD, ancestorsOf, axisTicks, collectScheduleRows, dependencyPath, layoutSchedule, tickLabel } from '@modeler/schedule/rows';
+import { useSelection } from '@modeler/composer/hooks';
+import { OPEN_H, PITCH, ROW_H, ROW_PAD, ancestorsOf, axisTicks, collectScheduleRows, dependencyPath, layoutSchedule, tickLabel, unscheduledSteps } from '@modeler/schedule/rows';
 import { dialog as d } from '@modeler/ui/styles';
-import { DialogHelp } from '@modeler/ui/DialogHelp';
 import { ICONS } from '@modeler/icons';
 import { DEFAULT_FILL, DEFAULT_STROKE } from '@modeler/shape/colors';
+import { showElement, useStudyVersion } from '@modeler/views/hooks';
+import { drawer as v } from '@modeler/views/styles';
 
-type Props = { isOpen: boolean; onClose: () => void };
+/** What an empty schedule offers: a length for every step, to change from there. */
+const TYPICAL = 'PT5M';
 
 const MIN_CHART_W = 320;
 /** Room one tick label needs, so the axis picks a step whose labels never overlap. */
@@ -32,9 +34,18 @@ function textWidth(text: string, font: string): number {
   return measurer.measureText(text).width;
 }
 
-export function ScheduleDialog({ isOpen, onClose }: Props) {
+/**
+ * The schedule, a view in the drawer under the canvas: every element carrying an onset, a duration or a progress on one
+ * axis, one without an onset starting where the steps before it end, and an arrow where a flow joins two. A pool, a lane
+ * or a sub-process holding scheduled elements is a group that folds to one bar. The selection's rows are marked, and a
+ * press on a row selects its element.
+ */
+export function ScheduleView() {
   const modeler = useModeler();
-  const rows = useMemo(() => (isOpen ? collectScheduleRows(modeler) : []), [isOpen, modeler]);
+  const version = useStudyVersion(modeler);
+  const selection = useSelection(modeler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `version` stands in for the study
+  const rows = useMemo(() => collectScheduleRows(modeler), [modeler, version]);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const toggle = (id: string) => setCollapsed((prev) => {
     const next = new Set(prev);
@@ -66,24 +77,21 @@ export function ScheduleDialog({ isOpen, onClose }: Props) {
   const ticks = scale ? axisTicks(scale.min, scale.max, Math.max(2, Math.floor(chartW / TICK_W))) : [];
   const labelOf = new Map(rows.map((r) => [r.id, r.label]));
 
+  const giveLengths = () => modeler.study.batch({
+    steps: unscheduledSteps(modeler).map((id) => ({ tool: 'set', args: { id, attribute: 'studyflow:duration', value: TYPICAL } })),
+  });
+
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Schedule View"
-      size="lg"
-      help={<DialogHelp>
-                Every element carrying an <code>onset</code>, <code>duration</code>, or <code>progress</code>, laid out on one schedule; one that states no onset starts where the steps before it end.
-                An arrow joins two scheduled elements a sequence or message flow connects, through any unscheduled ones between them.
-                A pool, lane or sub-process holding scheduled elements is a group: fold it to a bar whose onset, duration and progress are summarized from theirs.
-              </DialogHelp>}
-    >
+    <>
             {!hasRows ? (
-              <p className="text-sm text-stone-500 italic">
-                No schedule yet. Give an element an onset or duration in the inspector.
-              </p>
+              <div className={v.empty}>
+                <p>No step has a length yet.</p>
+                {unscheduledSteps(modeler).length > 0 && (
+                  <button type="button" className={v.emptyAction} onClick={giveLengths}>Give each step 5 min</button>
+                )}
+              </div>
             ) : (
-              <div ref={bodyRef} className={`${d.panelBody} pr-2`}>
+              <div ref={bodyRef} className="pr-2">
                 <div className="overflow-x-auto">
                   <svg width={labelW + chartW + TICK_W / 2} height={height} role="img" aria-label="Schedule chart">
                     <defs>
@@ -127,7 +135,10 @@ export function ScheduleDialog({ isOpen, onClose }: Props) {
                         ? `M ${x} ${y + h + 6} V ${y + 3} q 0 -3 3 -3 H ${x + w - 3} q 3 0 3 3 V ${y + h + 6} L ${x + w - 7} ${y + h} H ${x + 7} Z`
                         : undefined;
                       return (
-                        <g key={r.id}>
+                        <g key={r.id} className="cursor-pointer" onClick={() => showElement(modeler, r.id)} data-selected={selection.includes(r.id) || undefined}>
+                          {selection.includes(r.id) && (
+                            <rect x={0} y={y - ROW_PAD / 2} width={labelW + chartW} height={PITCH} rx={4} className="fill-accent/10" />
+                          )}
                           {/* HTML, so a long name wraps onto a second line (the row's full pitch) and ends in an ellipsis past that. */}
                           <foreignObject x={0} y={y - ROW_PAD / 2} width={labelW - 8} height={PITCH}>
                             {/* The caption as the diagram draws it: a shape's inside caption at 12/500, an outside one at 11/400, in the element's own font. */}
@@ -145,7 +156,7 @@ export function ScheduleDialog({ isOpen, onClose }: Props) {
                               <span className="flex items-start">
                                 {/* The caret sits on the first line, at the text's own size. */}
                                 {r.group && (
-                                  <button type="button" onClick={() => toggle(r.id)} className={`${d.titleAction} mr-1.5 flex h-4 shrink-0 items-center`} aria-expanded={!collapsed.has(r.id)} aria-label={collapsed.has(r.id) ? 'Expand' : 'Collapse'}>
+                                  <button type="button" onClick={(event) => { event.stopPropagation(); toggle(r.id); }} className={`${d.titleAction} mr-1.5 flex h-4 shrink-0 items-center`} aria-expanded={!collapsed.has(r.id)} aria-label={collapsed.has(r.id) ? 'Expand' : 'Collapse'}>
                                     <i className={`${ICONS.chevronRight} size-2.5 block transition-transform ${collapsed.has(r.id) ? '' : 'rotate-90'}`}></i>
                                   </button>
                                 )}
@@ -192,14 +203,8 @@ export function ScheduleDialog({ isOpen, onClose }: Props) {
                     })}
                   </svg>
                 </div>
-                {!scale && (
-                  <p className="text-[0.6875rem] text-stone-500 italic">
-                    No parseable <code>onset</code> values found; bars are placed at column 0
-                    and sized by <code>duration</code> only.
-                  </p>
-                )}
               </div>
             )}
-    </Modal>
+    </>
   );
 }

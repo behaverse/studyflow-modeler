@@ -76,7 +76,7 @@ export type PlanElement = {
   /** Under `memory: window`, how many of the latest exchanges the pool remembers beside the instructions: its actor's
    * `memoryWindow`. */
   memoryWindow?: number;
-  /** How a gateway of its extension type picks its branch (the schema's `meta.branching`): `random`. */
+  /** How a gateway of its extension type picks its branch (the schema's `meta.strategy`): `random`. */
   branching?: string;
 };
 
@@ -296,8 +296,8 @@ export function planElement(model: StudyModel, element: Element): PlanElement {
   if (actor && typeof actor.memoryWindow === 'number') digest.memoryWindow = actor.memoryWindow;
   if (host === 'bpmn:SubProcess' && (element.memory === 'conversation' || element.memory === 'window' || element.memory === 'none')) digest.memory = element.memory;
   const extensionType = model.extensionType(element);
-  const branching = extensionType && hasCatalog() ? getCatalog().getType(extensionType)?.meta?.branching : undefined;
-  if (typeof branching === 'string') digest.branching = branching;
+  const strategy = extensionType && hasCatalog() ? getCatalog().getType(extensionType)?.meta?.strategy : undefined;
+  if (typeof strategy === 'string') digest.branching = strategy;
   return digest;
 }
 

@@ -9,18 +9,21 @@ import {
   type ExampleEntry,
 } from '@modeler/examples/entries';
 import { galleryCategories } from '@modeler/examples/catalog';
+import { SCHEMA_MODELS, skillOfSchema } from '@core/notation/loader';
 import { filenameStem } from '@modeler/diagram/file';
-import { border, choice, divider, radius, sectionLabel, surface } from '@modeler/ui/styles';
+import { border, choice, dialog as d, divider, radius, sectionLabel, surface } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 import { PaletteIcon } from '@modeler/palette/PaletteIcon';
+import { Question } from '@modeler/gallery/Question';
 
 const g = {
-  filters: 'flex flex-wrap items-center gap-1.5 pb-4 shrink-0',
+  or: `${sectionLabel} mb-2 shrink-0`,
+  filters: 'flex flex-wrap items-center gap-1 mb-4 shrink-0',
   chip: choice.base,
   chipIdle: choice.idle,
   chipActive: choice.selected,
 
-  grid: `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5
+  grid: `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4
          flex-1 min-h-0 overflow-y-auto -mx-1 px-1 pb-1 content-start`,
   empty: 'text-sm text-stone-500 italic py-10 text-center',
 
@@ -28,22 +31,27 @@ const g = {
          ${border.hairline} hover:border-black/[0.14] hover:shadow-[0_2px_6px_rgba(0,0,0,0.05),0_12px_28px_rgba(0,0,0,0.09)]
          disabled:cursor-not-allowed transition-all duration-200 cursor-pointer`,
 
-  thumb: `relative w-full aspect-[16/9] bg-white border-b ${divider.edge} flex items-center justify-center overflow-hidden`,
+  thumb: `relative w-full aspect-[16/9] ${surface.card} border-b ${divider.edge} flex items-center justify-center overflow-hidden`,
   thumbImage: 'max-h-full max-w-full object-contain p-3 transition-transform duration-300 ease-out group-hover:scale-[1.04]',
-  thumbBusy: 'absolute inset-0 flex items-center justify-center bg-white/70',
+  thumbBusy: 'absolute inset-0 flex items-center justify-center bg-field/70',
   thumbSpinner: `${ICONS.spinner} text-stone-500 animate-spin`,
   // The skill's schema icon, pinned to the picture's corner so it reads as where the example comes from.
-  badge: `absolute top-2 start-2 flex size-6 items-center justify-center ${radius.button} bg-white/90 text-stone-500 ring-1 ring-black/[0.08]`,
+  badge: `absolute top-2 start-2 flex size-6 items-center justify-center ${radius.button} bg-field/90 text-stone-500 ring-1 ring-black/[0.10]`,
 
-  body: 'flex flex-col gap-1 px-3.5 py-3',
+  body: 'flex flex-col gap-1 px-4 py-3',
   eyebrow: sectionLabel,
   title: 'text-sm font-semibold tracking-tight text-stone-900 line-clamp-2',
-  summary: 'text-xs leading-snug text-stone-500 line-clamp-2',
-  error: 'text-xs text-red-500',
+  error: d.error,
 
-  blankThumb: 'relative w-full aspect-[16/9] bg-white border-b border-black/[0.08] flex items-center justify-center',
+  blankThumb: `relative w-full aspect-[16/9] ${surface.card} border-b ${divider.edge} flex items-center justify-center`,
   blankIcon: 'text-[2rem] text-stone-300 group-hover:text-stone-400 transition-colors',
 } as const;
+
+/** A shelf's name as the dialog shows it: its skill's schema's name (`Reachy Mini`), else the skill's, capitalized. */
+function shelfLabel(shelf: string): string {
+  const schema = SCHEMA_MODELS.find((model) => skillOfSchema(model.prefix)?.name === shelf);
+  return schema?.name ?? shelf.replace(/-/g, ' ').replace(/^./, (first) => first.toUpperCase());
+}
 
 /** Busy key for the one card that opens no file. */
 const BLANK = '__blank';
@@ -122,6 +130,8 @@ export function GalleryDialog({ isOpen, onClose }: Props) {
       testId="gallery-dialog"
     >
 
+            <Question onDone={onClose} />
+            <p className={g.or}>Or start from an example</p>
             <div className={g.filters}>
               {['all', ...shelves].map((shelf) => (
                 <button
@@ -132,7 +142,7 @@ export function GalleryDialog({ isOpen, onClose }: Props) {
                   onClick={() => setFilter(shelf)}
                   className={`${g.chip} ${filter === shelf ? g.chipActive : g.chipIdle}`}
                 >
-                  {shelf === 'all' ? 'All' : shelf}
+                  {shelf === 'all' ? 'All' : shelfLabel(shelf)}
                 </button>
               ))}
             </div>
@@ -153,7 +163,6 @@ export function GalleryDialog({ isOpen, onClose }: Props) {
                   <div className={g.body}>
                     <span className={g.eyebrow}>Blank</span>
                     <span className={g.title}>Empty study</span>
-                    <span className={g.summary}>One start event on an empty canvas. Build the rest from the palette.</span>
                   </div>
                 </button>
               </li>
@@ -163,7 +172,7 @@ export function GalleryDialog({ isOpen, onClose }: Props) {
                       type="button"
                       data-testid={`example-${filenameStem(entry.filename)}`}
                       aria-label={entry.title}
-                      title={entry.filename}
+                      title={entry.summary || entry.filename}
                       onClick={() => selectExample(entry)}
                       disabled={!!busy}
                       className={g.card}
@@ -188,7 +197,6 @@ export function GalleryDialog({ isOpen, onClose }: Props) {
                           <span className={g.eyebrow}>{entry.category}</span>
                         )}
                         <span className={g.title}>{entry.title}</span>
-                        {entry.summary && <span className={g.summary}>{entry.summary}</span>}
                         {entry.error && <span className={g.error}>{entry.error}</span>}
                       </div>
                     </button>

@@ -6,15 +6,41 @@ import { getAttributesByCategory } from '@modeler/inspector/categories';
 import { getTypeName, resolveDisplayName } from '@modeler/inspector/element';
 import { clampPanelWidth, defaultPanelWidth, fromStoredWidth, toStoredWidth } from '@modeler/inspector/panelWidth';
 import { loadInspectorWidth, saveInspectorWidth } from '@modeler/settings/store';
+import { publishInspectorWidth } from '@modeler/inspector/visibility';
 import { inspector as s } from '@modeler/inspector/styles';
+import { useReview, type ReviewChange } from '@modeler/review/store';
 import type { Element, StudyModel } from '@core/model/index';
 import type { Editor } from '@modeler/editor/port';
 
-function Header({ element, model }: { element: Element; model: StudyModel }) {
+/** What a review says of the inspected element: what the version on disk did to it, and that it reads only. */
+function reviewNote(change: ReviewChange | undefined): string {
+  const then = 'Read-only until you accept or discard it.';
+  if (change?.kind === 'added') return `New in the version on disk. ${then}`;
+  if (change?.kind === 'changed' && change.what.length > 0) return `Changed on disk: ${change.what.join(', ')}. ${then}`;
+  return 'Read-only while you review the version on disk.';
+}
+
+/**
+ * The inspected element's name and type. The accent dot says it is the selection, which wears the same accent on the
+ * canvas, the context pad and the composer's chip. The name keeps to one line: a long one, written into its field,
+ * would otherwise grow the header as the field lets go of it, and move what the pointer was about to press.
+ */
+function Header({ element, model, selected, review }: {
+  element: Element;
+  model: StudyModel;
+  selected: number;
+  /** Set while a version on disk is under review: what it did to this element, if anything. */
+  review?: { change: ReviewChange | undefined };
+}) {
+  const name = resolveDisplayName(model, element);
   return (
     <>
-      <h1 className={s.headerTitle}>{resolveDisplayName(model, element)}</h1>
+      <h1 className={s.headerTitle} title={name}>
+        {selected === 1 && <span className={s.selectedDot} title="Selected on the canvas" />}
+        <span className={s.headerName}>{name}</span>
+      </h1>
       <h2 className={s.headerSubtitle}>{getTypeName(model, element)}</h2>
+      {review && <p className={s.headerReview} data-testid="inspector-review">{reviewNote(review.change)}</p>}
     </>
   );
 }
@@ -29,14 +55,22 @@ function inspected(editor: Editor, selection: readonly string[]): string {
   return record?.kind === 'label' && record.owner ? record.owner : id;
 }
 
-/** The inspected element as the study holds it now: read again after every change, so it is never an older one. */
-function useSelectedElement(editor: Editor): Element | undefined {
-  const [id, setId] = useState<string>(() => inspected(editor, []));
+/**
+ * The inspected element as the study holds it now, read again after every change so it is never an older one, and
+ * how many elements the canvas has selected.
+ */
+function useInspected(editor: Editor): { element: Element | undefined; selected: number } {
+  const [id, setId] = useState<string>(() => inspected(editor, editor.canvas.selection));
+  const [selected, setSelected] = useState(() => editor.canvas.selection.length);
   const [, bumpVersion] = useReducer((version) => version + 1, 0);
 
   useEffect(() => {
-    const onRootSet = () => setId(inspected(editor, []));
-    const onSelectionChanged = (e: any) => setId(inspected(editor, e.newSelection ?? []));
+    const onRootSet = () => { setId(inspected(editor, [])); setSelected(0); };
+    const onSelectionChanged = (e: any) => {
+      const selection: readonly string[] = e.newSelection ?? [];
+      setId(inspected(editor, selection));
+      setSelected(selection.length);
+    };
 
     editor.events.on('SelectionChanged', onSelectionChanged);
     editor.events.on('RootSet', onRootSet);
@@ -49,14 +83,16 @@ function useSelectedElement(editor: Editor): Element | undefined {
     };
   }, [editor]);
 
-  return editor.study.element(id);
+  return { element: editor.study.element(id), selected };
 }
 
 /** The inspector; whether it shows is the app's, whose nav bar holds its toggle. */
 export function Panel({ isVisible }: { isVisible: boolean }) {
   const modeler = useModeler();
-  const element = useSelectedElement(modeler);
+  const { element, selected } = useInspected(modeler);
   const { model } = modeler.study;
+  // While a version on disk is under review the inspector shows it, read-only (`review/`).
+  const review = useReview();
   const [width, setWidth] = useState(() =>
     clampPanelWidth(fromStoredWidth(loadInspectorWidth() ?? undefined), window.innerWidth));
   // The width the user chose, independent of the scale. A resize that crosses a
@@ -68,6 +104,10 @@ export function Panel({ isVisible }: { isVisible: boolean }) {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  // What the views' drawer keeps clear of, as the inspector opens, closes and is resized.
+  const shows = isVisible && !!element;
+  useEffect(() => publishInspectorWidth(shows ? width : 0), [shows, width]);
 
   const commitWidth = (next: number) => {
     setWidth(next);
@@ -84,13 +124,19 @@ export function Panel({ isVisible }: { isVisible: boolean }) {
           className={`${s.panel} ${isVisible ? '' : s.panelHidden}`}
           style={{ width }}
         >
-          {element && (
+          {element && isVisible && (
             <>
-              <Header element={element} model={model} />
+              <Header
+                element={element}
+                model={model}
+                selected={selected}
+                review={review && { change: review.changes.find((change) => change.id === element.id) }}
+              />
               <div className={s.panelBody}>
                 <CategoryTabs
                   element={element}
                   categories={Object.entries(getAttributesByCategory(model, element))}
+                  readOnly={!!review}
                 />
               </div>
             </>

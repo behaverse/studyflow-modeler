@@ -15,10 +15,10 @@ uri: http://example.test/core
 enumerations:
   - { name: Format, literalValues: [{ name: CSV, value: csv }, { name: tsv, value: tsv }] }
 types:
-  - { name: Markdown, superClass: [String], meta: { editor: markdown } }
+  - { name: Markdown, superClass: [String], meta: { widget: markdown } }
   - name: Table
     superClass: [bpmn:DataObjectReference]
-    meta: { roles: [signal] }
+    meta: { tags: [signal] }
     properties:
       - { name: name, isAttr: true, type: String }
       - { name: rows, isAttr: true, type: Integer, default: 3 }
@@ -88,8 +88,8 @@ test('a subclass inherits its parent\'s attach point, attributes, defaults and r
     'skill:name', 'core:rows', 'core:format', 'core:notes', 'skill:live', 'skill:config',
   ]);
   expect(recording.defaults).toEqual({ 'core:rows': 3, 'core:format': 'csv', 'skill:live': true });
-  expect([...recording.roles].sort(), 'data-element from bpmn:DataObjectReference, signal from Table').toEqual(['data-element', 'signal']);
-  expect(catalog.getType('core:Holder')!.roles, 'no attach point, no data-element').toEqual([]);
+  expect([...recording.tags].sort(), 'data-element from bpmn:DataObjectReference, signal from Table').toEqual(['data-element', 'signal']);
+  expect(catalog.getType('core:Holder')!.tags, 'no attach point, no data-element').toEqual([]);
 });
 
 test('a trait reaches every subtype of its BPMN types, an enum extension appends values, and a value type\'s editor reaches its attributes', () => {
@@ -97,8 +97,8 @@ test('a trait reaches every subtype of its BPMN types, an enum extension appends
   expect(catalog.instanceAttributesOf('bpmn:UserTask').map((spec) => spec.ns.name), 'a bpmn:Activity').toEqual(['bpmn:conditionExpression']);
   expect(catalog.instanceAttributesOf('bpmn:StartEvent'), 'not one').toEqual([]);
   expect(catalog.enumOf('core:Format')!.literals.map((literal) => literal.value)).toEqual(['csv', 'tsv', 'parquet']);
-  expect(catalog.attributeOf('core:Table', 'notes')!.typeEditor, 'typed Markdown').toBe('markdown');
+  expect(catalog.attributeOf('core:Table', 'notes')!.typeWidget, 'typed Markdown').toBe('markdown');
   expect(catalog.attributeOf('skill:Recording', 'config'), 'typed Holder, whose body is Markdown').toMatchObject({
-    bodyProp: 'value', bodyType: 'core:Markdown', typeEditor: 'markdown',
+    bodyProp: 'value', bodyType: 'core:Markdown', typeWidget: 'markdown',
   });
 });

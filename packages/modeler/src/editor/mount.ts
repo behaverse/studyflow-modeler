@@ -5,12 +5,10 @@
  */
 
 import { Canvas, renderSvg } from '@canvas/index.ts';
-import type { CanvasOptions, IconDef, Insets, Study } from '@canvas/index.ts';
+import type { CanvasOptions, Insets, Study } from '@canvas/index.ts';
 import { parseStudy } from '@core/document';
-import { extensionTypeOf, heldAttribute, type Element } from '@core/model/index';
 import type { Metamodel } from '@core/model/metamodel';
-import { getCatalog } from '@core/notation';
-import { BPMN_ICON_OVERRIDES, MARKER_ICONS } from '@modeler/draw/icons';
+import { resolveIcon } from '@modeler/draw/icons';
 import { EventBus } from '@modeler/editor/bus';
 import TokenSimulator from '@modeler/simulation/TokenSimulator';
 import { getSettings, subscribeSettings } from '@modeler/settings/store';
@@ -23,32 +21,6 @@ export type MountEditorOptions = {
   /** The metamodel of the schemas enabled in Settings. */
   metamodel: Metamodel;
 };
-
-/**
- * A `data:` image draws as itself (a URL to fetch does not: nothing fetches an icon); anything
- * else is a class the app's stylesheet paints, whose glyph the canvas inlines from the CSS.
- */
-const iconFor = (icon: string): IconDef => (/^data:image\//i.test(icon) ? { href: icon } : { cssClass: icon });
-
-/**
- * The app's glyph pipeline as the canvas's icon resolver: a marker name or a BPMN
- * local name in, a resolved glyph out. `null` means "this type has no glyph".
- */
-function resolveIcon(iconKey: string, element?: Element): IconDef | null | undefined {
-  const marker = MARKER_ICONS[iconKey];
-  if (marker) return iconFor(marker);
-  if (iconKey.startsWith('iconify ') || iconKey.startsWith('i-')) return iconFor(iconKey);
-  if (element) {
-    const templateIcon = heldAttribute(element, 'icon');
-    const extensionType = extensionTypeOf(element);
-    const extEntry = extensionType ? getCatalog().getType(extensionType) : undefined;
-    const bpmnFallback = iconKey === 'DataObjectReference' ? undefined : BPMN_ICON_OVERRIDES[`bpmn:${iconKey}`];
-    const icon = templateIcon || extEntry?.iconClass || bpmnFallback;
-    if (typeof icon === 'string' && icon) return iconFor(icon);
-  }
-  // The canvas draws anything else with its own glyph, when it has one.
-  return undefined;
-}
 
 /** Room left between the diagram and the app's chrome, in CSS pixels. */
 const CHROME_GAP = 8;
@@ -83,6 +55,8 @@ export function mountEditor(options: MountEditorOptions): Editor {
     canvas.on('select', (ids) => bus.fire('SelectionChanged', { newSelection: ids })),
     canvas.on('scope', (scope) => bus.fire('RootSet', { scope })),
     canvas.on('appendMenu', (ids) => void bus.send({ type: 'OpenAppendMenu', ids }).catch(() => undefined)),
+    canvas.on('addMenu', (at) => void bus.send({ type: 'OpenAddMenu', at }).catch(() => undefined)),
+    canvas.on('insertMenu', ({ edge, at }) => void bus.send({ type: 'OpenInsertMenu', edge, at }).catch(() => undefined)),
   ];
 
   const saveXML = async (): Promise<{ xml: string }> => ({ xml: await study.toXml() });
@@ -98,7 +72,14 @@ export function mountEditor(options: MountEditorOptions): Editor {
   });
 
   const simulator = new TokenSimulator({ events: bus, study, canvas });
-  const simulation: EditorSimulation = { toggle: () => simulator.toggle(), isActive: () => simulator.isActive() };
+  const simulation: EditorSimulation = {
+    toggle: () => simulator.toggle(),
+    isActive: () => simulator.isActive(),
+    pause: () => simulator.pause(),
+    resume: () => simulator.resume(),
+    step: () => simulator.step(),
+    isPaused: () => simulator.isPaused(),
+  };
 
   const applySettings = (): void => canvas.setSnapToGrid(getSettings().snapToGrid);
   applySettings();

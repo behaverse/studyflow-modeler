@@ -17,6 +17,11 @@ export interface EditorModel {
 export interface EditorSimulation {
   toggle(): void;
   isActive(): boolean;
+  /** Holds the tokens where they are; `resume` lets them go on, `step` moves them to the next element they reach. */
+  pause(): void;
+  resume(): void;
+  step(): void;
+  isPaused(): boolean;
 }
 
 export interface Editor {

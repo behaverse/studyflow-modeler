@@ -6,7 +6,6 @@ import { MANUSCRIPT_FORMATS } from '@modeler/diagram/formats';
 import { PrintSizeFields, usePrintSize } from '@modeler/export/PrintSizeFields';
 import { dropUnresolvedIcons, padSvg } from '@modeler/export/svgEmbedding';
 import { dialog as d } from '@modeler/ui/styles';
-import { DialogHelp } from '@modeler/ui/DialogHelp';
 import { ICONS } from '@modeler/icons';
 
 type Props = { isOpen: boolean; onClose: () => void };
@@ -49,17 +48,12 @@ export function ManuscriptDialog({ isOpen, onClose }: Props) {
       title="Manuscript View"
       size="lg"
       testId="manuscript-dialog"
-      help={<DialogHelp>
-              The diagram as a manuscript figure. Each image carries the study it shows, so the modeler
-              reopens it; the editable SVG also carries the draw.io file that redraws it, so a figure can
-              be finished in draw.io. The TIFF prints at the width and resolution set here.
-            </DialogHelp>}
     >
       {/* The figure is scaled to fit, not scrolled: the point of the view is seeing the whole page at once. */}
-      <div className="flex-1 min-h-0 flex items-center justify-center bg-white/40 border border-black/[0.08] rounded-lg p-3">
+      <div className={`flex-1 min-h-0 flex items-center justify-center ${d.preview}`}>
         {src && <img src={src} alt="The diagram as a figure" className="max-h-[60vh] max-w-full object-contain" />}
       </div>
-      <div className="mt-4 pt-4 border-t border-black/[0.08] flex flex-wrap items-center justify-between gap-3">
+      <div className={`${d.footer} flex-wrap justify-between`}>
         <div className="flex items-center gap-2 text-sm text-stone-700">
           <label htmlFor="export-print-width" className="font-medium shrink-0">TIFF</label>
           <PrintSizeFields size={size} />
@@ -72,7 +66,8 @@ export function ManuscriptDialog({ isOpen, onClose }: Props) {
               disabled={busy !== null || (format.id === 'figure-tif' && !size.printable)}
               onClick={() => void write(format.id)}
               data-testid={`manuscript-${format.id}`}
-              className={`inline-flex items-center gap-2 ${d.primaryBtn} disabled:opacity-50`}
+              // Four equal ways out, none the default: each a secondary button.
+              className={d.secondaryBtn}
             >
               <i className={ICONS.download}></i>
               {busy === format.id ? 'Working...' : format.label}
@@ -80,7 +75,7 @@ export function ManuscriptDialog({ isOpen, onClose }: Props) {
           ))}
         </div>
       </div>
-      {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+      {error && <p className={`${d.error} mt-2`}>{error}</p>}
     </Modal>
   );
 }

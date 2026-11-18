@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Modeler } from '@modeler/app/Modeler';
 import { ModeContext, ModelerContext, SettingsViewContext, type AppMode } from '@modeler/app/contexts';
 import { DialogHost, DialogProvider } from '@modeler/app/Dialogs';
-import { ReplayPanel } from '@modeler/provenance/Replay';
 import { NavBar } from '@modeler/navbar/NavBar';
+import { Composer } from '@modeler/composer/Composer';
+import { PaletteProvider } from '@modeler/commandPalette/PaletteProvider';
 import { Notices } from '@modeler/app/Notices';
 import { Panel as InspectorPanel } from '@modeler/inspector/Panel';
 import { Palette } from '@modeler/palette/Palette';
@@ -11,17 +12,26 @@ import { PopupMenus } from '@modeler/popup/PopupMenus';
 import { ContextPad } from '@modeler/contextPad/ContextPad';
 import { SettingsView } from '@modeler/settings/SettingsView';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
+import { useInspectorShown } from '@modeler/inspector/visibility';
+import { Drawer } from '@modeler/views/Drawer';
+import { Storyboard } from '@modeler/storyboard/Storyboard';
+import { useStoryboard } from '@modeler/storyboard/store';
+import { useReview } from '@modeler/review/store';
+import { attachReviewWatch } from '@modeler/review/watch';
 import type { Editor } from '@modeler/editor/port';
 
 export function App() {
   const [modeler, setModeler] = useState<Editor | undefined>(undefined);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isReplaying, setIsReplaying] = useState(false);
-  // Below 900px an open inspector leaves no canvas worth drawing on, so it starts out of the way; the nav bar's
-  // toggle floats it over the canvas.
-  const [isInspectorVisible, setIsInspectorVisible] = useState(() => window.innerWidth > 900);
+  // Closed, a selected step shows the inline inspector on the canvas; the nav bar's toggle and its All properties open it.
+  const isInspectorVisible = useInspectorShown();
+  // The participant's storyboard stands in for the canvas while editing.
+  const storyboard = useStoryboard() && !!modeler;
   const isSimulating = useIsSimulating(modeler);
-  const mode: AppMode = isReplaying ? 'replay' : isSimulating ? 'simulation' : 'edit';
+  // A version written into the linked file elsewhere waits for the user over everything else (`review/`).
+  const review = useReview();
+  const mode: AppMode = review ? 'review' : isReplaying ? 'replay' : isSimulating ? 'simulation' : 'edit';
   const modeValue = useMemo(() => ({
     mode,
     openReplay: () => setIsReplaying(true),
@@ -33,15 +43,28 @@ export function App() {
     modeler?.canvas.zoom('fit');
   }, [modeler]);
 
+  // The linked file is watched for a version written into it elsewhere, which comes in for review while editing.
+  const modeRef = useRef(mode);
+  useEffect(() => { modeRef.current = mode; }, [mode]);
+  useEffect(() => (modeler ? attachReviewWatch(modeler, () => modeRef.current !== 'edit') : undefined), [modeler]);
+
   return (
     <ModelerContext.Provider value={modeler}>
       <ModeContext.Provider value={modeValue}>
       <SettingsViewContext.Provider value={{ openSettings: () => setIsSettingsOpen(true) }}>
       <DialogProvider>
-        <div className={`App flex flex-col h-screen${mode === 'simulation' ? ' simulation-active' : ''}${mode === 'replay' ? ' replay-active' : ''}`} data-testid="modeler-app">
+        <div className={`App flex flex-col h-screen${mode === 'edit' ? '' : ` ${mode}-active`}${storyboard && mode === 'edit' ? ' storyboard-active' : ''}`} data-testid="modeler-app">
           {modeler && <div data-testid="modeler-ready" aria-hidden="true" className="hidden" />}
+          {/* One command palette, which the composer opens (and ⌘K); the context pad's commands are in it by name. */}
           {modeler && (
-            <NavBar isInspectorVisible={isInspectorVisible} onToggleInspector={() => setIsInspectorVisible((visible) => !visible)} />
+            <PaletteProvider>
+              <NavBar />
+              <Composer />
+              {/* The per-shape context pad, the selection's own commands. It stands down during a replay and a review,
+                  where the document is read-only. */}
+              {mode !== 'replay' && mode !== 'review' && !storyboard && <ContextPad />}
+              {mode === 'edit' && storyboard && <Storyboard />}
+            </PaletteProvider>
           )}
           <div className="w-full h-full">
             <div className="flex flex-row h-full overflow-hidden relative">
@@ -49,19 +72,16 @@ export function App() {
               <Modeler onReady={setModeler} />
             </div>
           </div>
-          {/* A replay shows its own panel in the inspector's place. */}
+          {/* A replay is read-only: its minimap, over the composer, stands in for the inspector. */}
           {modeler && mode !== 'replay' && (
             <div className="studyflow-inspector" data-testid="inspector-shell">
               <InspectorPanel isVisible={isInspectorVisible} />
             </div>
           )}
-          {modeler && mode === 'replay' && <ReplayPanel onClose={modeValue.exitReplay} />}
-          {/* App-rendered popup menus (`bpmn-create` / `bpmn-append` / `color-picker`)
-              and the per-shape context pad that opens two of them. The pad is the app's
-              only selection affordance and stands down during a replay, where the
-              document is read-only. */}
+          {/* The views' drawer under the canvas: the schedule, the checklists, the provenance. */}
+          {modeler && mode === 'edit' && <Drawer />}
+          {/* App-rendered popup menus: the Add panel after the selection or where the canvas was double-clicked, Change element, Style. */}
           {modeler && <PopupMenus />}
-          {modeler && mode !== 'replay' && <ContextPad />}
           {modeler && <DialogHost />}
           {isSettingsOpen && <SettingsView onClose={() => setIsSettingsOpen(false)} />}
           <Notices />

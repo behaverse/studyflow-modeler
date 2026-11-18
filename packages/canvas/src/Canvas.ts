@@ -78,6 +78,10 @@ export interface CanvasEvents {
   scope: string | undefined;
   /** The `a` key asked for the append menu, on the selection by id. */
   appendMenu: readonly string[];
+  /** A double click on the view's background asked for the add menu, at this point on screen (client coordinates). */
+  addMenu: Point;
+  /** A press on a flow's + asked for the menu of steps to insert on it: the flow's id, and the point on screen. */
+  insertMenu: { edge: string; at: Point };
   /** The camera moved, or the view changed its size: what the view shows now. */
   camera: CanvasViewbox;
 }
@@ -132,7 +136,9 @@ export class Canvas {
   private appendPreview?: SVGGElement;
   private resizeObserver?: ResizeObserver;
   /** A host element kept beside the outline of the elements it follows (`anchor`). */
-  private anchored?: { el: HTMLElement; ids: readonly string[] };
+  private anchored?: { el: HTMLElement; ids: readonly string[]; side: 'right' | 'below' };
+  /** What the host's own UI covers of the view: an anchored element stays clear of it. */
+  private readonly insets?: () => Insets;
   /** Whether a gesture is under way: an anchored element steps aside for it. */
   private gesturing = false;
   private destroyed = false;
@@ -150,6 +156,7 @@ export class Canvas {
     injectCanvasStyles(container.ownerDocument);
     this.layers = new Layers(this.root);
     ensureArrowMarkers(this.layers.defs);
+    this.insets = options.insets;
     this.viewport = new Viewport(this.root, this.container, () => this.cameraMoved(), options.insets);
     if (typeof ResizeObserver !== 'undefined') {
       this.resizeObserver = new ResizeObserver(() => {
@@ -165,6 +172,7 @@ export class Canvas {
       getGraphics: (id) => this.renderer.graphicsById.get(id),
       onChange: (ids) => this.emit('select', ids),
       canResize: (target) => target.kind === 'label' || this.rules.canResize(target),
+      canInsert: (edge) => this.isEditable && edge.type === BPMN.SequenceFlow && edge.source?.kind === 'node' && edge.target?.kind === 'node',
       resolve: (value) => this.resolveElement(value),
     });
     this.labelEditing = new LabelEditing({
@@ -224,6 +232,8 @@ export class Canvas {
       nudgeSelection: (dx, dy) => this.nudgeSelection(dx, dy),
       scope: () => this.scopeNode,
       appendMenu: (ids) => this.emit('appendMenu', ids),
+      addMenu: (at) => this.emit('addMenu', at),
+      insertMenu: (edge, at) => this.emit('insertMenu', { edge, at }),
       selection: this.selectionSet,
       scene: () => this.scene,
       rules: this.rules,
@@ -452,29 +462,44 @@ export class Canvas {
 
   /**
    * Keep `el`, a host element fixed to the page, beside the outline of the elements `ids` names: right of it, level
-   * with its top, inside the view, as the camera and the edits move them; hidden during a gesture and while the view
-   * draws none of them. `null` lets it go. The context pad floats on this.
+   * with its top, or with `side` 'below' under it, level with its left (over it where the view has no room below,
+   * and beside it where it has room for neither);
+   * inside the view and clear of what the host's `insets` cover, as the camera and the edits move them; hidden during a gesture and while the view draws none of
+   * them. `null` lets it go. The context pad floats on this, and the modeler's inline inspector under its step.
    */
-  anchor(el: HTMLElement, ids: readonly string[] | null): void {
-    this.anchored = ids ? { el, ids } : undefined;
+  anchor(el: HTMLElement, ids: readonly string[] | null, side: 'right' | 'below' = 'right'): void {
+    this.anchored = ids ? { el, ids, side } : undefined;
     this.placeAnchor();
   }
 
   private placeAnchor(): void {
     if (!this.anchored) return;
-    const { el, ids } = this.anchored;
+    const { el, ids, side } = this.anchored;
     const boxes = this.gesturing ? [] : ids.flatMap((id) => this.screenBox(id) ?? []);
     if (boxes.length === 0) {
       el.style.visibility = 'hidden';
       return;
     }
     const outline = OUTLINE_OFFSET * this.viewport.zoom();
+    const left = Math.min(...boxes.map((box) => box.x)) - outline;
     const right = Math.max(...boxes.map((box) => box.x + box.width)) + outline;
     const top = Math.min(...boxes.map((box) => box.y)) - outline;
-    const frame = this.container.getBoundingClientRect();
+    const bottom = Math.max(...boxes.map((box) => box.y + box.height)) + outline;
+    // The view, less what the host's own panels cover of it.
+    const view = this.container.getBoundingClientRect();
+    const covered = { top: 0, right: 0, bottom: 0, left: 0, ...this.insets?.() };
+    const frame = { left: view.left + covered.left, top: view.top + covered.top, right: view.right - covered.right, bottom: view.bottom - covered.bottom };
     const clamp = (value: number, low: number, high: number): number => Math.round(Math.max(low, Math.min(value, high)));
-    const x = clamp(right + ANCHOR_GAP, frame.left + ANCHOR_MARGIN, frame.right - el.offsetWidth - ANCHOR_MARGIN);
-    const y = clamp(top, frame.top + ANCHOR_MARGIN, frame.bottom - el.offsetHeight - ANCHOR_MARGIN);
+    const below = bottom + ANCHOR_GAP;
+    const above = top - ANCHOR_GAP - el.offsetHeight;
+    const fitsBelow = below + el.offsetHeight <= frame.bottom - ANCHOR_MARGIN;
+    const fitsAbove = above >= frame.top + ANCHOR_MARGIN;
+    // Under it, else over it; with room for neither, beside it, as on the right.
+    const [atX, atY] = side === 'right' || (!fitsBelow && !fitsAbove)
+      ? [right + ANCHOR_GAP, top]
+      : [left, fitsBelow ? below : above];
+    const x = clamp(atX, frame.left + ANCHOR_MARGIN, frame.right - el.offsetWidth - ANCHOR_MARGIN);
+    const y = clamp(atY, frame.top + ANCHOR_MARGIN, frame.bottom - el.offsetHeight - ANCHOR_MARGIN);
     el.style.transform = `translate(${x}px, ${y}px)`;
     el.style.visibility = 'visible';
   }
@@ -755,10 +780,24 @@ export class Canvas {
     return this.isEditable && !!shape && this.gestures.startCreate(event, what, prototypeOf(shape, draftOf(this.scene.model, shape)));
   }
 
-  /** A freshly created shape: selected, and (for a task-like shape) named. */
+  /**
+   * Add `what` where the screen point `at` (client coordinates) falls, as a create drag let go there would: into the
+   * container under it, the drill-down scope on bare background; then select it, and name it when task-like. False
+   * where it may not go.
+   */
+  addAt(what: NewElement, at: Point): boolean {
+    const shape = shapeOf(what);
+    if (!this.isEditable || !shape) return false;
+    const node = this.create.place(what, prototypeOf(shape, draftOf(this.scene.model, shape)), this.viewport.toDiagram(at));
+    if (node) this.placed(node);
+    return !!node;
+  }
+
+  /** A freshly created shape: selected, and (for a task-like shape) named, where the view shows. */
   private placed(node: SceneNode): void {
     this.selectionSet.select(node);
-    if (EDIT_ON_CREATE_TYPES.has(node.type) || isCollapsed(node)) this.labelEditing.activate(node);
+    const shown = this.container.checkVisibility?.({ visibilityProperty: true }) ?? true;
+    if (shown && (EDIT_ON_CREATE_TYPES.has(node.type) || isCollapsed(node))) this.labelEditing.activate(node);
   }
 
   /** The element a study verb made, as the scene holds it. */
@@ -773,6 +812,21 @@ export class Canvas {
   append(from: string, what: NewElement): StudyResult {
     if (!this.isEditable) return { ok: false, reason: 'this view is not editable', added: [], changed: [], removed: [] };
     const result = this.study.append({ ...what, from });
+    const made = this.made(result);
+    if (made?.kind === 'node') {
+      this.viewport.bringIntoView(made, undefined, true);
+      this.placed(made);
+    }
+    return result;
+  }
+
+  /**
+   * Click-insert: the study puts `what` on the sequence flow `edge`, between its ends; then the view shows it, selects
+   * it, and names it when task-like.
+   */
+  insert(edge: string, what: NewElement): StudyResult {
+    if (!this.isEditable) return { ok: false, reason: 'this view is not editable', added: [], changed: [], removed: [] };
+    const result = this.study.insert({ ...what, into: edge });
     const made = this.made(result);
     if (made?.kind === 'node') {
       this.viewport.bringIntoView(made, undefined, true);

@@ -37,7 +37,7 @@ test.describe('Moving a shape', () => {
   test('"Snap to grid" off lets a drop land between the grid lines', async ({ page }) => {
     // Snapping is on out of the box; switching it off is the only way to place a
     // shape off the 10-unit grid.
-    await gotoModeler(page);
+    await gotoModeler(page, { inspector: false });
 
     await runPaletteCommand(page, /^Settings/);
     await page.getByText(/^Editor$/).first().click();

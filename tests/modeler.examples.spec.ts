@@ -16,7 +16,7 @@ test.describe('New Study gallery', () => {
 
     const card = page.getByTestId('example-cognitive_battery');
     await expect(card).toContainText('Within-subject cognitive battery');
-    await expect(card).toContainText('Chains N-Back, Digit Span, SART');
+    await expect(card).toHaveAttribute('title', /Chains N-Back, Digit Span, SART/);
 
     // cognitive_battery ships as YAML, so its picture is drawn in the page.
     const preview = card.getByTestId('example-thumb');
@@ -64,5 +64,20 @@ test.describe('New Study gallery', () => {
     await expect(dialog).toBeHidden();
     await expect(page.locator('g[data-element-id="StartEvent_1"]')).toBeVisible();
     await expect(page.locator('g[data-element-id="Task_NBack"]')).toHaveCount(0);
+  });
+  test('a study starts from a question: what is built, then its parts, laid out after the start in session order', async ({ page }) => {
+    await gotoModeler(page);
+    await runPaletteCommand(page, /^New/);
+    await page.getByRole('radio', { name: 'An analysis' }).click();
+    // The parts the skills offer for it, the usual ones picked.
+    const parts = page.getByRole('group', { name: 'Parts' });
+    await expect(parts.getByRole('button', { name: 'Model fit' })).toHaveAttribute('aria-pressed', 'true');
+    await parts.getByRole('button', { name: 'Report' }).click();
+    await parts.getByRole('button', { name: 'Create', exact: true }).click();
+    await expect(page.getByTestId('gallery-dialog')).toBeHidden();
+    const steps = page.locator('g.sf-shape[data-element-type="bpmn:ServiceTask"]');
+    await expect(steps).toHaveCount(3);
+    await expect(steps.nth(0)).toContainText('Prepare');
+    await expect(page.locator('g.sf-shape[data-element-type="bpmn:EndEvent"]')).toHaveCount(1);
   });
 });

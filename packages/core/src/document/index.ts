@@ -10,6 +10,8 @@ export {
   checklistItems,
   parseChecklistLines,
   serializeChecklistLines,
+  withTask,
+  withTaskChecked,
   type ChecklistItem,
   type ChecklistLine,
 } from '@core/document/checklist';

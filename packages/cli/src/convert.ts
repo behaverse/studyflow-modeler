@@ -92,6 +92,8 @@ async function openStudyflow(page: any, origin: string, name: string, studyflow:
 /** Export the open diagram as `format` (its studyflow always embedded) and return the bytes. */
 async function exportImage(page: any, format: ImageFormat, print: PrintSize): Promise<Buffer> {
   await page.getByRole('button', { name: 'Open command palette' }).click();
+  // The app menu's own commands are found by name, typed as a person would.
+  await page.getByRole('dialog').getByRole('textbox', { name: /search/i }).fill('Save As');
   await page.getByRole('dialog').getByText('Save As...', { exact: true }).click();
   await page.getByTestId('save-dialog').waitFor();
   await page.getByTestId('export-format').selectOption(format);

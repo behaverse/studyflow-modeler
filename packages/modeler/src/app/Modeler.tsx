@@ -4,9 +4,10 @@ import new_diagram from '#assets/new_diagram.studyflow.yaml?raw';
 import { Study } from '@canvas/index.ts';
 import type { Metamodel } from '@core/model/metamodel';
 import { metamodelOf } from '@core/model/packages';
-import { loadSchemas, SCHEMA_NAMES } from '@core/notation/loader';
+import { loadSchemas } from '@core/notation/loader';
 import { fetchInstalledSchemas } from '@modeler/app/installedSchemas';
 import { mountEditor } from '@modeler/editor/mount';
+import { enabledSchemas, onSkillsChanged } from '@modeler/app/skills';
 import { connectCommandBus } from '@modeler/commandBus';
 import { clearAutosavedDiagram, getSettings, loadAutosavedDiagram } from '@modeler/settings/store';
 import { attachAutosave } from '@modeler/diagram/autosave';
@@ -51,15 +52,14 @@ async function openFromUrl(editor: Editor): Promise<void> {
 /** Mount the editor in `container` with the shipped schemas the user has not turned off and the installed ones, on the
  * autosaved diagram if it opens, else a new one. */
 async function bootEditor(container: HTMLElement, autosaved: string | undefined): Promise<Editor> {
-  const { disabledSchemas } = getSettings();
-  const enabled = SCHEMA_NAMES.filter((prefix) => !disabledSchemas.includes(prefix));
-  const metamodel = metamodelOf(await loadSchemas(enabled, await fetchInstalledSchemas()));
+  const metamodel = metamodelOf(await loadSchemas(enabledSchemas(), await fetchInstalledSchemas()));
   return mountEditor({ container, study: await openStudy(autosaved, metamodel), metamodel });
 }
 
+const onWarning = (warning: string) => console.warn('Canvas import warning:', warning);
+
 /** The autosaved diagram if it opens, else a new one. */
 async function openStudy(autosaved: string | undefined, metamodel: Metamodel): Promise<Study> {
-  const onWarning = (warning: string) => console.warn('Canvas import warning:', warning);
   if (autosaved) {
     try {
       return await Study.open(autosaved, { metamodel, onWarning });
@@ -82,6 +82,33 @@ export function Modeler({ onReady }: { onReady: (editor: Editor) => void }) {
     let detach: (() => void) | undefined;
     let created: Editor | undefined;
 
+    /** An editor taken up: the app's commands on it, its autosave, and the app's hold on it. */
+    const takeUp = (editor: Editor) => {
+      created = editor;
+      connectCommandBus(editor);
+      const stopAutosave = attachAutosave(editor);
+      const stopNotice = attachPastedImageNotice(editor);
+      detach = () => {
+        stopAutosave();
+        stopNotice();
+      };
+      // One facade per editor (so its revision counter spans the editor's whole life); the app holds it from here on.
+      onReady(editor);
+    };
+
+    // A skill turned on: the study as it stands, read again on the new metamodel, in a new editor on the same canvas.
+    const stopReopening = onSkillsChanged(async (metamodel) => {
+      const current = created;
+      if (!current || cancelled) return undefined;
+      const { xml } = await current.saveXML();
+      const study = await Study.open(xml, { metamodel, onWarning });
+      detach?.();
+      current.destroy?.();
+      const editor = mountEditor({ container: containerRef.current!, study, metamodel });
+      takeUp(editor);
+      return editor;
+    });
+
     const initialXml = getSettings().diagramAutoSave === 'local' ? loadAutosavedDiagram() : undefined;
     bootEditor(containerRef.current!, initialXml)
       .then((editor: Editor) => {
@@ -90,14 +117,6 @@ export function Modeler({ onReady }: { onReady: (editor: Editor) => void }) {
           editor?.destroy?.();
           return;
         }
-        created = editor;
-        connectCommandBus(editor);
-        const stopAutosave = attachAutosave(editor);
-        const stopNotice = attachPastedImageNotice(editor);
-        detach = () => {
-          stopAutosave();
-          stopNotice();
-        };
         // Picks the previous session's file back up, but only when the canvas was restored along
         // with it. Without the restored diagram this is a fresh blank canvas, and a link would
         // point saving at a file this diagram never came from. Permission has reset to `prompt`
@@ -106,9 +125,7 @@ export function Modeler({ onReady }: { onReady: (editor: Editor) => void }) {
         if (initialXml && !openParam()) {
           restoreLink().catch((err) => console.warn('Could not restore the linked file.', err));
         }
-        // One facade per editor (so its revision counter spans the editor's whole
-        // life); the app holds it from here on.
-        onReady(editor);
+        takeUp(editor);
         setLoading(false);
         openFromUrl(editor);
       })
@@ -121,6 +138,7 @@ export function Modeler({ onReady }: { onReady: (editor: Editor) => void }) {
 
     return () => {
       cancelled = true;
+      stopReopening();
       detach?.();
       created?.destroy?.();
     };

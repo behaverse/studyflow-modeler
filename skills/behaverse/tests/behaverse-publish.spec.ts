@@ -45,7 +45,7 @@ test('signed in from Settings, a study is published to the Behaverse server with
   await renameStudy(page, 'Pilot study');
 
   let settings = await openAccount(page);
-  await expect(settings).toContainText('You are working as a guest.');
+  await expect(settings).toContainText('Guest');
   const popup = page.waitForEvent('popup');
   await settings.getByRole('button', { name: 'Login with Google' }).click();
   const login = await popup;
@@ -71,7 +71,7 @@ test('signed in from Settings, a study is published to the Behaverse server with
 
   settings = await openAccount(page);
   await settings.getByRole('button', { name: 'Sign out' }).click();
-  await expect(settings).toContainText('You are working as a guest.');
+  await expect(settings).toContainText('Guest');
   await page.keyboard.press('Escape');
   dialog = await openCloudSave(page);
   await expect(dialog.getByLabel('Behaverse API key')).toHaveValue('');

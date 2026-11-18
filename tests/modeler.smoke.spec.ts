@@ -6,17 +6,21 @@ import { SCHEMAS } from './schemas';
 import { addPaletteElement, gotoModeler, openCommandPalette, runPaletteCommand } from './utils';
 
 test.describe('Studyflow modeler smoke', () => {
-  test('loads the modeler shell, whose Schedule view opens from the command palette', async ({ page }) => {
+  test('loads the modeler shell, whose Schedule view opens in the drawer from the command palette', async ({ page }) => {
     await gotoModeler(page);
 
     await expect(page.getByRole('button', { name: /command palette/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /^simulate$/i })).toBeVisible();
+    // A blank study opens on the composer's first step.
+    const composer = page.getByTestId('composer');
+    await expect(composer).toHaveAttribute('data-face', 'home');
 
     await openCommandPalette(page);
     const dialog = page.getByRole('dialog');
-    // The File group is a row of tiles with no header; the others are headed ('Run' is skipped: it collides with the Run command label).
-    await expect(dialog.getByRole('button', { name: /^New\b/ })).toBeVisible();
+    // Unsearched, it lists what is at hand, the study's commands; the app menu's own are found by name.
     await expect(dialog.getByText(/^View$/)).toBeVisible();
+    await expect(dialog.getByRole('button', { name: /^New\b/ })).toHaveCount(0);
+    await dialog.getByRole('textbox', { name: /search/i }).fill('new');
+    await expect(dialog.getByRole('button', { name: /^New\b/ })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
 
@@ -25,14 +29,42 @@ test.describe('Studyflow modeler smoke', () => {
     await expect(page.getByTestId('inspector-root')).toBeVisible();
     await expect(page.getByTestId('modeler-loading')).toHaveCount(0);
 
-    await runPaletteCommand(page, /schedule/i);
-    const schedule = page.getByRole('heading', { name: /schedule/i });
-    await expect(schedule).toBeVisible();
+    // A first shape turns the composer to designing, with Simulate.
+    await addPaletteElement(page, 'Activities', 'Task', { x: 340, y: 180 });
+    await expect(composer).not.toHaveAttribute('data-face', 'home');
+    await expect(composer.getByRole('button', { name: /^simulate$/i })).toBeVisible();
+
+    // The selection is one thing everywhere it shows. Escape closes the innermost thing first: the new task's name
+    // editor, then the palette the composer opens on it (whose first group is the pad's commands), then the selection.
     await page.keyboard.press('Escape');
-    await expect(schedule).toBeHidden();
+    await expect(composer).toHaveAttribute('data-face', 'selection');
+    const prompt = page.getByTestId('composer-prompt');
+    await prompt.click();
+    await expect(page.getByRole('dialog').getByText(/^Selection$/)).toBeVisible();
+    await page.keyboard.press('Escape');
+    // The palette gives the focus back to the prompt it opened from, with the selection still there.
+    await expect(prompt).toBeFocused();
+    await expect(composer).toHaveAttribute('data-face', 'selection');
+    await page.keyboard.press('Escape');
+    await expect(composer).toHaveAttribute('data-face', 'design');
+    await expect(page.getByTestId('inspector-root').getByRole('heading', { level: 2 })).toHaveText('studyflow:Study');
+
+    // The schedule opens in the drawer under the canvas, which the composer's toggle closes and opens again.
+    await runPaletteCommand(page, /schedule/i);
+    const drawer = page.getByTestId('views-drawer');
+    await expect(drawer.getByRole('tab', { name: 'Schedule' })).toHaveAttribute('aria-selected', 'true');
+    await composer.getByRole('button', { name: 'Views' }).click();
+    await expect(drawer).toBeHidden();
+    await composer.getByRole('button', { name: 'Views' }).click();
+    await expect(drawer.getByRole('tab', { name: 'Schedule' })).toHaveAttribute('aria-selected', 'true');
+    // Maximized, it stands as a dialog over the app; Esc puts it back under the canvas.
+    await drawer.getByRole('button', { name: 'Maximize views' }).click();
+    await expect(drawer).toHaveAttribute('role', 'dialog');
+    await page.keyboard.press('Escape');
+    await expect(drawer).not.toHaveAttribute('role', 'dialog');
   });
 
-  test('Settings: Auto-save off drops the kept copy, a skill switched off leaves the palette on reload, and a reset or a clear the browser cannot store still applies, with one warning', async ({ page }) => {
+  test('Settings: Auto-save off drops the kept copy, a skill switched off leaves the palette on reload and one switched on joins it at once, and a reset or a clear the browser cannot store still applies, with one warning', async ({ page }) => {
     await gotoModeler(page);
     const autosaved = () => page.evaluate((key) => localStorage.getItem(key), STORAGE_KEYS.autosaveDiagram);
     await addPaletteElement(page, 'Activities', 'Task', { x: 340, y: 180 });
@@ -54,7 +86,24 @@ test.describe('Studyflow modeler smoke', () => {
     await page.getByRole('switch', { name: 'Load the Reachy Mini elements' }).click();
     await page.getByRole('button', { name: 'Reload now' }).click();
     await expect(page.getByTestId('modeler-ready')).toBeAttached({ timeout: 30_000 });
-    await expect(page.getByRole('button', { name: 'Reachy Mini elements...' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Add...' }).click();
+    await expect(page.getByTestId('popup-menu-filter-cognitive')).toBeVisible();
+    await expect(page.getByTestId('popup-menu-filter-reachy')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+
+    // Switched back on, it loads at once, and the study stays as it was.
+    await addPaletteElement(page, 'Activities', 'Task', { x: 340, y: 180 });
+    await page.keyboard.press('Escape');
+    await runPaletteCommand(page, /^Settings/);
+    await page.getByRole('button', { name: 'Extensions' }).click();
+    await page.getByRole('switch', { name: 'Load the Reachy Mini elements' }).click();
+    await expect(page.getByRole('switch', { name: 'Load the Reachy Mini elements' })).toBeChecked();
+    await expect(page.getByRole('button', { name: 'Reload now' })).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(page.locator('g[data-element-type="bpmn:Task"]')).toHaveCount(1);
+    await page.getByRole('button', { name: 'Add...' }).click();
+    await expect(page.getByTestId('popup-menu-filter-reachy')).toBeVisible();
+    await page.keyboard.press('Escape');
 
     // With the settings' writes blocked, a reset still applies for the session, and clearing the local data still takes
     // every key the app keeps, the settings stored before included; that neither was kept is said once.

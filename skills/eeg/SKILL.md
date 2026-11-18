@@ -8,7 +8,7 @@ metadata:
 ---
 
 A vocabulary-only skill: nothing executes its elements yet. `eeg.moddle.yaml` is also the schema to copy when
-starting a new skill, since it shows inheritance from core types, wrappers, enums, roles, and implementation-bound
+starting a new skill, since it shows inheritance from core types, wrappers, enums, tags, and implementation-bound
 templates.
 
 ## In a study
@@ -29,7 +29,7 @@ Pool_Session:
       lineFrequency: "50"
 ```
 
-The palette's "EEG session" drops such a pool with its flow: fit the cap, record a baseline, run a task, export.
+The Add panel's "EEG session" drops such a pool with its flow: fit the cap, record a baseline, run a task, export.
 
 ## Exports
 

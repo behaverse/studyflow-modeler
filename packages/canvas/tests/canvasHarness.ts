@@ -78,7 +78,8 @@ export interface Pt {
 }
 
 /** Where a diagram point lands on screen: jsdom lays the view out at the page's origin, drawing its viewbox from there. */
-function toScreen(canvas: Canvas, at: Pt): Pt {
+/** A diagram point on screen, where a host's events and `addAt` speak. */
+export function toScreen(canvas: Canvas, at: Pt): Pt {
   const { x, y, scale } = canvas.viewbox;
   return { x: (at.x - x) * scale, y: (at.y - y) * scale };
 }

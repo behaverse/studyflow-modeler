@@ -1,29 +1,26 @@
 import { useState, type DragEvent } from 'react';
 import { Modal } from '@modeler/ui/Modal';
 import { useModeler } from '@modeler/app/useModeler';
-import { supportsFileSystemAccess } from '@modeler/diagram/fileHandle';
 import { droppedHandle, openDiagramFile } from '@modeler/open/openFile';
 import { extensionsOf, IMPORTABLE_FORMATS, OPENERS } from '@modeler/diagram/formats';
-import { radius, text } from '@modeler/ui/styles';
+import { radius, sectionLabel, text } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 
 const s = {
   drop: `w-full flex flex-col items-center justify-center gap-2 px-6 py-12 ${radius.card}
          border-2 border-dashed transition-colors text-center cursor-pointer
-         disabled:cursor-wait focus:outline-2 focus:outline-offset-2 focus:outline-cream-400`,
-  dropIdle: 'border-black/[0.12] bg-cream-100 hover:border-black/[0.22] hover:bg-cream-200',
-  dropActive: 'border-stone-900 bg-cream-200',
+         disabled:cursor-wait focus:outline-none focus:ring-[3px] focus:ring-accent/30`,
+  dropIdle: 'border-black/[0.12] bg-field hover:border-black/[0.22] hover:bg-white',
+  dropActive: 'border-accent bg-accent/[0.06]',
   dropIcon: 'text-[2rem] text-stone-400',
   dropTitle: `text-sm font-medium ${text.secondary}`,
-  dropHint: 'text-xs text-stone-500',
 
-  formats: 'mt-5 pt-4 border-t border-black/[0.08]',
-  formatsLabel: 'text-[0.6875rem] font-semibold uppercase tracking-[0.1em] text-stone-500 mb-2',
+  formats: 'mt-4 pt-4 border-t border-black/[0.10]',
+  formatsLabel: `${sectionLabel} mb-2`,
   list: 'space-y-1',
   row: 'flex items-baseline justify-between gap-4 text-xs',
   rowLabel: text.secondary,
   rowExt: 'font-mono text-[0.6875rem] text-stone-500 text-right',
-  note: 'text-xs text-stone-500 mt-3 leading-snug',
 } as const;
 
 type Props = {
@@ -71,11 +68,6 @@ export function OpenDialog({ isOpen, onClose, onBrowse }: Props) {
         <span className={s.dropTitle}>
           {busy ? 'Opening...' : 'Drop a file here, or click to browse'}
         </span>
-        <span className={s.dropHint}>
-          {supportsFileSystemAccess()
-            ? 'A file opened this way keeps saving back to itself.'
-            : 'This browser cannot write files back, so saving will download a copy.'}
-        </span>
       </button>
 
       <div className={s.formats}>
@@ -94,9 +86,6 @@ export function OpenDialog({ isOpen, onClose, onBrowse }: Props) {
             </li>
           ))}
         </ul>
-        <p className={s.note}>
-          An SVG, PNG or TIFF opens only if a study is embedded in it.
-        </p>
       </div>
     </Modal>
   );

@@ -20,13 +20,13 @@ import { field as s } from '@modeler/inspector/styles';
 const KIND_OPTIONS: LoopKind[] = ['none', 'loop', 'parallel', 'sequential'];
 
 const KIND_DESCRIPTION =
-  'How this activity repeats: a conditional loop, parallel, or sequential.';
+  'How it repeats.';
 
 const LOOP_MAXIMUM_DESCRIPTION =
-  'Maximum iterations — always set one, so the loop is guaranteed to end.';
+  'At most this many rounds. Set one so the loop ends.';
 
 const TEST_BEFORE_DESCRIPTION =
-  'Evaluate the loop condition before each iteration (while-do) instead of after it (do-while).';
+  'Check the condition before each round, not after.';
 
 function expressionText(value: any): string {
   if (typeof value === 'string') return value;
@@ -143,7 +143,7 @@ export function LoopSection() {
                 >
                   <CheckIcon />
                 </Checkbox>
-                <Label className={s.label}>{t('testBefore')}</Label>
+                <Label className={s.checkLabel}>{t('testBefore')}</Label>
               </span>
               <HelpTooltip name="testBefore" description={TEST_BEFORE_DESCRIPTION} wide={false} />
             </div>

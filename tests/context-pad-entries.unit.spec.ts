@@ -42,7 +42,7 @@ test('the entries a selection gets, in the order they wrap into rows', () => {
   // wrench and the two edits, the third `connect` alone.
   const task: ContextPadAction[] = ['append.end-event', 'append.text-annotation', 'append', 'replace', 'delete', 'set-color', 'connect'];
   const CASES: [label: string, ctx: ContextPadContext, actions: ContextPadAction[]][] = [
-    ['a task', context({ canAppend: true, canAnnotate: true, canReplace: true }), task],
+    ['a task', context({ canAppend: true, canAnnotate: true, canReplace: true }), [...task]],
     // A container with contents or a pool appends but is not replaceable; the two gates are apart.
     ['something that appends but cannot be retyped', context({ canAppend: true, canAnnotate: true }),
       ['append.end-event', 'append.text-annotation', 'append', 'delete', 'set-color', 'connect']],

@@ -25,6 +25,9 @@ export type Issue = {
   severity: 'error' | 'warning';
   elementId?: string;
   message: string;
+  /** What mends it in one move, for an editor to offer: a node of the BPMN type `append` added after the node `after`,
+   * joined to it by a sequence flow. */
+  fix?: { append: string; after: string };
 };
 
 /** The plan: one element an id, each data store a name, its edges between the elements they may join, sound, walkable, its expressions FEEL, its decisions exclusive, its choices listed, each exchange reaching someone, a consent form to fetch and a completion code to hand, no two paths at once writing one value, reading only the columns its schemas define and only the result fields its steps' types declare, a concealed allocation registering a digest and being one a seed can conceal, and no name copying a value its element reads. */

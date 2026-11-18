@@ -6,6 +6,7 @@
 import type { Point, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
 import { append, clear, create } from '@canvas/render/svg.ts';
 import type { ResizeHandle } from '@canvas/study/drag.ts';
+import { flowMiddle } from '@canvas/study/text.ts';
 
 const RESIZE_HANDLES: readonly ResizeHandle[] = ['nw', 'ne', 'se', 'sw'];
 export type Resizable = SceneNode | SceneLabel;
@@ -16,6 +17,8 @@ export interface SelectionOptions {
   /** The selection changed, to these ids. */
   onChange: (ids: string[]) => void;
   canResize: (target: Resizable) => boolean;
+  /** Whether a step may be inserted on this flow: the hovered one shows a + at its middle when it may. */
+  canInsert: (edge: SceneEdge) => boolean;
   /** Turns whatever a caller names an element by (an id, a stale copy) into the element as the scene now holds it; none when it holds none. */
   resolve: (value: SceneElement | string) => SceneElement | undefined;
 }
@@ -24,6 +27,9 @@ const HANDLE_SIZE = 7;
 const HANDLE_HIT_SIZE = 16;
 const BENDPOINT_RADIUS = 3.5;
 const BENDPOINT_HIT_RADIUS = 9;
+/** The + a hovered flow offers at its middle, to insert a step on it. */
+const INSERT_RADIUS = 8;
+const INSERT_HIT_RADIUS = 11;
 export const OUTLINE_OFFSET = 4;
 export const OUTLINE_CLASS = 'sf-outline';
 export const RESIZING_MARKER = 'sf-resizing';
@@ -46,6 +52,7 @@ export class Selection {
   private readonly getGraphics: (id: string) => SVGGElement | undefined;
   private readonly onChange: (ids: string[]) => void;
   private readonly canResize: (target: Resizable) => boolean;
+  private readonly canInsert: (edge: SceneEdge) => boolean;
   private readonly resolve: (value: SceneElement | string) => SceneElement | undefined;
   private selected: SceneElement[] = [];
   private hovered?: SceneEdge;
@@ -57,6 +64,7 @@ export class Selection {
     this.getGraphics = options.getGraphics;
     this.onChange = options.onChange;
     this.canResize = options.canResize;
+    this.canInsert = options.canInsert;
     this.resolve = options.resolve;
   }
 
@@ -192,6 +200,20 @@ export class Selection {
     return undefined;
   }
 
+  /** The hovered flow whose + lies under `point`: a press there asks for a step to insert on it. */
+  insertAt(point: Point): SceneEdge | undefined {
+    const edge = this.insertable();
+    if (!edge) return undefined;
+    const middle = flowMiddle(edge.waypoints);
+    return Math.hypot(point.x - middle.x, point.y - middle.y) <= INSERT_HIT_RADIUS ? edge : undefined;
+  }
+
+  /** The hovered flow, when it takes an insert and is not the one selected (that one shows its joints to drag). */
+  private insertable(): SceneEdge | undefined {
+    const edge = this.hovered;
+    return edge && !this.isSelected(edge) && this.canInsert(edge) ? edge : undefined;
+  }
+
   waypointAt(point: Point): WaypointHit | undefined {
     for (const edge of this.edgesWithChrome()) {
       for (let index = 0; index < edge.waypoints.length; index += 1) {
@@ -253,6 +275,17 @@ export class Selection {
       if (el.kind !== 'edge') this.drawHandles(el);
     }
     for (const edge of this.edgesWithChrome()) this.drawBendpoints(edge);
+    const insertable = this.insertable();
+    if (insertable) this.drawInsert(insertable);
+  }
+
+  private drawInsert(edge: SceneEdge): void {
+    const { x, y } = flowMiddle(edge.waypoints);
+    const g = create('g', { class: 'sf-insert', 'data-overlay-for': edge.id, 'data-insert': edge.id, transform: `translate(${x}, ${y})` });
+    append(g, create('circle', { class: 'sf-insert-hit', r: INSERT_HIT_RADIUS }));
+    append(g, create('circle', { class: 'sf-insert-visual', r: INSERT_RADIUS }));
+    append(g, create('path', { class: 'sf-insert-plus', d: 'M -4 0 H 4 M 0 -4 V 4' }));
+    append(this.layer, g);
   }
 
   private drawHandles(target: Resizable): void {

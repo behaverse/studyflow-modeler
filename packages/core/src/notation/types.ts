@@ -5,22 +5,27 @@ export type NsInfo = {
   localName: string;
 };
 
-/** The inspector's input registry types off this list, and the compiler warns on any `meta.editor` outside it. */
-export const EDITOR_NAMES = ['csvw-table', 'code', 'markdown', 'checklist'] as const;
-export type EditorName = (typeof EDITOR_NAMES)[number];
+/** The inspector's input registry types off this list, and the compiler warns on any `meta.widget` outside it. */
+export const WIDGET_NAMES = ['csvw-table', 'code', 'markdown', 'checklist'] as const;
+export type WidgetName = (typeof WIDGET_NAMES)[number];
 
 export interface AttributeMeta {
-  editor?: string;
+  widget?: string;
   /** Visibility predicate: shown only when every entry matches the element's attribute of that name. */
   condition?: Record<string, unknown>;
   categories?: string[];
   order?: number;
   /** Fixed value: never rendered. */
-  pinned?: boolean;
-  optional?: boolean;
-  editable?: boolean;
+  hidden?: boolean;
+  /** Shown in the inline inspector on the canvas, under the name, as well as in the inspector. */
+  showInline?: boolean;
+  /** A checkbox opens the field. */
+  nullable?: boolean;
+  /** An enumeration that also takes a value outside its list. */
+  allowCustom?: boolean;
   expression?: boolean;
-  languageAttr?: string;
+  /** The sibling attribute that holds the language of the code editor (`widget: code`). */
+  codeEditorLanguage?: string;
   icon?: string;
   /** Unit of a numeric attribute (`Hz`, `s`, `rad`), shown after the field label; never part of the name. */
   unit?: string;
@@ -31,18 +36,29 @@ export interface AttributeMeta {
 
 export interface TypeMeta {
   connectsTo?: string[];
-  roles?: TypeRole[];
-  branching?: string;
-  categories?: string[];
-  editor?: string;
+  /** What the type stands for to exports, reports and checks; inherited by subtypes. */
+  tags?: TypeTag[];
+  /** How a gateway of this type picks its branch: `random` or `condition`. */
+  strategy?: string;
+  /** Its group in the tools, where its BPMN ancestor does not say. */
+  paletteGroup?: string;
+  widget?: string;
   icon?: string;
+  /** The attribute whose value is written over the icon. */
+  glyph?: string;
+  /** The upper band's text on a task drawn as a choreography task, its attributes in angle brackets. */
+  choreographyBandLabel?: string;
+  /** On a pool type: the enumeration attribute that lists its kinds of actor, or the one kind it is. */
+  actorKind?: string;
+  /** The type that describes what a step of this type hands back. */
+  returns?: string;
   /** The event definition an event of this type is minted with: its type and what it holds. */
   eventDefinition?: { type: string; [key: string]: unknown };
   [key: string]: unknown;
 }
 
-/** Declared as `meta.roles` and inherited by subtypes; `data-element` alone follows from the BPMN attach point (`inferRoles`). */
-export type TypeRole =
+/** Declared as `meta.tags` and inherited by subtypes; `data-element` alone follows from the BPMN attach point (`inferTags`). */
+export type TypeTag =
   | 'data-element'
   | 'signal'
   | 'instrument'
@@ -83,7 +99,7 @@ export type AttributeSpec = {
   /** When `type` is a body-wrapper element type: the property carrying its text. */
   bodyProp?: string;
   bodyType?: string;
-  typeEditor?: string;
+  typeWidget?: string;
   isEnum?: boolean;
 };
 
@@ -103,10 +119,10 @@ export type TypeEntry = {
   /** Own plus inherited, `redefines`/`replaces` applied; BPMN natives excluded. */
   attributes: AttributeSpec[];
   defaults: Record<string, unknown>;
-  roles: TypeRole[];
+  tags: TypeTag[];
   hiddenFromPalette: boolean;
   paletteLabel: string;
-  paletteCategories: string[];
+  paletteGroup?: string;
 };
 
 export type SchemaEntry = {

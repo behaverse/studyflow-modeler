@@ -17,4 +17,38 @@ npm run typecheck -w @behaverse/studyflow-core
 npx playwright test --config playwright.unit.config.ts packages/core
 ```
 
-The schemas it compiles are the skills' `*.moddle.yaml` files ([skills/SCHEMAS.md](../../skills/SCHEMAS.md)). The file format is specified in [docs/reference.qmd](../../docs/reference.qmd#the-storage-format), and `tests/studyflow-yaml.unit.spec.ts` here pins its spelling.
+The schemas it compiles are the skills' `*.moddle.yaml` files ([skills/SCHEMAS.md](../../skills/SCHEMAS.md)). The file format is specified in [docs/format.qmd](../../docs/format.qmd), and `tests/studyflow-yaml.unit.spec.ts` here pins its spelling.
+
+## What `validate` checks
+
+`checks/` holds one check per file, and `studyflow validate` applies them all without running the study. An entry marked ⚠ is a warning, which fails only with `--strict`.
+
+| About | Checks |
+|:--|:--|
+| the file | it parses; the sets it uses loaded; no unknown name; every id names one element |
+| edges | a sequence flow joins two steps of its own process or sub-process; a data edge joins a data element to its step; a step reaches a property only inside its scope, and a data store only through a reference |
+| data stores | no two share a name; none starts with `_`; no property hides one ⚠ |
+| paths | a process or sub-process with flows has a start and an end event, and every step lies on a path between them |
+| loops | a loop has a `while`, a `maximum`, or an interrupting boundary event to end it |
+| constructs a run does not read | no complex gateway that splits; no conditions on a parallel gateway's flows; no signal, escalation, compensation, link or cancel event |
+| event-based gateways | each branch starts at an event a message, a timer or a condition makes happen |
+| call activities | the process called is in the study ⚠, and is not one the call sits in |
+| boundary events | an error boundary event is not marked non-interrupting ⚠ |
+| parallel paths | no two steps on paths that run at once write the same value ⚠ |
+| expressions | each is FEEL the runtimes run |
+| exclusive gateways | conditions on one number do not overlap ⚠, and leave no value without a flow when there is no default |
+| attributes | each value has its schema's type: an enumeration's value, a whole number, a number, true or false |
+| entry and exit | `consentFormUri` is an address a page can fetch; an end event that hands a code has one |
+| implementations | each names a scheme a loaded skill runs ⚠ |
+| labels | none writes as a number a value the file declares and its conditions read ⚠ |
+| registered materials | each still holds the content its `digest` names |
+| columns | each column a step reads from a schema-bound dataset is in that schema |
+| BPMN | the XML is valid against the OMG's schema (with `xmllint`; ⚠ when the machine has none) |
+
+It then **explores every way the study can go**, taking each decision as a free choice, and warns about a pool left waiting for a message no one sends, a parallel join one of whose tokens can never come, and a message nothing takes. This is soundness, in the sense of workflow nets, for the control flow. A condition that never holds is still the data's to show.
+
+For a study that has **run**, it also checks that:
+
+- the counts balance: every node was reached as often as its flows brought tokens in and took them out;
+- the protocol is still the one the last run recorded, by its digest (`plan`);
+- the state in the file matches the record, when `events.jsonl` sits beside it.

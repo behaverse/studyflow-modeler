@@ -5,7 +5,6 @@ import { exportDiagramName } from '@modeler/diagram/name';
 import { saveBlob } from '@modeler/export/commands';
 import { reportingDocuments, type ReportingDocument } from '@modeler/skillModules';
 import { choice, dialog as d } from '@modeler/ui/styles';
-import { DialogHelp } from '@modeler/ui/DialogHelp';
 import { ICONS } from '@modeler/icons';
 import type { Editor } from '@modeler/editor/port';
 
@@ -44,18 +43,14 @@ export function ReportingDialog({ isOpen, onClose }: Props) {
       title="Reporting Diagram View"
       size="lg"
       testId="reporting-dialog"
-      help={<DialogHelp>
-              A document a reporting guideline asks for, drawn from the diagram and the counts its last run left.
-              Each guideline comes with an extension: switch one on or off in Settings, Extensions.
-            </DialogHelp>}
     >
       {documents.length === 0 ? (
-        <p className="text-sm text-stone-500 italic">
-          No extension in use draws a reporting diagram. Switch one on in Settings, Extensions.
+        <p className={d.empty}>
+          No reporting guideline is on.
         </p>
       ) : (
         <>
-          <div className="flex flex-wrap gap-1.5 pb-3" role="tablist" aria-label="Reporting documents">
+          <div className="flex flex-wrap gap-1 mb-4" role="tablist" aria-label="Reporting documents">
             {documents.map((document) => (
               <button
                 key={document.id}
@@ -70,13 +65,13 @@ export function ReportingDialog({ isOpen, onClose }: Props) {
               </button>
             ))}
           </div>
-          <p className="text-xs text-stone-500 pb-3">{current.description}</p>
-          <div className="flex-1 min-h-0 overflow-auto flex items-start justify-center bg-white border border-black/[0.08] rounded-lg p-3">
+          <p className={d.lead}>{current.description}</p>
+          <div className={`flex-1 min-h-0 overflow-auto flex items-start justify-center ${d.preview}`}>
             {src
               ? <img src={src} alt={`${current.guideline}: ${current.label}`} data-testid="reporting-figure" className="max-w-full" />
-              : <p className="text-sm text-stone-500 italic self-center" data-testid="reporting-unavailable">{figure && 'unavailable' in figure ? figure.unavailable : ''}</p>}
+              : <p className={`${d.empty} self-center`} data-testid="reporting-unavailable">{figure && 'unavailable' in figure ? figure.unavailable : ''}</p>}
           </div>
-          <div className="mt-4 pt-4 border-t border-black/[0.08] flex justify-end">
+          <div className={`${d.footer} justify-end`}>
             <button
               type="button"
               disabled={!figure || !('svg' in figure)}
@@ -84,7 +79,7 @@ export function ReportingDialog({ isOpen, onClose }: Props) {
               onClick={() => {
                 if (figure && 'svg' in figure) saveBlob(new Blob([figure.svg], { type: 'image/svg+xml;charset=utf-8' }), `${exportDiagramName(modeler)}.${current.id}.svg`);
               }}
-              className={`inline-flex items-center gap-2 ${d.primaryBtn} disabled:opacity-50`}
+              className={d.primaryBtn}
             >
               <i className={ICONS.download}></i>
               SVG

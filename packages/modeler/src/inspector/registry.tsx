@@ -1,13 +1,14 @@
 import { createElement, useState } from 'react';
 import type { ChangeEvent, ComponentType } from 'react';
-import { Checkbox, Input, Label, Textarea } from '@headlessui/react';
-import { EDITOR_NAMES, type AttributeSpec, type EditorName } from '@core/notation';
+import { Checkbox, Label, Textarea } from '@headlessui/react';
+import { WIDGET_NAMES, type AttributeSpec, type WidgetName } from '@core/notation';
 import { t } from '@modeler/i18n';
 import { ICONS } from '@modeler/icons';
 import { executeCommand } from '@modeler/commandBus';
 import { ArrayInput, ChecklistInput, EnumInput, EnumListInput, ExpressionInput } from '@modeler/inspector/inputs';
 import { CodeEditor, SchemaEditor } from '@modeler/inspector/editors';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
+import { WrapInput } from '@modeler/inspector/WrapInput';
 import { useAttributeState, useInspectedElement, useInspectedModel } from '@modeler/inspector/hooks';
 import { readAttribute } from '@core/model/index';
 import type { Element } from '@core/model/index';
@@ -48,7 +49,7 @@ function StringInput({ attrDef, isMarkdown }: { attrDef: AttributeSpec; isMarkdo
       {isMarkdown ? (
         <Textarea name={name} onChange={handleChange} onBlur={flush} value={value} rows={4} className={s.textArea} />
       ) : (
-        <Input name={name} type="text" onChange={handleChange} onBlur={flush} value={value} className={s.textInput} />
+        <WrapInput name={name} onChange={handleChange} onBlur={flush} value={String(value ?? '')} className={s.textInput} />
       )}
       {resolved !== value && (
         <div className="px-1 text-[0.6875rem] text-stone-500 truncate" title={resolved}>→ {resolved}</div>
@@ -67,7 +68,7 @@ function BooleanInput({ attrDef }: { attrDef: AttributeSpec }) {
         <Checkbox checked={value} onChange={commit} className={s.checkbox}>
           <CheckIcon />
         </Checkbox>
-        <Label className={s.label}>{t(attrDef)}</Label>
+        <Label className={s.checkLabel}>{t(attrDef)}</Label>
       </span>
       <HelpTooltip name={name} description={attrDef?.description} wide={false} />
     </div>
@@ -89,7 +90,7 @@ function OptionalStringInput({ attrDef }: { attrDef: AttributeSpec }) {
     if (!checked) commit(undefined);
   }
 
-  function handleTextChange(e: ChangeEvent<HTMLInputElement>) {
+  function handleTextChange(e: ChangeEvent<HTMLTextAreaElement>) {
     commit(e.target.value);
   }
 
@@ -100,14 +101,13 @@ function OptionalStringInput({ attrDef }: { attrDef: AttributeSpec }) {
           <Checkbox checked={isSet} onChange={handleToggle} className={s.checkbox}>
             <CheckIcon />
           </Checkbox>
-          <Label className={s.label}>{t(attrDef)}</Label>
+          <Label className={s.checkLabel}>{t(attrDef)}</Label>
         </span>
         <HelpTooltip name={name} description={attrDef?.description} />
       </div>
       {isSet && (
-        <Input
+        <WrapInput
           name={name}
-          type="text"
           onChange={handleTextChange}
           value={value ?? ''}
           className={s.textInput}
@@ -149,7 +149,7 @@ export function OverriddenInput({ attrDef, override }: { attrDef: AttributeSpec;
         </span>
         <HelpTooltip name={name} description={attrDef?.description} />
       </Label>
-      <Input name={name} type="text" value={shown} readOnly disabled className={s.overriddenInput} />
+      <WrapInput name={name} value={shown} readOnly disabled className={s.overriddenInput} />
       <div className={s.overriddenNote} data-testid={`overridden-${attrDef.ns.localName}`}>
         Set by {first && source(first)}
         {others.length > 0 && <> and {others.map(source)}, which a run refuses</>}
@@ -164,8 +164,8 @@ export function OverriddenInput({ attrDef, override }: { attrDef: AttributeSpec;
 
 const MarkdownStringInput = (inputProps: any) => <StringInput {...inputProps} isMarkdown />;
 
-/** Editors addressable from schema `meta.editor`; keyed by core's `EditorName` so the lists cannot drift. */
-const INPUT_BY_EDITOR_NAME: Record<EditorName, ComponentType<{ attrDef: AttributeSpec }>> = {
+/** The inputs a schema names in `meta.widget`; keyed by core's `WidgetName` so the lists cannot drift. */
+const INPUT_BY_WIDGET: Record<WidgetName, ComponentType<{ attrDef: AttributeSpec }>> = {
   'csvw-table': SchemaEditor,
   'code': CodeEditor,
   'markdown': MarkdownStringInput,
@@ -173,8 +173,8 @@ const INPUT_BY_EDITOR_NAME: Record<EditorName, ComponentType<{ attrDef: Attribut
 };
 
 function namedInput(name: string | undefined) {
-  return name && (EDITOR_NAMES as readonly string[]).includes(name)
-    ? INPUT_BY_EDITOR_NAME[name as EditorName]
+  return name && (WIDGET_NAMES as readonly string[]).includes(name)
+    ? INPUT_BY_WIDGET[name as WidgetName]
     : undefined;
 }
 
@@ -194,19 +194,19 @@ export function AttributeInput({ attrDef }: { attrDef: AttributeSpec }) {
 function pickInput(attrDef: AttributeSpec) {
   if (attrDef.meta?.expression) return ExpressionInput;
 
-  const named = namedInput(attrDef.meta?.editor);
+  const named = namedInput(attrDef.meta?.widget);
   if (named) return named;
 
   const declaredType = attrDef.type || 'String';
   const isStringList = attrDef.isMany === true
     && (declaredType === 'String' || declaredType.endsWith(':MarkdownString'));
-  const isOptionalString = attrDef.meta?.optional === true && declaredType === 'String';
+  const isNullableString = attrDef.meta?.nullable === true && declaredType === 'String';
 
-  if (isOptionalString) return OptionalStringInput;
+  if (isNullableString) return OptionalStringInput;
   if (isStringList) return ArrayInput;
   if (attrDef.isEnum && attrDef.isMany) return EnumListInput;
   if (attrDef.isEnum) return EnumInput;
   if (declaredType === 'Boolean') return BooleanInput;
 
-  return namedInput(attrDef.typeEditor) ?? StringInput;
+  return namedInput(attrDef.typeWidget) ?? StringInput;
 }

@@ -13,7 +13,7 @@ const qualified = (name: string, by: string): string => (name.includes(':') ? na
 
 /**
  * A data edge's `transformation` reads its step's result as `result`. Where the step's type declares what that result
- * holds (its schema's `meta.result`, a type of that schema), a field the result does not carry would only read as null
+ * holds (its schema's `meta.returns`, a type of that schema), a field the result does not carry would only read as null
  * once the study runs, so it is reported before: `result.blocks[block in scored_blocks].trials` against a
  * `behaverse:TaskResult`, its `blocks` a list of `BlockCounts`. A type that declares no result is not checked.
  */
@@ -23,7 +23,7 @@ export function checkResults(model: StudyModel): Issue[] {
   for (const container of containers(model)) {
     for (const { node } of graphOf(model, container).nodes.values()) {
       const type = model.extensionType(node);
-      const declared = type ? model.metamodel.type(type)?.meta.result : undefined;
+      const declared = type ? model.metamodel.type(type)?.meta.returns : undefined;
       if (!type || typeof declared !== 'string' || typeof node.id !== 'string') continue;
       const result = qualified(declared, type);
       if (!model.metamodel.has(result)) continue;

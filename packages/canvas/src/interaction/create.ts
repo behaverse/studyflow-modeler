@@ -74,10 +74,14 @@ export class Create {
   end(point: Point): SceneNode | undefined {
     const state = this.state;
     if (!state) return undefined;
-    this.update(point);
-    const { what, center, target } = state;
-    this.state = undefined;
-    this.clearPreview();
+    this.cancel();
+    return this.place(state.what, state.prototype, point);
+  }
+
+  /** Drop `what` at `point` outright, as the gesture let go there would: the shape made, or nothing where it may not go. */
+  place(what: NewElement, prototype: CreatePrototype, point: Point): SceneNode | undefined {
+    const center = this.options.snap(point);
+    const target = this.resolveTargetOver(prototype, this.options.hitTest(center));
     if (target.verdict === false) return undefined;
     return this.options.drop(what, center, target.parent ?? this.options.getContainer());
   }

@@ -1,6 +1,6 @@
 import { expect, test } from './e2e';
 
-import { addSchemaPaletteElement, gotoModeler, runPaletteCommand } from './utils';
+import { addSkillElement, gotoModeler, runPaletteCommand } from './utils';
 
 /** A skill installed beside the CLI (`studyflow skill add`): `studyflow edit` serves its schema as
  * `installed-skills.json`, and the modeler loads it with its own, locked on in Settings, its elements in the palette. */
@@ -29,7 +29,7 @@ test('the modeler loads the schema of a skill installed beside the CLI', async (
   }));
   await gotoModeler(page);
 
-  await addSchemaPaletteElement(page, 'Lab rig', 'Rig', { x: 400, y: 300 });
+  await addSkillElement(page, 'Lab rig', 'Rig', { x: 400, y: 300 });
   // Dropped and selected, the new step is the installed schema's type.
   await expect(page.getByTestId('inspector-root')).toContainText('Rig');
 

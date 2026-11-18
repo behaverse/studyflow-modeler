@@ -82,6 +82,10 @@ export interface GestureTools {
   scope(): SceneNode | undefined;
   /** Ask the host for the append menu on these selected ids (the `a` key). */
   appendMenu(ids: string[]): void;
+  /** A double click on the background, at this point on screen: the host's add menu. */
+  addMenu(at: Point): void;
+  /** A press on a hovered flow's +, at this point on screen: the host's menu of steps to insert on the flow. */
+  insertMenu(edge: string, at: Point): void;
   /** The selected elements and their chrome. */
   selection: Selection;
   /** The scene the view draws: another one after a load, an undo or a redo. */
@@ -253,6 +257,12 @@ export class Gestures {
     const pt = this.eventPoint(ev);
 
     const editable = this.tools.editable();
+    const insertOn = editable ? selection.insertAt(pt) : undefined;
+    if (insertOn) {
+      ev.preventDefault();
+      this.tools.insertMenu(insertOn.id, { x: ev.clientX, y: ev.clientY });
+      return;
+    }
     const handle = editable ? selection.handleAt(pt) : undefined;
     // A hovered connection shows its bendpoints too, so they are looked for before the hover goes; grabbing one selects it.
     let waypoint = handle || !editable ? undefined : selection.waypointAt(pt);
@@ -504,18 +514,24 @@ export class Gestures {
   }
 
   private handleKeyDown(ev: KeyboardEvent): void {
-    if (ev.key === 'Escape' && this.gesture) this.cancel();
+    if (ev.key !== 'Escape' || !this.gesture) return;
+    // Consumed: the key ends the gesture, and nothing else the host does on Escape.
+    ev.preventDefault();
+    this.cancel();
   }
 
   // --- double click, hover, wheel ----------------------------------------------------
 
-  /** Rename, or toggle an expandable container unless the press is on its caption strip. */
+  /** Rename, or toggle an expandable container unless the press is on its caption strip; on the background, ask for the add menu. */
   private handleDoubleClick(ev: MouseEvent): void {
     const canvas = this.canvas;
     if (!this.tools.scene()) return;
     const pt = this.eventPoint(ev);
     const element = this.tools.hitTest(pt);
-    if (!element) return;
+    if (!element) {
+      if (this.tools.editable()) this.tools.addMenu({ x: ev.clientX, y: ev.clientY });
+      return;
+    }
     const selected = this.tools.selection.get();
     if (selected.length !== 1 || selected[0]?.id !== element.id) this.tools.selection.select(element);
     if (!this.tools.editable()) return;
@@ -533,8 +549,11 @@ export class Gestures {
   private handleHover(ev: MouseEvent): void {
     this.pointer = { x: ev.clientX, y: ev.clientY };
     if (!this.tools.scene() || this.gesture || this.pan.pinching) return;
-    const hit = this.tools.hitTest(this.eventPoint(ev));
-    this.tools.selection.setHovered(hit && hit.kind === 'edge' ? hit : undefined);
+    const pt = this.eventPoint(ev);
+    const hit = this.tools.hitTest(pt);
+    // The pointer on a flow's + keeps that flow hovered, though the + reaches further from the line than a hit does.
+    const onInsert = this.tools.editable() ? this.tools.selection.insertAt(pt) : undefined;
+    this.tools.selection.setHovered(onInsert ?? (hit && hit.kind === 'edge' ? hit : undefined));
   }
 
   private handleWheel(ev: WheelEvent): void {

@@ -9,8 +9,7 @@ import { messageStructureOf } from '@modeler/inspector/stateProperties';
 import { useInspectedModel } from '@modeler/inspector/hooks';
 import { field as s } from '@modeler/inspector/styles';
 
-const MESSAGE_DESCRIPTION = 'What this flow carries: the structure its message is an item of, by the name a runner '
-  + 'recognises. Unnamed, the flow is taken for whichever fits.';
+const MESSAGE_DESCRIPTION = 'What the message carries, by a name a runner knows. Empty, anything fits.';
 
 /** A message flow's `messageRef`, picked among the structures the loaded schemas' `MessageStructureEnum` declares. */
 export function MessageSection({ element }: { element: any }) {

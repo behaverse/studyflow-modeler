@@ -7,6 +7,7 @@ metadata:
   schemes: "python"  # the <scheme>:// references its runners execute
   runtimes:
     local: "uv run --script local.py"
+  modeler: "modeler.ts"
 ---
 
 A runner-only skill for the core vocabulary. It claims any element whose `implementation` is

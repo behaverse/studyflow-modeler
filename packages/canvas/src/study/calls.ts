@@ -32,6 +32,7 @@ export function runStep(study: Study, tool: string, args: unknown): StudyResult 
   const verbs: { [Tool in StepTool]: (args: ArgsOf<Tool>) => StudyResult } = {
     add: (a) => study.add(a as ArgsOf<'add'> & NewElement),
     append: (a) => study.append(a as ArgsOf<'append'> & NewElement),
+    insert: (a) => study.insert(a as ArgsOf<'insert'> & NewElement),
     connect: (a) => study.connect(a),
     replace: (a) => study.replace(a),
     move: (a) => study.move(a),

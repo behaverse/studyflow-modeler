@@ -28,7 +28,7 @@ function rangeOf(spec: AttributeSpec): string {
   if (builtin) return builtin;
 
   const target = getCatalog().getType(spec.type);
-  if (target && getCatalog().hasRole(target.name, 'data-element')) return target.ns.localName;
+  if (target && getCatalog().hasTag(target.name, 'data-element')) return target.ns.localName;
 
   if (/^(uri|url)$/i.test(spec.ns.localName)) return 'uri';
   return 'string';

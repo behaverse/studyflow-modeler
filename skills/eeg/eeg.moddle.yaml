@@ -81,7 +81,7 @@ enumerations:
         value: milliseconds
       - name: Samples
         value: samples
-  # Amplifiers and headsets in common use; the attribute is editable, so any
+  # Amplifiers and headsets in common use; the attribute is `allowCustom`, so any
   # other system name is accepted as free text.
   - name: DeviceEnum
     description: Amplifier or headset the session is recorded with.
@@ -164,7 +164,7 @@ types:
       - bpmn:Participant
     meta:
       icon: iconify ph--head-circuit
-      roles:
+      tags:
         - acquisition
     properties:
       - name: device
@@ -174,7 +174,7 @@ types:
         default: brainproducts_actichamp
         meta:
           order: 0
-          editable: true
+          allowCustom: true
       # Vocabulary: eeg, meg, ieeg, emg, ecg, eog, eda, ppg, respiration, nirs,
       # eye_tracking, head_imu, motion, audio.
       - name: modalities
@@ -191,7 +191,7 @@ types:
         default: 10-20
         meta:
           order: 2
-          editable: true
+          allowCustom: true
       - name: reference
         description: Reference scheme the channels are recorded against.
         isAttr: true
@@ -199,14 +199,14 @@ types:
         default: cz
         meta:
           order: 3
-          editable: true
+          allowCustom: true
       - name: ground
         description: Electrode position used as ground (`AFz`, `Fpz`).
         isAttr: true
         type: String
         meta:
           order: 4
-          optional: true
+          nullable: true
       - name: lineFrequency
         description: Mains frequency at the recording site, for notch filtering.
         isAttr: true
@@ -230,7 +230,7 @@ types:
     isAbstract: false
     meta:
       icon: iconify lucide--chart-line
-      roles:
+      tags:
         - signal
     properties:
       - name: samplingRate
@@ -332,7 +332,7 @@ types:
         isAttr: true
         redefines: studyflow:Dataset#format
         meta:
-          pinned: true
+          hidden: true
       - name: dataType
         description: BIDS data type (the modality folder).
         isAttr: true
@@ -349,7 +349,7 @@ types:
     superClass:
       - Timeseries
     meta:
-      roles:
+      tags:
         - acquisition
       icon: iconify lucide--audio-lines
     properties:
@@ -369,7 +369,7 @@ types:
         type: String
         meta:
           order: 7
-          optional: true
+          nullable: true
           categories:
             - Data
 

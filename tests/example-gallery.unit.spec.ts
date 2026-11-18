@@ -49,13 +49,15 @@ test.describe('shipped examples', () => {
     expect(documentation.startsWith(summary), 'the blurb is the process documentation\'s first sentence').toBe(true);
   });
 
-  test('a YAML example\'s card draws the main canvas, without glyphs', async () => {
+  test('a YAML example\'s card draws the main canvas, with the glyphs the canvas draws', async () => {
     installDocument();
     const svg = drawPreview(modelOf('sklearn_pipeline'));
 
     expect(svg).toContain('data-element-id="select_model"');
     expect(svg).not.toContain('data-element-id="cross_validate"');
-    expect(svg).not.toMatch(/sf-icon|data-icon-key|foreignObject/);
+    // A gateway's kind and a sub-process's marker read on the card, as on the canvas.
+    expect(svg).toContain('data-icon-key="ExclusiveGateway"');
+    expect(svg).toContain('data-icon-key="subprocess"');
   });
 });
 

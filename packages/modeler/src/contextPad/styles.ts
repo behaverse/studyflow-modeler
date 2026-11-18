@@ -1,19 +1,24 @@
 /**
  * The context pad's look: 28px entries with 18px glyphs on a small chrome chip, with the material, hairline and
  * shadow of the palette, so the two read as one family of floating controls. Entries wrap three to a row, and the
- * delete entry turns red on hover.
+ * delete entry turns red on hover. A ring in the accent ties the pad to the selection it acts on, which wears the
+ * same accent on the canvas, in the inspector and on the composer's chip.
  *
  * z-order: palette 210 < context pad 215 < palette flyouts 300 < popover 320.
  */
 
-import { material, tooltip as tooltipMaterial } from '@modeler/ui/styles';
+import { divider, material, space, tip } from '@modeler/ui/styles';
 
 export const contextPad = {
   /** 3 × 28px entries + 2px gaps + 4px padding + 1px borders. Positioned by `transform`. */
-  root: `fixed z-[215] left-0 top-0 w-[6.125rem] select-none
-         flex flex-wrap gap-0.5 p-1 ${material.panel}`,
+  root: `fixed z-[215] left-0 top-0 w-[6.5rem] select-none
+         flex flex-wrap gap-1 ${space.barInset} ${material.panel} ring-1 ring-accent/30`,
 
-  entry: `flex items-center justify-center w-7 h-7 rounded-lg
+  /** The pad with the inline inspector under it (`inspector/InlineInspector.tsx`): its actions in a row, then the fields. */
+  inline: `fixed z-[215] left-0 top-0 w-60 flex flex-col ${material.panel} ring-1 ring-accent/30`,
+  inlineActions: `flex flex-wrap gap-1 ${space.barInset} select-none border-b ${divider.edge}`,
+
+  entry: `flex items-center justify-center w-7 h-7 rounded-md
           text-stone-600 cursor-pointer
           hover:bg-black/[0.05] hover:text-stone-900
           active:bg-black/[0.08]
@@ -30,6 +35,5 @@ export const contextPad = {
   entryIcon: 'text-lg',
 
   /** Dark tooltip, hung down-and-right of the pointer, the way the browser's own `title` bubbles follow the cursor. */
-  tooltip: `pointer-events-none fixed z-[216] px-2 py-1 whitespace-nowrap
-            ${tooltipMaterial} text-xs`,
+  tooltip: `pointer-events-none fixed z-[216] ${tip.label}`,
 } as const;

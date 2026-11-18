@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './e2e';
 
-import { addPaletteElement, gotoModeler, pressOnCanvas } from './utils';
+import { addPaletteElement, gotoModeler } from './utils';
 
 /**
  * Connect and reconnect feedback, driven by a real pointer. The canvas specs pin what a
@@ -29,11 +29,12 @@ async function verdictTint(shape: Locator): Promise<'green' | 'red' | 'none'> {
 
 test('a drag shows its verdict under the pointer: a target that takes it, empty space, a target that refuses it', async ({ page }) => {
   await gotoModeler(page);
+  // A new task's name editor has the keys: Escape closes it and keeps the task selected.
   await addPaletteElement(page, 'Activities', 'Task', { x: 300, y: 220 });
-  await pressOnCanvas(page, 'Escape');
+  await page.keyboard.press('Escape');
   await page.getByTestId('context-pad-append.end-event').click();
   await addPaletteElement(page, 'Activities', 'User', { x: 700, y: 400 });
-  await pressOnCanvas(page, 'Escape');
+  await page.keyboard.press('Escape');
   const task = page.locator('g[data-element-id^="Task_"]').first();
   await task.click();
   await page.getByTestId('context-pad-append.text-annotation').click();

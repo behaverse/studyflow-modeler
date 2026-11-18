@@ -11,7 +11,7 @@ export const SettingsViewContext = createContext<{
 }>({ openSettings: noop });
 
 /** What the app is doing: editing, simulating, or replaying the provenance trail, which wins over a simulation. */
-export type AppMode = 'edit' | 'simulation' | 'replay';
+export type AppMode = 'edit' | 'simulation' | 'replay' | 'review';
 
 /**
  * The app's mode, and the way into and out of a replay, where the inspector yields to the replay panel and the canvas

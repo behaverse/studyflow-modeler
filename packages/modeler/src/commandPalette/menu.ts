@@ -1,5 +1,5 @@
 import { executeCommand } from '@modeler/commandBus';
-import { openRunnerTab } from '@modeler/app/commands';
+import { pressRun } from '@modeler/composer/run';
 import { saveLinkedFile } from '@modeler/diagram/save';
 import { MOD_LABEL, URLS } from '@modeler/constants';
 import { ICONS } from '@modeler/icons';
@@ -8,13 +8,15 @@ import type { PaletteCommand } from '@modeler/commandPalette/types';
 import type { DialogId } from '@modeler/app/Dialogs';
 import type { Editor } from '@modeler/editor/port';
 import { reportingDocuments } from '@modeler/skillModules';
+import { openView } from '@modeler/views/store';
 
 export type PaletteCommandDeps = {
   modeler: Editor;
   isSimulating: boolean;
+  /** A simulation is held: it offers Resume and Step instead of Pause. */
+  isPaused: boolean;
   openSettings: () => void;
   openDialog: (id: DialogId) => void;
-  openReplay: () => void;
   /** Name of the file the diagram is linked to, if any; it decides what "Save" is called. */
   linkedFileName?: string;
 };
@@ -37,73 +39,50 @@ export function buildElementEntries(modeler: Editor): PaletteCommand[] {
     });
 }
 
+/** The group the app menu's commands are listed under once found: it names their home. */
+const MENU_GROUP = 'Studyflow Menu';
+
 export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[] {
-  const { modeler, isSimulating, openSettings, openDialog, openReplay, linkedFileName } = deps;
+  const { modeler, isSimulating, isPaused, openSettings, openDialog, linkedFileName } = deps;
   const documents = reportingDocuments();
 
   return [
+    // The app's own commands, whose home is the app menu: found here by name, not listed until something is typed.
     {
       id: 'new',
-      group: 'File',
-      tile: true,
+      group: MENU_GROUP,
+      searchOnly: true,
       label: 'New...',
       icon: ICONS.fileNew,
-      shortcut: '1',
       // One gallery: the blank canvas, then every shipped example, shelved by what it demonstrates.
+      keywords: 'example gallery template blank',
       action: () => openDialog('gallery'),
     },
     {
       id: 'open',
-      group: 'File',
-      tile: true,
+      group: MENU_GROUP,
+      searchOnly: true,
       label: 'Open File...',
       icon: ICONS.folderOpen,
-      shortcut: '2',
       // Takes any diagram format, and the foreign ones skills open, converted on the way in.
       action: () => openDialog('open'),
     },
     // Format and destination live here; this is where an unlinked diagram gets its file.
     {
       id: 'save-as',
-      group: 'File',
-      tile: false,
+      group: MENU_GROUP,
+      searchOnly: true,
       label: 'Save As...',
       icon: ICONS.save,
       hint: `${MOD_LABEL}⇧S`,
       keywords: 'export download publish png svg tiff yaml bpmn copy',
       action: () => openDialog('save'),
     },
-    // Not a file command, but it shares the tile row up top, and the row is one group.
-    {
-      id: 'settings',
-      group: 'File',
-      tile: true,
-      label: 'Settings',
-      icon: ICONS.gear,
-      shortcut: '3',
-      keywords: 'app preferences',
-      action: openSettings,
-    },
-    {
-      id: 'docs',
-      group: 'File',
-      label: 'Docs',
-      tile: true,
-      icon: ICONS.book,
-      action: () => { window.open(URLS.docs, '_blank', 'noopener'); },
-    },
-    {
-      id: 'website',
-      group: 'File',
-      label: 'Studyflow Website',
-      icon: ICONS.website,
-      keywords: 'home about behaverse',
-      action: () => { window.open(URLS.home, '_blank', 'noopener'); },
-    },
     // Nothing to overwrite until a file is linked, so until then "Save As..." is the only save.
     ...(linkedFileName ? [{
       id: 'save',
-      group: 'File',
+      group: MENU_GROUP,
+      searchOnly: true,
       label: `Save ${linkedFileName}`,
       icon: ICONS.save,
       hint: `${MOD_LABEL}S`,
@@ -111,14 +90,32 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       // Same gesture as ⌘S: writes straight back into the linked file, no dialog.
       action: () => { void saveLinkedFile(modeler); },
     }] : []),
+    {
+      id: 'settings',
+      group: MENU_GROUP,
+      searchOnly: true,
+      label: 'Settings',
+      icon: ICONS.gear,
+      keywords: 'app preferences',
+      action: openSettings,
+    },
+    {
+      id: 'help',
+      group: MENU_GROUP,
+      searchOnly: true,
+      label: 'Help',
+      icon: ICONS.help,
+      keywords: 'docs documentation manual guide',
+      action: () => { window.open(URLS.docs, '_blank', 'noopener'); },
+    },
 
     {
       id: 'run',
       group: 'Run',
       label: 'Run',
       icon: ICONS.run,
-      // `openRunnerTab()` first: the runner tab has to be claimed inside this gesture.
-      action: () => executeCommand(modeler, { type: 'OpenRunner', target: openRunnerTab() }),
+      // The composer's own press: it asks first when the plan has problems, and claims the runner's tab in this gesture.
+      action: () => pressRun(modeler),
     },
     {
       id: 'simulate',
@@ -127,6 +124,25 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       icon: isSimulating ? ICONS.stop : ICONS.simulate,
       action: () => executeCommand(modeler, { type: 'ToggleSimulation' }),
     },
+    ...(isSimulating ? [{
+      id: 'simulation-pause',
+      group: 'Run',
+      label: isPaused ? 'Resume Simulation' : 'Pause Simulation',
+      icon: isPaused ? ICONS.play : ICONS.pause,
+      hint: 'Space',
+      action: () => executeCommand(modeler, { type: 'PauseSimulation' }),
+    }, {
+      id: 'simulation-step',
+      group: 'Run',
+      label: 'Step Simulation',
+      icon: ICONS.chevronRight,
+      hint: '→',
+      // A step plays on from a hold: from a running simulation it holds first.
+      action: () => {
+        if (!modeler.simulation.isPaused()) modeler.simulation.pause();
+        return executeCommand(modeler, { type: 'StepSimulation' });
+      },
+    }] : []),
 
     {
       id: 'reset-zoom',
@@ -147,18 +163,20 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
         .catch((err) => console.warn('Tidy layout failed', err)),
     },
     {
-      id: 'view-checklist',
-      group: 'View',
-      label: 'View as Checklist...',
-      icon: ICONS.checkbox,
-      action: () => openDialog('checklist'),
-    },
-    {
       id: 'view-schedule',
       group: 'View',
-      label: 'View as Schedule...',
+      label: 'Show Schedule',
       icon: ICONS.schedule,
-      action: () => openDialog('schedule'),
+      keywords: 'timeline gantt durations',
+      action: () => openView('schedule'),
+    },
+    {
+      id: 'view-checklist',
+      group: 'View',
+      label: 'Show Checklist',
+      icon: ICONS.checkbox,
+      keywords: 'todo tasks review',
+      action: () => openView('checklist'),
     },
     {
       id: 'view-manuscript',
@@ -181,17 +199,11 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
     {
       id: 'view-provenance',
       group: 'View',
-      label: 'View Provenance...',
+      label: 'Show Provenance',
       icon: ICONS.history,
+      keywords: 'runs history record',
       shortcut: 'p',
-      action: () => openDialog('provenance'),
-    },
-    {
-      id: 'replay-provenance',
-      group: 'View',
-      label: 'Replay Provenance',
-      icon: ICONS.replay,
-      action: openReplay,
+      action: () => openView('provenance'),
     },
   ];
 }

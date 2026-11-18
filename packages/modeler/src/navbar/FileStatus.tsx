@@ -85,13 +85,15 @@ export function FileStatus() {
           </div>
         )}
         <p className={s.cardText}>{detail}</p>
-        <div className={s.actions}>
-          {actions.map((action) => (
-            <CloseButton key={action.label} className={action.primary ? s.primary : s.secondary} onClick={run[action.run]}>
-              {action.label}
-            </CloseButton>
-          ))}
-        </div>
+        {actions.length > 0 && (
+          <div className={s.actions}>
+            {actions.map((action) => (
+              <CloseButton key={action.label} className={action.primary ? s.primary : s.secondary} onClick={run[action.run]}>
+                {action.label}
+              </CloseButton>
+            ))}
+          </div>
+        )}
       </PopoverPanel>
     </Popover>
   );

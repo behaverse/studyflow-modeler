@@ -191,7 +191,7 @@ test('what the Parameters wired into a step set is shown locked, naming them, an
   const inspector = page.getByTestId('inspector-root');
   await inspector.getByRole('tab', { name: /execution/i }).click();
 
-  const instrument = inspector.locator('input[name$="instrument"]');
+  const instrument = inspector.locator('[name$="instrument"]');
   await expect(instrument).toHaveValue('WO');
   await expect(instrument).toBeDisabled();
   // The notice names the object that sets it and the value it overrides; the wording is the UI's.
@@ -199,8 +199,8 @@ test('what the Parameters wired into a step set is shown locked, naming them, an
   await expect(overridden).toContainText(/WhichOne settings/);
   await expect(overridden).toContainText(/\bNB\b/);
   // The same object sets the timeline, so that field is locked too, naming it.
-  await expect(inspector.locator('input[name$="timeline"]')).toHaveValue('SimonTask');
-  await expect(inspector.locator('input[name$="timeline"]')).toBeDisabled();
+  await expect(inspector.locator('[name$="timeline"]')).toHaveValue('SimonTask');
+  await expect(inspector.locator('[name$="timeline"]')).toBeDisabled();
 
   await inspector.getByRole('button', { name: 'WhichOne settings', exact: true }).first().click();
   await expect(inspector).toContainText('studyflow:Parameters');
