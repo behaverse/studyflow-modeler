@@ -1,4 +1,5 @@
 import { useContext } from 'react';
+import { showCanvasView, useCanvasView } from '@modeler/app/canvasView';
 import { ModeContext } from '@modeler/app/contexts';
 import { Breadcrumbs } from '@modeler/drilldown/Breadcrumbs';
 import { AppMenu } from '@modeler/navbar/AppMenu';
@@ -6,7 +7,7 @@ import { FileStatus } from '@modeler/navbar/FileStatus';
 import { panels, row } from '@modeler/navbar/styles';
 import { ICONS } from '@modeler/icons';
 import { showInspector, useInspectorShown } from '@modeler/inspector/visibility';
-import { showStoryboard, useStoryboard } from '@modeler/storyboard/store';
+import { SKILL_CANVAS_VIEWS } from '@modeler/skillModules';
 import { choice } from '@modeler/ui/styles';
 
 /**
@@ -16,7 +17,7 @@ import { choice } from '@modeler/ui/styles';
 export function NavBar() {
   const { mode } = useContext(ModeContext);
   const isInspectorVisible = useInspectorShown();
-  const storyboard = useStoryboard();
+  const canvasView = useCanvasView();
   const inspectorTitle = isInspectorVisible ? 'Hide Inspector' : 'Show Inspector';
 
   return (
@@ -29,28 +30,26 @@ export function NavBar() {
         </div>
       </div>
 
-      {/* Where you are, and whether the study shows as its flow or as its participant's storyboard. A replay drives the
-          view itself, so the trail stands down while one is open; the switch is the editor's. */}
+      {/* Where you are, and whether the study shows as its flow or as a view a skill puts in the canvas's place
+          (`CanvasView`), when a skill has one. A replay drives the view itself, so the trail stands down while one is
+          open; the switch is the editor's. */}
       <div className={`${row.trail} ${row.middle}`}>
-        {mode !== 'replay' && !storyboard && <Breadcrumbs />}
-        {mode === 'edit' && (
+        {mode !== 'replay' && !canvasView && <Breadcrumbs />}
+        {mode === 'edit' && SKILL_CANVAS_VIEWS.length > 0 && (
           <div className={`${row.bar} ${row.panel} flex`} data-covers="top">
             <div className={choice.track} role="tablist" aria-label="Show the study as">
-              {(['Flow', 'Storyboard'] as const).map((label) => {
-                const selected = (label === 'Storyboard') === storyboard;
-                return (
-                  <button
-                    key={label}
-                    type="button"
-                    role="tab"
-                    aria-selected={selected}
-                    className={`${choice.base} ${selected ? choice.selected : choice.idle}`}
-                    onClick={() => showStoryboard(label === 'Storyboard')}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+              {[{ id: undefined, label: 'Flow' }, ...SKILL_CANVAS_VIEWS].map(({ id, label }) => (
+                <button
+                  key={label}
+                  type="button"
+                  role="tab"
+                  aria-selected={id === canvasView}
+                  className={`${choice.base} ${id === canvasView ? choice.selected : choice.idle}`}
+                  onClick={() => showCanvasView(id)}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
         )}

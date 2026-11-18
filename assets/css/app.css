@@ -118,12 +118,12 @@
   display: none;
 }
 
-/* The participant's storyboard stands in for the canvas (`storyboard/`): the tools step aside, and the canvas hides
-   without giving up its size, so what it does meanwhile (an insert, a selection) keeps its place for the way back. */
-.storyboard-active .studyflow-palette {
+/* A skill's view stands in for the canvas (`CanvasView`): the tools step aside, and the canvas hides without giving
+   up its size, so what it does meanwhile (an insert, a selection) keeps its place for the way back. */
+.canvas-view-active .studyflow-palette {
   display: none;
 }
-.storyboard-active [data-testid="modeler-canvas"] {
+.canvas-view-active [data-testid="modeler-canvas"] {
   visibility: hidden;
 }
 

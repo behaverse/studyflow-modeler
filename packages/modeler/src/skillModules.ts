@@ -1,3 +1,4 @@
+import type { ComponentType } from 'react';
 import { getCatalog, hasCatalog } from '@core/notation';
 import { SCHEMA_MODELS, SKILLS, skillOfSchema } from '@core/notation/loader';
 import type { SkillManifest } from '@core/notation/skill';
@@ -72,9 +73,21 @@ export type Starter = {
   checked?: boolean;
 };
 
+/**
+ * A view of the study a skill shows in the canvas's place, switched in the nav bar beside Flow. It reads the study and
+ * edits it through the commands the canvas uses.
+ */
+export type CanvasView = {
+  /** Unique among the skills. */
+  id: string;
+  /** Its name on the nav bar's switch: `Storyboard`. */
+  label: string;
+  View: ComponentType;
+};
+
 /** The default export of a skill's `modeler.ts`: the projections the modeler writes, the foreign formats it opens,
- * the inspector sections it adds, its pages of Settings, the places "Save" can send a study besides this machine, and
- * the reporting documents it draws. */
+ * the inspector sections it adds, its pages of Settings, the places "Save" can send a study besides this machine,
+ * the reporting documents it draws, and the views it shows in the canvas's place. */
 export type ModelerModule = {
   exports?: ExportFormat[];
   opens?: Opener[];
@@ -83,6 +96,7 @@ export type ModelerModule = {
   destinations?: SaveDestination[];
   documents?: ReportingDocument[];
   starters?: Starter[];
+  canvasViews?: CanvasView[];
 };
 
 // Loads every skill's `modeler.ts` eagerly, because the format lists are built once, at load. The module is
@@ -117,6 +131,7 @@ export const SKILL_OPENERS: Opener[] = LOADED.flatMap((module) => module.opens ?
 export const SKILL_INSPECTOR_SECTIONS: InspectorSection[] = LOADED.flatMap((module) => module.sections ?? []);
 export const SKILL_SETTINGS_SECTIONS: SettingsSection[] = LOADED.flatMap((module) => module.settings ?? []);
 export const SKILL_SAVE_DESTINATIONS: SaveDestination[] = LOADED.flatMap((module) => module.destinations ?? []);
+export const SKILL_CANVAS_VIEWS: CanvasView[] = LOADED.flatMap((module) => module.canvasViews ?? []);
 
 /**
  * The reporting documents of the skills in use, in the skills' order: a skill that ships a schema offers its own

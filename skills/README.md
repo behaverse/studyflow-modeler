@@ -14,7 +14,7 @@ metadata:
   runtimes:                           # what executes its elements, per runtime
     local: "uv run --script local.py" #   a command run in this folder (the contract: packages/runtime-local/CONTRACT.md)
     browser: "browser/index.tsx"      #   a node module the browser runner imports (packages/runtime-browser/src/nodes/README.md)
-  modeler: "modeler.ts"               # projections it exports, foreign formats it opens, inspector sections, Settings pages, Save destinations, reporting documents it draws, the New dialog's parts
+  modeler: "modeler.ts"               # projections it exports, foreign formats it opens, inspector sections, Settings pages, Save destinations, reporting documents it draws, the New dialog's parts, views in the canvas's place
 ---
 What the skill is, a snippet of a study that uses it, then a section per topic: how it is authored, how it runs,
 what comes back.

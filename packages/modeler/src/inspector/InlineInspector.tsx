@@ -1,6 +1,6 @@
 /**
  * The inline inspector: what a person sets on most steps, where the step is. While the inspector is closed it sits
- * under the context pad's actions (and in a storyboard's selected step): the step's name and the fields its type's
+ * under the context pad's actions (and in a skill's view of a selected step): the step's name and the fields its type's
  * schema marks `showInline` (skills/SCHEMAS.md), edited with the inspector's own inputs; All properties opens the
  * inspector.
  */

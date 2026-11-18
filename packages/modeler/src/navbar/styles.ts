@@ -14,7 +14,7 @@ export const row = {
   study: 'flex min-w-0 max-w-full justify-self-start col-start-1 row-start-1',
   trail: 'col-span-2 row-start-2 justify-self-center md:col-span-1 md:col-start-2 md:row-start-1',
   actions: 'flex justify-self-end col-start-2 md:col-start-3 row-start-1',
-  /** The middle: the trail, and the switch between the flow and the storyboard. */
+  /** The middle: the trail, and the switch between the flow and a skill's view. */
   middle: 'flex items-center gap-2',
   fileSlot: 'flex items-center min-w-0',
 } as const;

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import { sessionOf, spokenLength, spokenMinutes } from '@modeler/storyboard/session';
-import { studyModel } from './schemas';
+import { sessionOf, spokenLength, spokenMinutes } from '@skills/storyboard/modeler/session';
+import { studyModel } from '@tests/schemas';
 
 /** The session the storyboard tells: one participant's way through the study, with when each step begins. */
 

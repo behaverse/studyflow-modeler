@@ -1,5 +1,6 @@
 /**
- * The participant's storyboard: the study as the session someone goes through, in place of the flow on the canvas.
+ * The participant's storyboard, this skill's view in the canvas's place (`modeler.ts`): the study as the session
+ * someone goes through.
  * Each step is a card in the order the session takes them (`session.ts`), with when it begins and how long it lasts,
  * and the session's total. A press selects a step, whose card then opens its fields; a + between two steps puts one
  * there, on the flow that joins them.
@@ -15,8 +16,8 @@ import { ICONS } from '@modeler/icons';
 import { useInspectorWidth } from '@modeler/inspector/visibility';
 import { addEntries } from '@modeler/palette/catalog';
 import { unscheduledSteps } from '@modeler/schedule/rows';
-import { sessionOf, spokenLength, spokenMinutes, type SessionStep } from '@modeler/storyboard/session';
-import { storyboard as s } from '@modeler/storyboard/styles';
+import { sessionOf, spokenLength, spokenMinutes, type SessionStep } from '@skills/storyboard/modeler/session';
+import { storyboard as s } from '@skills/storyboard/modeler/styles';
 import { useStudyVersion } from '@modeler/views/hooks';
 import { useViews } from '@modeler/views/store';
 import { DRAWER_HEIGHT } from '@modeler/views/styles';
