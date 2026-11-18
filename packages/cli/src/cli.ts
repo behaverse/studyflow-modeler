@@ -15,7 +15,7 @@ const program = new Command();
 
 program
   .name('studyflow')
-  .description('Work with studyflow files: convert between formats, validate, inspect.')
+  .description('Convert, check, run, edit and export a study.')
   .version(import.meta.env?.APP_VERSION ?? 'dev');
 
 const positive = (what: string) => (value: string): number => {

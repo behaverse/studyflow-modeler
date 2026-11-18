@@ -6,10 +6,10 @@ import { NON_EXTENSION_PREFIXES } from '@core/constants';
 import type { Metamodel, PropertyDef } from '@core/model/metamodel';
 import { expandInline } from '@core/model/spelling';
 import { hostOf, inferredRoot, isHeadlessCollaboration, propertyOf } from '@core/model/yaml';
-import { isElement, type Element, type Study, type Value } from '@core/model/types';
+import { isElement, isMapping, type Element, type Study, type Value } from '@core/model/types';
 
 export type { Drawing, Element, State, Study, Value } from '@core/model/types';
-export { isElement } from '@core/model/types';
+export { isElement, isMapping } from '@core/model/types';
 
 /** Where an element sits: the element holding it (none for a root) and the property it is under. */
 export type Holder = { parent?: Element; key: string };
@@ -211,8 +211,6 @@ export class StudyModel {
     return typeof runtime === 'string' && runtime ? runtime : 'local';
   }
 }
-
-const isMapping = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 
 /** The schema type that extends `element`, read off the element alone: its own type when a schema types it, else its
  * first schema entry's (a provenance record is no such entry). */

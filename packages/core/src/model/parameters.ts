@@ -5,14 +5,12 @@
  */
 import * as yaml from 'js-yaml';
 
-import { idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
+import { idOf, isElement, isMapping, type Element, type StudyModel, type Value } from '@core/model/index';
 import { getCatalog, hasCatalog } from '@core/notation';
 
 export const PARAMETERS = 'studyflow:Parameters';
 
 type Mapping = Record<string, unknown>;
-
-const isMapping = (value: unknown): value is Mapping => !!value && typeof value === 'object' && !Array.isArray(value);
 
 const listIn = (value: Value | undefined): Value[] => (Array.isArray(value) ? value : []);
 

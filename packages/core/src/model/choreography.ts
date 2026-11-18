@@ -4,7 +4,7 @@
  * participant as the actor below. This module also sets who takes the bands and what kind of actor each is, and reads
  * another tool's choreography as the process a study is.
  */
-import { idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
+import { idOf, isElement, isMapping, type Element, type StudyModel } from '@core/model/index';
 import { getCatalog } from '@core/notation';
 import type { Ids } from '@core/model/items';
 import { wiredIn } from '@core/model/parameters';
@@ -175,8 +175,6 @@ export function headlessPlaneToProcessIn(model: StudyModel): boolean {
   plane.bpmnElement = root.id;
   return true;
 }
-
-const isMapping = (value: unknown): value is Record<string, Value> => !!value && typeof value === 'object' && !Array.isArray(value);
 
 /* --- Who takes a band, and what kind of actor that is --- */
 

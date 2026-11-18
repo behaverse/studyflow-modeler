@@ -26,7 +26,7 @@ import {
 import { EVENT_KINDS, LOOP_MARKERS, STANDARD_LOOP, definitionId, fileKey, isRefLike, modelKey, refId, refValue } from '@core/model/names';
 import { NON_EXTENSION_PREFIXES } from '@core/constants';
 import { BUILTIN_TYPES, type Descriptor, type Metamodel, type PropertyDef } from '@core/model/metamodel';
-import { isElement, type Drawing, type Element, type State, type Study, type Value } from '@core/model/types';
+import { isElement, isMapping, type Drawing, type Element, type State, type Study, type Value } from '@core/model/types';
 
 type Warn = (message: string) => void;
 
@@ -67,10 +67,6 @@ export function propertyOf(metamodel: Metamodel, type: string, key: string): Pro
 
 function localKeys(descriptor: Descriptor): Set<string> {
   return new Set(descriptor.properties.map((p) => p.ns.localName));
-}
-
-function isMapping(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
 /** Folds an element in its long form (a BPMN element with its schema type's entry) into its schema type, the form

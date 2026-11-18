@@ -6,7 +6,7 @@ import type { Note, PlanElement, Reuse } from '@core/engine';
 import { KeptOutOfHistory, type ElementRecord, type RunRepo } from '@runtime-local/prov';
 
 /**
- * Decides what a re-run reuses (packages/runtime-local/CONTRACT.md, "Re-runs"). A step is skipped when its record still stands: nothing it
+ * Decides what a re-run reuses (packages/runtime-local/WALK.md, "Re-runs"). A step is skipped when its record still stands: nothing it
  * reads was re-made earlier in this run, its outputs are where it left them, and the commit its record names still
  * holds what it ran with: every artifact it reads or makes, compared by git itself, and its own drawing (at a
  * gateway, the flows it weighs too), read back out of the study that commit carries.

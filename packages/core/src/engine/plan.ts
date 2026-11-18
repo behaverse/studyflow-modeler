@@ -1,12 +1,10 @@
 import { getCatalog, hasCatalog } from '@core/notation';
 import { PROPERTY_VALUE } from '@core/engine/graph';
 import type { Timer } from '@core/engine/timer';
-import { expressionOf as modelExpression, idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
+import { expressionOf as modelExpression, idOf, isElement, isMapping, type Element, type StudyModel, type Value } from '@core/model/index';
 import { actorIn, isAnsweringPool, isTypedChoreography } from '@core/model/choreography';
 import { wiredIn } from '@core/model/parameters';
 import { expandInline, splitBinding } from '@core/model/spelling';
-
-const isMapping = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 
 /**
  * The plan: a study as one JSON document, which a partial runner reads instead of the diagram (packages/runtime-local/CONTRACT.md,

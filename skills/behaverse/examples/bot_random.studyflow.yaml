@@ -187,10 +187,3 @@ layout:
   Flow_Start_Warmup: 196,198 260,198
   Flow_Warmup_Main: 380,198 450,198
   Flow_Main_End: 570,198 640,198
-
-state:
-  _meta:
-    prov:
-      - action: created
-        when: "2026-09-14T10:07:20+02:00"
-        with: studyflow-modeler/26.9.18

@@ -16,9 +16,6 @@ export const shadow = {
 
 export const border = {
   hairline: 'border border-black/[0.10]',
-  /** Controls (inputs, selects, checkboxes) need >=3:1 against their surface
-      (WCAG 1.4.11); the hairline is for panels and dividers, which are exempt. */
-  control: 'border border-black/[0.45]',
 } as const;
 
 /** One tooltip material everywhere; callers add size, padding and positioning. */
@@ -73,10 +70,10 @@ export const space = {
 
 /*
  * The chrome's design language. Four materials: a panel floats over the canvas (the nav bar's bars and trail, the
- * palette, the inspector, the context pad, the minimap, the replay bar, a notice), a menu opens from one (popups,
+ * palette, the inspector, the context pad, the minimap, the composer, the views drawer), a menu opens from one (popups,
  * flyouts, the file card, dropdown lists), a sheet takes the page (dialogs, the command palette), and a field sits in
- * any of them. One hairline draws every edge and rule, one blue ring every focus, and "selected" is always the dark
- * fill of a primary button.
+ * any of them. One hairline draws every edge and rule, and one accent every focus ring, highlighted row and default
+ * button.
  */
 export const material = {
   panel: `${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panel}`,
@@ -168,7 +165,6 @@ export const dialog = {
   panelLg: 'w-full max-w-4xl',
   panelXl: 'w-full max-w-6xl',
   panelFull: 'w-full max-w-none h-[calc(100vh-1rem)] sm:h-[calc(100vh-2rem)]',
-  panelBody: 'flex-1 min-h-0 overflow-y-auto -mx-1 px-1',
 
   header: 'flex items-center gap-1 h-7 mb-4 shrink-0',
   title: 'text-base tracking-tight text-stone-900 font-semibold',
@@ -193,6 +189,4 @@ export const dialog = {
   footer: `mt-4 pt-4 border-t ${divider.edge} flex items-center gap-2 shrink-0`,
   primaryBtn: `${button.base} ${button.primary}`,
   secondaryBtn: `${button.base} ${button.secondary}`,
-
-  statusText: 'text-sm text-stone-600 m-auto',
 } as const;

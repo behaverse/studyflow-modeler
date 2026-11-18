@@ -46,6 +46,11 @@ export type Study = {
   state?: State;
 };
 
+/** A mapping, as YAML calls a plain object: not null, not a list. */
+export function isMapping(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
 export function isElement(value: unknown): value is Element {
   return !!value && typeof value === 'object' && !Array.isArray(value) && typeof (value as { type?: unknown }).type === 'string';
 }

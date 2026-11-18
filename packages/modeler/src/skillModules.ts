@@ -80,7 +80,7 @@ export type Starter = {
 export type CanvasView = {
   /** Unique among the skills. */
   id: string;
-  /** Its name on the nav bar's switch: `Storyboard`. */
+  /** Its name on the nav bar's switch. */
   label: string;
   View: ComponentType;
 };

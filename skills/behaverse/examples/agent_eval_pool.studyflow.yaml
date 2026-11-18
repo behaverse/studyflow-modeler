@@ -379,10 +379,3 @@ layout:
   Flow_Ollama_Join: 500,640 540,640 540,390 560,390
   Flow_Join_Score: 610,390 660,390
   Flow_Score_End: 800,390 860,390
-
-state:
-  _meta:
-    prov:
-      - action: created
-        when: "2026-09-14T10:07:21+02:00"
-        with: studyflow-modeler/26.9.18

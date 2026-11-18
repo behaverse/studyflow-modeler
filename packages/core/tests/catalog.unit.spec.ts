@@ -102,3 +102,28 @@ test('a trait reaches every subtype of its BPMN types, an enum extension appends
     bodyProp: 'value', bodyType: 'core:Markdown', typeWidget: 'markdown',
   });
 });
+
+test('a template names its first element\'s schema type in either spelling a file takes', () => {
+  const lab = fromModdleYaml(`
+name: Lab
+prefix: lab
+uri: http://example.test/lab
+types:
+  - { name: Survey, superClass: [bpmn:Task] }
+templates:
+  - elements:
+      Long:
+        type: Task
+        name: Long
+        extensionElements:
+          - type: lab:Survey
+  - elements:
+      Short:
+        type: Task
+        name: Short
+        extensions:
+          lab:Survey: {}
+`);
+  const templates = buildCatalog([lab]).allTemplates();
+  expect(templates.map((template) => [template.name, template.extensionType])).toEqual([['Long', 'lab:Survey'], ['Short', 'lab:Survey']]);
+});

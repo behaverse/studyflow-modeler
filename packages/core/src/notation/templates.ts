@@ -1,11 +1,8 @@
 import { longTypeName } from '@core/model/spelling';
+import { isMapping } from '@core/model/types';
 import type { TypeCatalog } from '@core/notation/query';
 import type { SchemaModel } from '@core/notation/moddlePackage';
 import type { Template } from '@core/notation/types';
-
-type Mapping = Record<string, unknown>;
-
-const isMapping = (value: unknown): value is Mapping => !!value && typeof value === 'object' && !Array.isArray(value);
 
 /** The palette's view of each template, read off its first element; the modeler builds the elements on drop. */
 export function compileTemplates(prefix: string, model: SchemaModel, catalog: TypeCatalog): Template[] {
@@ -19,10 +16,11 @@ export function compileTemplates(prefix: string, model: SchemaModel, catalog: Ty
       continue;
     }
 
-    // Read in the short spelling only: `extensionElements` as a list of typed entries.
-    const extension = (Array.isArray(root.extensionElements) ? root.extensionElements : [])
-      .find((entry): entry is Mapping => isMapping(entry) && !!catalog.getType(String(entry.type)));
-    const extensionType = extension ? String(extension.type) : undefined;
+    // The schema type that types it, in either spelling a file takes: `extensions` keyed by type, or
+    // `extensionElements` as a list of typed entries.
+    const keyed = isMapping(root.extensions) ? Object.keys(root.extensions) : [];
+    const listed = (Array.isArray(root.extensionElements) ? root.extensionElements : []).filter(isMapping).map((entry) => String(entry.type));
+    const extensionType = [...keyed, ...listed].find((type) => !!catalog.getType(type));
     // The element's own `studyflow:icon`, on the element itself, where the canvas reads it.
     const ownIcon = root.icon;
 

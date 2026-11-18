@@ -1,4 +1,4 @@
-"""A jsPsych trial as the study's actor is sent it and as the run records it (SKILL.md beside this file, "Local runs").
+"""A jsPsych trial as the study's actor is sent it and as the run records it (SKILL.md beside this file, "In a local run").
 
 The local runner (`local.py`) plays a `jspsych://` step's timeline in jsPsych's data-only simulation mode, each trial's
 response coming from the actor along the task's message flows. This module holds what it decides apart from the walk, the page and

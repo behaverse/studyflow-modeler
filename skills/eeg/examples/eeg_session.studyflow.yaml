@@ -1,6 +1,7 @@
 id: eeg_session
 schemas:
   cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  prov: https://w3id.org/studyflow/prov
   studyflow: http://behaverse.org/schemas/studyflow/v1
 
 EEG_Session:
@@ -8,6 +9,8 @@ EEG_Session:
   name: EEG session
   extensions:
     studyflow:Study: {}
+    prov:Activity:
+      - {action: created, when: "2026-09-12T23:21:22+02:00", with: studyflow-modeler/26.9.18}
   documentation: An EEG session covering cap fitting through data export.
   elements:
     Start:
@@ -93,10 +96,3 @@ layout:
   Flow_Baseline_Task: 393,70 475,70
   Flow_Task_Export: 575,70 625,70
   Flow_Export_End: 725,70 807,70
-
-state:
-  _meta:
-    prov:
-      - action: created
-        when: "2026-09-12T23:21:22+02:00"
-        with: studyflow-modeler/26.9.18

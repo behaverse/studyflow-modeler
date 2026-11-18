@@ -23,8 +23,6 @@ export interface FontPatch {
   color?: string | null;
 }
 
-export const FONT_PROPERTY = 'studyflow:font';
-
 const ALIGNS: ReadonlySet<string> = new Set(['left', 'center', 'right']);
 
 /** `bold italic right #ac5a54` → a font; tokens it does not know are dropped; nothing → `undefined`. */

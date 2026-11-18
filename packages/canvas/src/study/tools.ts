@@ -45,8 +45,6 @@ export type ToolName = StepTool | 'document' | 'get' | 'list' | 'attributes' | '
 /** The verbs `can` answers for by the rules alone, so it may ask with part of the argument left out. */
 export const ASKABLE_TOOLS = ['append', 'connect', 'replace'] as const;
 
-export type AskableTool = (typeof ASKABLE_TOOLS)[number];
-
 /** A property an element of a type takes beside its schema's attributes: one BPMN gives it, set as the file spells it. */
 export interface StructureRecord {
   readonly name: string;

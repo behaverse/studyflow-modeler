@@ -80,17 +80,6 @@
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Mask-based icon utility - used in the palette to recolor the BIDS SVG. */
-.bids-dataset-icon {
-  -webkit-mask-image: url('../img/bids.svg');
-  mask-image: url('../img/bids.svg');
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  background-color: currentColor;
-}
-
 /*
  * The main canvas: the div `Modeler.tsx` mounts the canvas in. The simulation and replay rules below style it.
  * The canvas's root `<svg>` is transparent, so this rule paints its background.

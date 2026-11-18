@@ -214,10 +214,3 @@ layout:
   Flow_Enrolled_Session: 56,70 110,70
   Flow_Session_Done: 1291,210 1347,210
   Flow_Failed_Stopped: 700,408 700,452
-
-state:
-  _meta:
-    prov:
-      - action: created
-        when: "2026-09-14T10:21:03+02:00"
-        with: studyflow-modeler/26.9.18

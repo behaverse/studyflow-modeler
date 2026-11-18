@@ -63,7 +63,6 @@ export const ICONS = {
   envelope: 'iconify tabler--mail',
   envelopeOpen: 'iconify lucide--mail-open',
   google: 'iconify tabler--brand-google',
-  github: 'iconify tabler--brand-github',
   branch: 'iconify tabler--git-branch',
   filter: 'iconify tabler--filter-2',
   copy: 'iconify tabler--copy',
@@ -96,7 +95,6 @@ export const ICONS = {
   circle: 'iconify tabler--circle',
   diamond: 'iconify tabler--square-rotated',
   pentagon: 'iconify tabler--pentagon',
-  hexagon: 'iconify tabler--hexagon',
   compensation: 'iconify tabler--player-track-prev',
 
   bpmnTask: 'iconify bpmn-task',
