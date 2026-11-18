@@ -6,12 +6,11 @@ description: "The studyflow command: convert, check, run, inspect and export a s
 ## Install
 
 ```bash
-brew trust https://github.com/behaverse/studyflow-modeler   # Homebrew asks this of a third-party tap
+# Homebrew asks this of a third-party tap
+brew trust https://github.com/behaverse/studyflow-modeler
 brew tap behaverse/studyflow https://github.com/behaverse/studyflow-modeler
 brew install studyflow
 ```
-
-A local run also needs [`uv`](https://docs.astral.sh/uv/).
 
 ## Commands
 
@@ -34,18 +33,17 @@ A local run also needs [`uv`](https://docs.astral.sh/uv/).
 studyflow convert <input> <output>
 ```
 
-The output's extension picks the format. Between YAML, BPMN XML and the images that carry a study, nothing is lost.
+The output's extension picks the format (YAML, BPMN XML, PNG, SVG, TIFF). The input can be any of those formats. If the input and output are both images, the output is a copy of the input's pixels.
 
-| Option | Does |
+| Option | Description |
 |:--|:--|
-| `--into <image>` | embeds the study into this image |
-| `--modeler` | draws a new image with the modeler (in a checkout of the repository) |
-| `--strict` | writes nothing and fails on a reader's warning |
+| `--image <image>` | embeds the study into this image |
+| `--strict` | fails on warnings |
 
 ```bash
 studyflow convert study.studyflow.yaml study.bpmn
-studyflow convert study.studyflow.yaml study.studyflow.png   # into the picture that is there
-studyflow convert study.studyflow.png study.studyflow.tif    # the same pixels as the LZW TIFF a journal takes
+studyflow convert study.studyflow.yaml study.studyflow.png
+studyflow convert study.studyflow.png study.studyflow.tif    # the same pixels as the TIFF
 ```
 
 ## validate {#validate}
@@ -54,7 +52,7 @@ studyflow convert study.studyflow.png study.studyflow.tif    # the same pixels a
 studyflow validate <input> [--strict]
 ```
 
-Reports errors and warnings, and fails on an error. `--strict` fails on a warning too. [`packages/core`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/core#what-validate-checks) lists the checks.
+Reports errors and warnings, and fails on an error. `--strict` fails on a warning too.
 
 ## info {#info}
 
@@ -68,27 +66,27 @@ studyflow info <input> [--json]
 studyflow run <input> [options]
 ```
 
-Runs the study in the runtime it declares (`local` unless set). A local run first applies the checks of `validate`. [Reference](reference.qmd#running) explains what happens.
+Runs the study in the runtime it declares (`local` unless set). A local run first applies the `validate`. [Reference](reference.qmd#running) explains what happens.
 
 | Option | Does |
 |:--|:--|
-| `--runtime <local\|browser>` | overrides the study's own |
-| `--author <name>` | who runs it, as git writes an author (`'Name <email>'`); without it the record names no one |
+| `--runtime <local\|browser>` | overrides the study's own runtime environment |
+| `--author <name>` | who runs it, as git writes an author (`'Name <email>'`) |
 | `--repo <dir>` | the run repository to write into (default: the study's directory when it is one, else `~/.studyflow/runs/<name>`) |
 | `--from <ref>` | re-runs from this commit, on a branch |
-| `--fresh` | ignores earlier records and re-runs every step |
+| `--fresh` | ignores earlier runs and re-runs everything |
 | `--concurrency <n>` | how many instances of a pool walk at once (default 1) |
-| `--runner <name=command>` | adds or replaces a runner for this run; repeatable |
-| `--debug` | keeps `.cache/`, with the values after each step |
+| `--runner <name=command>` | adds or replaces a runner for this run; multiple `--runner` options are allowed |
+| `--debug` | enables debugging and keeps `.cache/`, with the values after each step |
 
-## edit, ui {#edit}
+## edit {#edit}
 
 ```bash
 studyflow edit [file]
 studyflow ui
 ```
 
-Opens the modeler from this machine, in a window of its own, with no network. `edit` opens a file and saves back into it; `ui` opens a blank canvas. It needs Chrome, Chromium, Brave or Edge, and falls back to the default browser.
+Opens the modeler from this machine in offline mode, with the study in `<file>` or a blank canvas. It uses Chrome, Chromium, Brave or Edge, and falls back to the default browser.
 
 ## mcp {#mcp}
 
@@ -96,14 +94,16 @@ Opens the modeler from this machine, in a window of its own, with no network. `e
 studyflow mcp <file>
 ```
 
-Serves a study, in YAML or BPMN XML, to an AI assistant as a [Model Context Protocol](https://modelcontextprotocol.io) server on stdio: the study's editing tools, `check`, and `save` back to the file. A modeler with the same file open shows each saved version as a change to accept or discard.
+Serves a study, in YAML or BPMN XML, to an AI assistant as a [Model Context Protocol](https://modelcontextprotocol.io) server on stdio. A modeler GUI with the same file open shows all the changes to accept or discard.
 
 ## prov, crate, ocel {#exports}
 
+Provenance, RO-Crate and OCEL exports of a run.
+
 ```bash
-studyflow prov <run> [out.ttl]                       # W3C PROV-O, in Turtle
-studyflow crate <run> <folder> --license CC-BY-4.0   # a Workflow Run RO-Crate, to deposit
-studyflow ocel <run> [out.json]                      # OCEL 2.0, for process mining
+studyflow prov <run> [out.ttl]                      # W3C PROV-O, in Turtle
+studyflow crate <run> <folder> --license CC-BY-4.0  # a Workflow Run RO-Crate
+studyflow ocel <run> [out.json]                     # OCEL 2.0, for process mining
 ```
 
 `<run>` is a run repository or its `events.jsonl`. `crate` needs `--license`, an SPDX id or a URL.
@@ -111,7 +111,7 @@ studyflow ocel <run> [out.json]                      # OCEL 2.0, for process min
 ## skill {#skill}
 
 ```bash
-studyflow skill add <git-url-or-folder>
+studyflow skill add <git-or-folder>
 studyflow skill list
 studyflow skill remove <name>
 ```
