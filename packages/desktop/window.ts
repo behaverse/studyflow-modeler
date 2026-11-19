@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
-/* The desktop app's window: what `studyflow edit` opens the modeler in, and `npm run dev:desktop` the dev server. */
+/* The desktop app's window: what `studyflow ui` opens the modeler in, and `npm run dev:desktop` the dev server. */
 
 /** A Chromium on this machine (on `platform`, where `exists` finds a file), if any: the app runs in its `--app` mode (a
  * window of its own, no tabs or address bar), and Chromium is the one engine with the File System Access API that
@@ -36,7 +36,7 @@ export function openWindow(url: string, find: () => string | undefined = chromiu
   }
   // Its own profile: the app's file grants and drafts, apart from the user's browsing; also its own process, so
   // closing the window ends this one.
-  // ponytail: one profile; a second `edit --port N` hands its window to the running Chromium and returns at once.
+  // ponytail: one profile; a second `ui --port N` hands its window to the running Chromium and returns at once.
   const child = spawn(app, [
     `--app=${url}`,
     `--user-data-dir=${path.join(homedir(), '.studyflow', 'chromium')}`,

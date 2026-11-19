@@ -2,7 +2,7 @@ import { createReadStream, existsSync, statSync, writeFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import path from 'node:path';
 
-/* The static server behind `studyflow edit`. Apart for the tests: `edit.ts` reads `import.meta`, which they cannot load. */
+/* The static server behind `studyflow ui`. Apart for the tests: `ui.ts` reads `import.meta`, which they cannot load. */
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -58,15 +58,17 @@ export function resolveFile(root: string, urlPath: string): { file: string } | {
   return undefined;
 }
 
-/** An extra served path, beside `root`'s files: a file anywhere on disk, read afresh per request, or text. */
-export type Served = string | { text: string; type: string };
+/** An extra served path, beside `root`'s files: a file anywhere on disk, read afresh per request, or text, which a
+ * DELETE from the page forgets where it says how. */
+export type Served = string | { text: string; type: string; forget?: () => void };
 
 /** The served file's mtime in ms, on every read and write of it: the modeler links the file it opened when it sees
  * this, saves back with a PUT, and compares it to tell a change made elsewhere. */
 export const MODIFIED_HEADER = 'x-studyflow-modified';
 
-/** A write comes from this server's own page: its Host is the address it listens on, and its Origin (which a browser
- * always sends with a PUT) is that same host. A page elsewhere, or one on a rebound DNS name, cannot write. */
+/** A change comes from this server's own page: its Host is the address it listens on, and its Origin (which a browser
+ * always sends with a PUT, a POST or a DELETE) is that same host. A page elsewhere, or one on a rebound DNS name,
+ * changes nothing. */
 function fromOwnPage(request: IncomingMessage, server: Server): boolean {
   const address = server.address();
   if (typeof address !== 'object' || !address) return false;
@@ -91,20 +93,32 @@ function writeServed(file: string, request: IncomingMessage, response: ServerRes
 }
 
 /** A static server over `root`, listening on `host:port` (port 0 picks a free one). `files` maps extra URL paths
- * to files anywhere on disk (the study `studyflow edit <file>` opens, which a PUT from the page writes back), or to text
- * (the skills installed beside it). */
-export function serveUi(root: string, host = '127.0.0.1', port = 0, files: Record<string, Served> = {}): Promise<Server> {
+ * to files anywhere on disk (the studies `studyflow ui` opens, which a PUT from the page writes back), or to text
+ * (the skills installed beside it, the list of those studies). A POST of a file's path says the page opened that file,
+ * which `opened` hears. The map is read per request, so its owner may change it while the server runs. */
+export function serveUi(
+  root: string,
+  host = '127.0.0.1',
+  port = 0,
+  files: Record<string, Served> = {},
+  opened: (file: string) => void = () => {},
+): Promise<Server> {
   root = path.resolve(root);
   const server = createServer((request, response) => {
     const urlPath = (request.url ?? '/').split('?')[0];
     const extra = files[urlPath];
-    if (extra !== undefined && typeof extra !== 'string') {
-      response.writeHead(200, { 'content-type': extra.type }).end(extra.text);
+    const { method } = request;
+    if (method === 'PUT' || method === 'POST' || method === 'DELETE') {
+      const done = () => { request.resume(); response.writeHead(204).end(); };
+      if (!fromOwnPage(request, server)) response.writeHead(403, { 'content-type': 'text/plain' }).end('Not writable');
+      else if (method === 'PUT' && typeof extra === 'string') writeServed(extra, request, response);
+      else if (method === 'POST' && typeof extra === 'string') { opened(extra); done(); }
+      else if (method === 'DELETE' && typeof extra === 'object' && extra.forget) { extra.forget(); done(); }
+      else response.writeHead(403, { 'content-type': 'text/plain' }).end('Not writable');
       return;
     }
-    if (request.method === 'PUT') {
-      if (typeof extra === 'string' && fromOwnPage(request, server)) writeServed(extra, request, response);
-      else response.writeHead(403, { 'content-type': 'text/plain' }).end('Not writable');
+    if (extra !== undefined && typeof extra !== 'string') {
+      response.writeHead(200, { 'content-type': extra.type }).end(extra.text);
       return;
     }
     const hit = extra !== undefined ? { file: extra } : resolveFile(root, urlPath);

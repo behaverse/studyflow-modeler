@@ -8,7 +8,7 @@ import { prov } from '@cli/prov';
 import { crate } from '@cli/crate';
 import { ocel } from '@cli/ocel';
 import { addSkill, installedSchemas, installedSkills, removeSkill, skillsHome } from '@cli/skills';
-import { edit } from '@desktop/edit';
+import { ui } from '@desktop/ui';
 import type { RunOptions } from '@cli/run';
 
 const program = new Command();
@@ -41,7 +41,7 @@ program
 
 const skill = program
   .command('skill')
-  .description(`Skills installed beside the CLI, in ${'$'}STUDYFLOW_HOME/skills (~/.studyflow/skills): a vocabulary and runners a domain brings, found by validate, convert, mcp, run and the desktop app (edit, ui).`);
+  .description(`Skills installed beside the CLI, in ${'$'}STUDYFLOW_HOME/skills (~/.studyflow/skills): a vocabulary and runners a domain brings, found by validate, convert, mcp, run and the desktop app (ui).`);
 skill
   .command('add')
   .argument('<source>', 'a git URL or a folder holding the skill\'s SKILL.md')
@@ -153,25 +153,16 @@ program
     await run(input, options);
   });
 
-type ServeOptions = { port: string; host: string; open: boolean };
-const serveOptions = (command: Command): Command => command
+program
+  .command('ui')
+  .alias('edit')
+  .description('Open the desktop app, on a studyflow when one is given: the modeler served from this machine, no network needed, in a window of its own (needs a Chromium: Chrome, Chromium, Brave or Edge; else the default browser).')
+  .argument('[file]', 'studyflow to open: .studyflow(.yaml), .bpmn/.xml, .studyflow.png, .studyflow.svg or .studyflow.tif; a blank canvas without one')
   .option('--port <port>', 'port to listen on', '4174')
   .option('--host <host>', 'address to bind', '127.0.0.1')
-  .option('--no-open', 'print the URL instead of opening a window');
-
-serveOptions(program
-  .command('edit')
-  .description('Open a studyflow in the desktop app: the modeler served from this machine, no network needed, in a window of its own (needs a Chromium: Chrome, Chromium, Brave or Edge; else the default browser).')
-  .argument('[file]', 'studyflow to open: .studyflow(.yaml), .bpmn/.xml, .studyflow.png, .studyflow.svg or .studyflow.tif'))
-  .action(async (file: string | undefined, options: ServeOptions) => {
-    await edit(file, { port: Number(options.port), host: options.host, open: options.open, installed: installedSchemas() });
-  });
-
-serveOptions(program
-  .command('ui')
-  .description('Open the desktop app on a blank canvas (`studyflow edit` without a file).'))
-  .action(async (options: ServeOptions) => {
-    await edit(undefined, { port: Number(options.port), host: options.host, open: options.open, installed: installedSchemas() });
+  .option('--no-open', 'print the URL instead of opening a window')
+  .action(async (file: string | undefined, options: { port: string; host: string; open: boolean }) => {
+    await ui(file, { port: Number(options.port), host: options.host, open: options.open, installed: installedSchemas() });
   });
 
 program

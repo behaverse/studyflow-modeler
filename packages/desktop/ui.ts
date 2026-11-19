@@ -2,10 +2,11 @@ import { existsSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { serveRecent } from './recent';
 import { serveUi, type Served } from './serve';
 import { openWindow } from './window';
 
-/* `studyflow edit [file]` (`studyflow ui`: the same, without a file): the desktop app. Serve the modeler (`npm run build`,
+/* `studyflow ui [file]`: the desktop app. Serve the modeler (`npm run build`,
  * the same `dist/` the webapp is) from this machine and open it in a window of its own. The page knows it is in one
  * (`display-mode: standalone`) and styles itself as a window of the system's: assets/css/desktop.css. */
 
@@ -38,21 +39,22 @@ function uiDirCandidates(): string[] {
 export function uiDir(): string {
   const found = uiDirCandidates().find((dir) => existsSync(path.join(dir, 'app.html')));
   if (found) return found;
-  throw new Error('The desktop app is not built. From the repo: `npm run build` (writes dist/), then `studyflow edit` again.');
+  throw new Error('The desktop app is not built. From the repo: `npm run build` (writes dist/), then `studyflow ui` again.');
 }
 
-/** Serve the modeler and open it, on `file` (served at `/open/<name>`, which `/app?open=` fetches) when given. */
-export async function edit(file: string | undefined, options: UiOptions = {}): Promise<void> {
+/** Serve the modeler and open it, on `file` when given: the first of the recent files (`recent.ts`), each served at
+ * a path of its own, which `/app?open=` fetches. */
+export async function ui(file: string | undefined, options: UiOptions = {}): Promise<void> {
   const root = uiDir();
   if (file && !existsSync(file)) throw new Error(`No such file: ${file}`);
-  const files: Record<string, Served> = file ? { [`/open/${encodeURIComponent(path.basename(file))}`]: path.resolve(file) } : {};
+  const files: Record<string, Served> = {};
+  const recent = serveRecent(files, file);
   files['/installed-skills.json'] = { text: JSON.stringify(options.installed ?? []), type: 'application/json' };
   const host = options.host ?? '127.0.0.1';
-  const server = await serveUi(root, host, options.port ?? 4174, files);
+  const server = await serveUi(root, host, options.port ?? 4174, files, recent.reopened);
   const address = server.address();
   const port = typeof address === 'object' && address ? address.port : options.port;
-  const openPath = Object.keys(files).find((served) => served.startsWith('/open/'));
-  const url = `http://${host.includes(':') ? `[${host}]` : host}:${port}/app${openPath ? `?open=${encodeURIComponent(openPath)}` : ''}`;
+  const url = `http://${host.includes(':') ? `[${host}]` : host}:${port}/app${recent.url ? `?open=${encodeURIComponent(recent.url)}` : ''}`;
   console.log(`Desktop app at ${url} (serving ${root}; Ctrl-C to stop)`);
   if (options.open === false) return;  // the listening server keeps the process alive; Ctrl-C ends it
   await openWindow(url);

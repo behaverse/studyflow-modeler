@@ -112,7 +112,7 @@ ${blockFor(assets, 'linux-x64', '      ')}
     # The skills, found from bin/studyflow as ../libexec/skills, and the runner SDK they import, as ../libexec/sdk.
     libexec.install "skills"
     libexec.install "sdk"
-    # The desktop app, served by \`studyflow edit\` from ../libexec/ui.
+    # The desktop app, served by \`studyflow ui\` from ../libexec/ui.
     libexec.install "ui"
   end
 
@@ -134,10 +134,10 @@ ${blockFor(assets, 'linux-x64', '      ')}
     assert_match "OK", shell_output("#{bin}/studyflow validate #{testpath}/minimal.studyflow")
     assert_match "Brew test", shell_output("#{bin}/studyflow info #{testpath}/minimal.studyflow")
     port = free_port
-    pid = spawn bin/"studyflow", "edit", "--no-open", "--port", port.to_s, testpath/"minimal.studyflow"
+    pid = spawn bin/"studyflow", "ui", "--no-open", "--port", port.to_s, testpath/"minimal.studyflow"
     sleep 2
     assert_match "Studyflow", shell_output("curl -s http://127.0.0.1:#{port}/app")
-    assert_match "Brew test", shell_output("curl -s http://127.0.0.1:#{port}/open/minimal.studyflow")
+    assert_match "Brew test", shell_output("curl -s http://127.0.0.1:#{port}/recent/0/minimal.studyflow")
   ensure
     Process.kill("TERM", pid) if pid
   end

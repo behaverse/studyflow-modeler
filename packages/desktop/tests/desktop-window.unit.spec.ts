@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import { chromium, openWindow } from '../window';
 
-/** The window `studyflow edit` opens the modeler in: a Chromium's app window, else the default browser. A stand-in
+/** The window `studyflow ui` opens the modeler in: a Chromium's app window, else the default browser. A stand-in
  * for each program it starts writes down what it was given, so no browser opens. */
 
 const PAGE = 'http://127.0.0.1:4174/app';
