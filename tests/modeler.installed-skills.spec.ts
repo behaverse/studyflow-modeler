@@ -2,7 +2,7 @@ import { expect, test } from './e2e';
 
 import { addSkillElement, gotoModeler, runPaletteCommand } from './utils';
 
-/** A skill installed beside the CLI (`studyflow skill add`): `studyflow edit` serves its schema as
+/** A skill installed beside the CLI (`studyflow skill add`): `studyflow ui` serves its schema as
  * `installed-skills.json`, and the modeler loads it with its own, locked on in Settings, its elements in the palette. */
 
 const SCHEMA = `name: Lab rig

@@ -20,7 +20,7 @@ brew install studyflow
 | [`validate`](#validate) | checks a study without running it |
 | [`info`](#info) | shows what a file contains |
 | [`run`](#run) | runs a study |
-| [`edit`, `ui`](#edit) | open the desktop app |
+| [`ui`](#ui) | opens the desktop app |
 | [`mcp`](#mcp) | serves a study to an AI assistant |
 | [`prov`, `crate`, `ocel`](#exports) | export a run's record |
 | [`skill`](#skill) | installs, lists and removes skills |
@@ -79,11 +79,10 @@ Runs the study in the runtime it declares (`local` unless set). A local run firs
 | `--runner <name=command>` | adds or replaces a runner for this run; multiple `--runner` options are allowed |
 | `--debug` | enables debugging and keeps `.cache/`, with the values after each step |
 
-## edit {#edit}
+## ui {#ui}
 
 ```bash
-studyflow edit [file]
-studyflow ui
+studyflow ui [file]
 ```
 
 Opens the modeler from this machine in offline mode, with the study in `<file>` or a blank canvas. It uses Chrome, Chromium, Brave or Edge, and falls back to the default browser.

@@ -7,7 +7,7 @@ import { claudeProxyPlugin } from './llm/claude-proxy/index.mjs'
 /** The browser runner's dev server additions for this skill: the Unity WebGL build under `/run/assessment-unity`
  * (from `UNITY_BUILD_PATH`, the repo's `run/assessment-unity/Build/WebGL`, or the assessment-unity checkout beside the
  * repo) and the Claude proxy the LLM bot calls. Dev only: the deployed site gets the build copied into
- * dist/run/assessment-unity by the deploy workflow, and `studyflow edit` serves dist/ as it is. */
+ * dist/run/assessment-unity by the deploy workflow, and `studyflow ui` serves dist/ as it is. */
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 

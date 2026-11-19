@@ -2,7 +2,7 @@ import { SCHEMAS } from '@core/notation/loader';
 import { fromModdleYaml, type SchemaModel } from '@core/notation/moddlePackage';
 
 /**
- * The schemas of the skills installed beside the CLI (`studyflow skill add`): `studyflow edit` serves them as
+ * The schemas of the skills installed beside the CLI (`studyflow skill add`): `studyflow ui` serves them as
  * `installed-skills.json` beside the app, and the modeler loads them with its own, always; one whose prefix a shipped
  * schema has is the shipped one's. Where nothing serves the file (the web app, the dev server), there are none.
  */

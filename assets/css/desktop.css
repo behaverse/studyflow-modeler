@@ -1,4 +1,4 @@
-/* The desktop app's style (`studyflow edit`, packages/desktop), on top of assets/css/app.css: what makes it feel like a
+/* The desktop app's style (`studyflow ui`, packages/desktop), on top of assets/css/app.css: what makes it feel like a
  * window of the system's rather than a web page. The app entries set `desktop` on <html> when the page is a window of its
  * own (`display-mode: standalone`); in a browser tab none of this applies. */
 

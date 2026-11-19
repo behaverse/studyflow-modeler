@@ -5,7 +5,7 @@
 ## Use
 
 - **Webapp**: [behaverse.org/studyflow-modeler/app](https://behaverse.org/studyflow-modeler/app). Author, validate, simulate, export, and run diagrams in the browser.
-- **CLI**: `studyflow` manages and runs diagrams locally. `studyflow ui`, or `studyflow edit <file>`, serves the modeler from your machine.
+- **CLI**: `studyflow` manages and runs diagrams locally. `studyflow ui <file>` serves the modeler from your machine.
 
 ```bash
 brew trust https://github.com/behaverse/studyflow-modeler   # Homebrew 6 loads a third-party tap only once trusted

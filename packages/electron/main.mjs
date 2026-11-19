@@ -6,14 +6,14 @@ import { fileURLToPath } from 'node:url';
 import { serveUi } from '../desktop/serve.ts';  // Electron's Node strips types: no build step
 
 /* Local only, not a workspace (README.md): the modeler in an Electron window, for screenshots and demos. Not the
- * desktop app (that is `studyflow edit`, packages/desktop), not distributed. Everything the page needs to look like a
+ * desktop app (that is `studyflow ui`, packages/desktop), not distributed. Everything the page needs to look like a
  * window of its own is injected from here, so the modeler knows nothing of Electron and this folder can go without a
  * trace. `--dev` (`npm run dev:electron`) runs the modeler's dev server in here, hot reload and all, instead of serving dist/. */
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const UI = path.join(ROOT, 'dist');
 
-/** What `studyflow edit` gets from `display-mode: standalone` (assets/css/desktop.css keys off the class). */
+/** What `studyflow ui` gets from `display-mode: standalone` (assets/css/desktop.css keys off the class). */
 const DESKTOP_CLASS = `document.documentElement.classList.add('desktop')`;
 
 /** The inset title bar: the nav bar's row (`fixed top-2 inset-x-2`) starts right of the window buttons
@@ -24,7 +24,7 @@ const TITLEBAR_CSS = `
   .fixed.top-2.inset-x-2 > * { -webkit-app-region: no-drag; }
 `;
 
-/** Files opened from the OS, served at `/open/<name>` for `?open=` to fetch, as `studyflow edit <file>` does. */
+/** Files opened from the OS, served at `/open/<name>` for `?open=` to fetch, as `studyflow ui <file>` does. */
 const files = {};
 let origin;
 

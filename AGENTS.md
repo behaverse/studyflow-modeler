@@ -22,7 +22,7 @@ A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the 
 | `packages/canvas` | The SVG canvas: a DOM-free `Study` (the document, its verbs and their tools for an AI, undo) and `Canvas` views of it. `src/index.ts` (`Study`, `Canvas`, `renderSvg` and their types) is all the modeler may import; `src/element.ts` is `<studyflow-canvas>`. |
 | `packages/modeler` | The editor (React). Bus command `X` runs the `runX` export of a module `src/commandBus.ts` lists (a feature's `commands.ts`, and `diagram/save.ts`). |
 | `packages/cli` | The `studyflow` CLI. `run` checks the plan, then hosts a local study itself (`packages/runtime-local`) with the protocol's digest. |
-| `packages/desktop` | `studyflow edit`: the built modeler in a Chromium app window. |
+| `packages/desktop` | `studyflow ui`: the built modeler in a Chromium app window. |
 | `packages/runtime-browser` | The browser runtime, served at `/run/`: it hosts the walk for one participant, a screen per step. |
 | `packages/runtime-local` | The local runtime (`src/run.ts` hosts the walk: the runners' processes, the run repository and its prov record, what a re-run reuses; `src/w3c.ts`, `src/rocrate.ts` and `src/ocel.ts` write a run's record as W3C PROV-O, a Workflow Run RO-Crate's metadata and an OCEL 2.0 log). `CONTRACT.md` is the contract every partial runner follows, `python/` the SDK that speaks it for a runner in Python, and `WALK.md` says how the walk goes. |
 | `skills/<name>` | One skill per folder: `SKILL.md`, a vocabulary (a moddle package in `*.moddle.yaml`, its palette templates included), runners (`local.py` and the modules it imports beside it, `browser/`), a `modeler.ts`, `examples/`, `tests/`, and `test_*.py`, the Python runner's self-checks. |

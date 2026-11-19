@@ -27,7 +27,7 @@ const runner = (): Plugin => ({
   },
 })
 
-// `npm run dev:desktop` (`--mode desktop`): this server opened the way `studyflow edit` opens dist/, in a Chromium's app
+// `npm run dev:desktop` (`--mode desktop`): this server opened the way `studyflow ui` opens dist/, in a Chromium's app
 // window, and closed with it. The page styles itself as the desktop app there (assets/css/desktop.css).
 const desktop = (): Plugin => ({
   name: 'studyflow:desktop',

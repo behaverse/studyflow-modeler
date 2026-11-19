@@ -24,7 +24,7 @@ studyflow validate study.studyflow.yaml --strict
 studyflow convert study.studyflow.yaml study.studyflow.png   # into that picture; --modeler draws a new one (in a checkout)
 studyflow convert study.studyflow.png study.studyflow.tif    # the PNG's pixels as the LZW TIFF a journal takes, at its print size (--dpi for another), the study inside
 studyflow info study.studyflow.yaml --json
-studyflow edit study.studyflow.png              # the desktop app on that file; `studyflow ui` for a blank canvas
+studyflow ui study.studyflow.png                # the desktop app on that file; a blank canvas without one
 studyflow run skills/python/examples/sklearn_pipeline.studyflow.yaml   # the run folder keeps the study as YAML, stamped
 studyflow run ~/.studyflow/runs/*/sklearn_pipeline.studyflow.yaml --from <ref>   # re-run from an earlier step; --fresh for all
 studyflow run study.studyflow.yaml --author 'Ada Lovelace <ada@example.org>'   # the run's commits and record name her; without it, no one

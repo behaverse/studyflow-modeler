@@ -204,7 +204,7 @@ test.describe('Saving back into the opened file', () => {
     await expect(page.locator('[name="bpmn:name"]')).toBeFocused();
   });
 
-  test('the file `studyflow edit` opens is saved back into, as the format it is, with no picker', async ({ page }) => {
+  test('the file `studyflow ui` opens is saved back into, as the format it is, with no picker', async ({ page }) => {
     // The desktop app's server (packages/desktop/serve.ts): the file with its mtime, and a PUT that writes it.
     const writes: Buffer[] = [];
     await page.route('**/open/served.studyflow.png', async (route) => {

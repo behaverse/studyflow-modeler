@@ -9,7 +9,7 @@ import { ICONS } from '@modeler/icons';
 
 /** Where the study's edits go. */
 export type Place =
-  /** A file this page writes into: picked, or the one `studyflow edit` serves. */
+  /** A file this page writes into: picked, or the one `studyflow ui` serves. */
   | 'disk'
   /** The file an open read without a handle: a save writes a new file of that name. */
   | 'copy'

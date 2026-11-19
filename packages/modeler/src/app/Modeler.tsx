@@ -32,7 +32,7 @@ const s = {
 
 const openParam = (): string | null => new URLSearchParams(window.location.search).get('open');
 
-/** `?open=<url>` (what `studyflow edit <file>` passes) fetches that diagram onto the canvas, over any restored draft.
+/** `?open=<url>` (what `studyflow ui <file>` passes) fetches that diagram onto the canvas, over any restored draft.
  * A file the server writes back is linked, so Save goes into it, in its own format. */
 async function openFromUrl(editor: Editor): Promise<void> {
   const url = openParam();
