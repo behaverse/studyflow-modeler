@@ -10,6 +10,7 @@ import {
 } from '@core/storage';
 import { notify } from '@modeler/app/noticeStore';
 import { unlinkFile } from '@modeler/diagram/fileHandle';
+import { forgetRecentFiles } from '@modeler/diagram/recentFiles';
 
 type DiagramAutoSave = 'off' | 'local';
 
@@ -109,8 +110,9 @@ export function getStorageEstimate(): { keys: number; bytes: number } {
 
 export function clearAllLocalData(): void {
   clearOwnedKeys();
-  // The linked file's handle lives in IndexedDB, which `clearOwnedKeys` cannot reach.
+  // The handles of the linked file and of the recent ones live in IndexedDB, which `clearOwnedKeys` cannot reach.
   unlinkFile();
+  void forgetRecentFiles();
   current = { ...DEFAULT_SETTINGS };
   emit();
 }

@@ -1,5 +1,5 @@
 /**
- * The file `studyflow edit <file>` opened, as the link sees it: the few `FileSystemFileHandle` methods saving uses,
+ * The file `studyflow ui <file>` opened, as the link sees it: the few `FileSystemFileHandle` methods saving uses,
  * over the URL the desktop app serves it at (`packages/desktop/serve.ts`), which takes a PUT of the new bytes.
  *
  * So Save writes back into that file, under its own name and in its own format, as it does for a picked file.
@@ -18,6 +18,12 @@ export async function servedFile(response: Response, name: string): Promise<File
 async function failure(response: Response): Promise<Error> {
   return new Error(`${response.status} ${(await response.text()) || response.statusText}`);
 }
+
+/** The URL each handle made here reads and writes. */
+const urls = new WeakMap<FileSystemFileHandle, string>();
+
+/** The URL a served file's handle stands over; nothing for a handle on a file of the disk's. */
+export const servedUrl = (handle: FileSystemFileHandle): string | undefined => urls.get(handle);
 
 export function servedFileHandle(url: string, name: string): FileSystemFileHandle {
   const getFile = async (): Promise<File> => {
@@ -38,5 +44,7 @@ export function servedFileHandle(url: string, name: string): FileSystemFileHandl
     };
   };
   // No `queryPermission`: the server is the permission, and `ensureWritePermission` reads its absence as granted.
-  return { kind: 'file', name, getFile, createWritable } as unknown as FileSystemFileHandle;
+  const handle = { kind: 'file', name, getFile, createWritable } as unknown as FileSystemFileHandle;
+  urls.set(handle, url);
+  return handle;
 }

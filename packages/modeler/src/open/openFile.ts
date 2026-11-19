@@ -1,17 +1,21 @@
 /**
- * Opening a file, however it arrived: picked, dropped, or set on the hidden `<input>`. Every route validates and
- * reads it the same way, so they cannot drift apart.
+ * Opening a file, however it arrived: picked, dropped, set on the hidden `<input>`, or taken from the recent ones.
+ * Every route validates and reads it the same way, so they cannot drift apart.
  */
 import { useCallback, useRef, type ChangeEvent } from 'react';
 import { notify } from '@modeler/app/noticeStore';
 import { executeCommand } from '@modeler/commandBus';
 import {
   DIAGRAM_OPEN_ACCEPT,
+  ensureWritePermission,
   linkOpenedFile,
   pickFileToOpen,
+  readFile,
   rememberOpenedFile,
   supportsFileSystemAccess,
 } from '@modeler/diagram/fileHandle';
+import { forgetRecentFile, type RecentFile } from '@modeler/diagram/recentFiles';
+import { servedFileHandle } from '@modeler/diagram/servedFile';
 import { IMPORTABLE_FORMATS, OPENABLE_EXTENSIONS, OPENERS, importableFormatFor } from '@modeler/diagram/formats';
 import type { Editor } from '@modeler/editor/port';
 
@@ -98,6 +102,27 @@ export function useDiagramPicker(modeler: Editor, onOpened: () => void) {
       onChange,
     },
   };
+}
+
+/**
+ * Opens one of the recent files (`diagram/recentFiles.ts`), linked as it was: by its handle, or over the URL the
+ * desktop app serves it at. It must run inside a click: the browser asks again about a file of the disk's from an
+ * earlier session. A file that is no longer there leaves the list.
+ */
+export async function openRecentFile(modeler: Editor, recent: RecentFile): Promise<boolean> {
+  const handle = 'handle' in recent ? recent.handle : servedFileHandle(recent.url, recent.name);
+  const permission = await ensureWritePermission(handle, { request: true }).catch(() => 'denied' as const);
+  if (permission !== 'granted') {
+    notify('error', `The browser did not grant permission to open ${recent.name}.`);
+    return false;
+  }
+  const file = await readFile(handle);
+  if (!file) {
+    await forgetRecentFile(recent);
+    notify('error', `${recent.name} is no longer where it was.`);
+    return false;
+  }
+  return openDiagramFile(modeler, file, handle);
 }
 
 /** The handle behind a dropped file, where the browser offers one. */

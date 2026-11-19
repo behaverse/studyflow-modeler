@@ -9,6 +9,8 @@
  * and the caller falls back to `<input type=file>` and a download.
  */
 import { notify } from '@modeler/app/noticeStore';
+import { withHandleStore } from '@modeler/diagram/handleStore';
+import { rememberRecentFile } from '@modeler/diagram/recentFiles';
 import {
   formatAccept,
   getExportFormat,
@@ -156,6 +158,8 @@ export function linkFile(
   // Clean is a claim about the canvas, so it only holds while nothing is waiting to be written.
   setSnapshot({ file, state: state === 'clean' ? settledState() : state, message });
   void rememberLink();
+  // A linked file is one the New dialog offers again.
+  void rememberRecentFile(handle);
   return file;
 }
 
@@ -290,9 +294,6 @@ export function writeToFile(handle: FileSystemFileHandle, payload: BlobPart): Pr
 
 /* --- Remembering the link across reloads -------------------------------------------------- */
 
-const DB_NAME = 'studyflow-modeler';
-const DB_VERSION = 1;
-const STORE = 'file-links';
 const LINK_KEY = 'current-diagram';
 
 type StoredLink = {
@@ -300,49 +301,6 @@ type StoredLink = {
   formatId: ExportFormatId;
   seenModified: number;
 };
-
-/** Resolves `undefined` rather than rejecting: a browser that refuses IndexedDB just forgets. */
-function openDb(): Promise<IDBDatabase | undefined> {
-  return new Promise((resolve) => {
-    let request: IDBOpenDBRequest;
-    try {
-      request = indexedDB.open(DB_NAME, DB_VERSION);
-    } catch {
-      resolve(undefined);
-      return;
-    }
-    request.onupgradeneeded = () => {
-      if (!request.result.objectStoreNames.contains(STORE)) request.result.createObjectStore(STORE);
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => resolve(undefined);
-    request.onblocked = () => resolve(undefined);
-  });
-}
-
-async function runTransaction<T>(
-  mode: IDBTransactionMode,
-  body: (store: IDBObjectStore) => IDBRequest<T>,
-): Promise<T | undefined> {
-  const db = await openDb();
-  if (!db) return undefined;
-  try {
-    return await new Promise<T | undefined>((resolve) => {
-      try {
-        const tx = db.transaction(STORE, mode);
-        const request = body(tx.objectStore(STORE));
-        tx.oncomplete = () => resolve(request.result);
-        tx.onerror = () => resolve(undefined);
-        tx.onabort = () => resolve(undefined);
-      } catch {
-        // A value the structured clone cannot carry throws here, synchronously.
-        resolve(undefined);
-      }
-    });
-  } finally {
-    db.close();
-  }
-}
 
 async function rememberLink(): Promise<void> {
   const { file } = snapshot;
@@ -353,13 +311,13 @@ async function rememberLink(): Promise<void> {
     seenModified: file.seenModified,
   };
   // A handle is structured-cloneable, which is the only reason this survives a reload at all. One that is not (the
-  // file `studyflow edit` serves) is not remembered, nor is an earlier link left to stand in for it.
-  const remembered = await runTransaction('readwrite', (store) => store.put(stored, LINK_KEY));
+  // file `studyflow ui` serves) is not remembered, nor is an earlier link left to stand in for it.
+  const remembered = await withHandleStore('readwrite', (store) => store.put(stored, LINK_KEY));
   if (remembered === undefined) await forgetLink();
 }
 
 async function forgetLink(): Promise<void> {
-  await runTransaction('readwrite', (store) => store.delete(LINK_KEY));
+  await withHandleStore('readwrite', (store) => store.delete(LINK_KEY));
 }
 
 /**
@@ -372,7 +330,7 @@ async function forgetLink(): Promise<void> {
  */
 export async function restoreLink(): Promise<void> {
   if (!supportsFileSystemAccess()) return;
-  const stored = await runTransaction<StoredLink>('readonly', (store) => store.get(LINK_KEY));
+  const stored = await withHandleStore<StoredLink>('readonly', (store) => store.get(LINK_KEY));
   if (!stored?.handle) return;
 
   let format: ExportFormat;
