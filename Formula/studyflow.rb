@@ -2,30 +2,30 @@
 class Studyflow < Formula
   desc "Command-line tool and desktop app for studyflow diagrams"
   homepage "https://github.com/behaverse/studyflow-modeler"
-  # No `version`: Homebrew scans 26.11.9 out of the release url, and audit calls a second copy redundant.
+  # No `version`: Homebrew scans 26.11.10 out of the release url, and audit calls a second copy redundant.
   license "MIT"
   # `studyflow run --runtime local` drives the skills in libexec with uv.
   depends_on "uv"
 
   on_macos do
     on_arm do
-      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.11.9/studyflow-26.11.9-darwin-arm64.tar.gz"
-      sha256 "31c2dc8981426b0aae7ff86421a4a2ec2d556c233ce7caa190fe2f87cacb9f7b"
+      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.11.10/studyflow-26.11.10-darwin-arm64.tar.gz"
+      sha256 "df67cce6e22a5a933c7df0f1805ae30885a926eeba16f06090e487b84b537709"
     end
     on_intel do
-      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.11.9/studyflow-26.11.9-darwin-x64.tar.gz"
-      sha256 "d27880499c72b8dd026047a2ca06ab83d5b72f360792a2bcbe000e370c247fe2"
+      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.11.10/studyflow-26.11.10-darwin-x64.tar.gz"
+      sha256 "ad3aedb099abc1925bd198cd1587ff57a40ed99e857c867365d905b2d92584c4"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.11.9/studyflow-26.11.9-linux-arm64.tar.gz"
-      sha256 "2a5ebfb24b81e4f5c5a6e7c21c230117160024c4063cf22603956af59644c654"
+      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.11.10/studyflow-26.11.10-linux-arm64.tar.gz"
+      sha256 "131e873b17c01ef637922be5890d2d53c55a369ac2b8faa8936876fa984836df"
     end
     on_intel do
-      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.11.9/studyflow-26.11.9-linux-x64.tar.gz"
-      sha256 "c69d84cc67fe41db1a0fd2381a323d1324b58f7fea2ca72374a81cf5615d97ea"
+      url "https://github.com/behaverse/studyflow-modeler/releases/download/v26.11.10/studyflow-26.11.10-linux-x64.tar.gz"
+      sha256 "e6149558816676f697584037564b95fe029f9414cb9614964f0bffba6328c823"
     end
   end
 
@@ -34,7 +34,7 @@ class Studyflow < Formula
     # The skills, found from bin/studyflow as ../libexec/skills, and the runner SDK they import, as ../libexec/sdk.
     libexec.install "skills"
     libexec.install "sdk"
-    # The desktop app, served by `studyflow edit` from ../libexec/ui.
+    # The desktop app, served by `studyflow ui` from ../libexec/ui.
     libexec.install "ui"
   end
 
@@ -56,10 +56,10 @@ class Studyflow < Formula
     assert_match "OK", shell_output("#{bin}/studyflow validate #{testpath}/minimal.studyflow")
     assert_match "Brew test", shell_output("#{bin}/studyflow info #{testpath}/minimal.studyflow")
     port = free_port
-    pid = spawn bin/"studyflow", "edit", "--no-open", "--port", port.to_s, testpath/"minimal.studyflow"
+    pid = spawn bin/"studyflow", "ui", "--no-open", "--port", port.to_s, testpath/"minimal.studyflow"
     sleep 2
     assert_match "Studyflow", shell_output("curl -s http://127.0.0.1:#{port}/app")
-    assert_match "Brew test", shell_output("curl -s http://127.0.0.1:#{port}/open/minimal.studyflow")
+    assert_match "Brew test", shell_output("curl -s http://127.0.0.1:#{port}/recent/0/minimal.studyflow")
   ensure
     Process.kill("TERM", pid) if pid
   end

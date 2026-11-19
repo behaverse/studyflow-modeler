@@ -9,9 +9,9 @@ description: "Draw a study, check it, run it, and save it."
 
 ## 2. Start a study
 
-Choose **New** from the menu on the logo. Say what you are building, tick its parts, and press **Create**. Or pick an example.
+Choose **New** from the menu on the logo, and pick **Empty study** or a template. **All templates** lists every one, and **Recent** the files you opened lately.
 
-![](assets/img/modeler/new.png){fig-alt="The New Study dialog. Under What are you building, An experiment is picked, and the parts Instructions, Cognitive tasks and Questionnaire are ticked beside a Create button. Example studies follow below."}
+![](assets/img/modeler/new.png){fig-alt="The New Study dialog. A box reading Describe a study or an analysis is marked Soon, with a note to use a template below. Under Templates are four cards, Empty study and three example studies, beside an All templates link. Under Recent, three files are listed, each with when it was opened."}
 
 ## 3. Shape it
 

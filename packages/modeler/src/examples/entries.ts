@@ -6,6 +6,7 @@ import { compareExamples } from '@modeler/examples/catalog';
 import { exampleMetadata } from '@modeler/examples/metadata';
 import { drawPreview } from '@modeler/examples/preview';
 import { filenameStem } from '@modeler/diagram/file';
+import { SKILL_FEATURED_EXAMPLES } from '@modeler/skillModules';
 
 /**
  * An example ships with a skill, as a `.studyflow.yaml` in its `examples/` folder, and that skill is
@@ -27,6 +28,8 @@ export type ExampleEntry = {
   category: string;
   /** The icon of the schema that skill ships, if it ships one. */
   badge?: string;
+  /** Its skill features it (`featured` in the skill's `modeler.ts`): the New dialog leads with it. */
+  featured: boolean;
   error?: string;
 };
 
@@ -41,9 +44,11 @@ export function buildInitialEntries(): ExampleEntry[] {
       const filename = path.split('/').pop() ?? path;
       const category = path.split('/').at(-3) ?? '';
       const badge = SCHEMA_MODELS.find((model) => skillOfSchema(model.prefix)?.name === category)?.icon;
-      return { filename, url, title: filenameStem(filename), summary: '', category, badge };
+      const featured = SKILL_FEATURED_EXAMPLES.has(`${category}/${filenameStem(filename)}`);
+      return { filename, url, title: filenameStem(filename), summary: '', category, badge, featured };
     })
-    .sort((a, b) => a.filename.localeCompare(b.filename));
+    // In the order the read cards take, as near as file names tell it, so the cards the dialog leads with stay put.
+    .sort(compareExamples);
 }
 
 /**

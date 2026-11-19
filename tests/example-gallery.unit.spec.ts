@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { compareExamples, galleryCategories, UNCATEGORIZED } from '@modeler/examples/catalog';
+import { compareExamples, galleryCategories, leadingExamples, UNCATEGORIZED } from '@modeler/examples/catalog';
 import { documentationOf, type StudyModel } from '@core/model/index';
 import { exampleMetadata } from '@modeler/examples/metadata';
 import { drawPreview } from '@modeler/examples/preview';
@@ -62,7 +62,7 @@ test.describe('shipped examples', () => {
 });
 
 test.describe('gallery shelves', () => {
-  test('are the skill names, alphabetical, with Other last, and hold their cards in title order', () => {
+  test('are the skill names, alphabetical, with Other last, and hold their cards in title order, the featured ones leading the start page', () => {
     expect(galleryCategories(['Demos', 'AI & ML', 'Demos']))
       .toEqual(['AI & ML', 'Demos']);
     // No shelf, or a blank one, is Other.
@@ -77,5 +77,10 @@ test.describe('gallery shelves', () => {
     ];
     expect([...cards].sort(compareExamples).map((c) => c.title))
       .toEqual(['Agent evaluation harness', 'Random bot', 'CONSORT 2025', 'Zebra']);
+
+    // The start page takes its few from the front: what the skills feature, then the others, each in the order given.
+    const featured = ['Zebra', 'Random bot'];
+    expect(leadingExamples(cards.map((card) => ({ ...card, featured: featured.includes(card.title) })), 3).map((c) => c.title))
+      .toEqual(['Zebra', 'Random bot', 'CONSORT 2025']);
   });
 });

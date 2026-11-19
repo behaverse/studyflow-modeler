@@ -14,7 +14,7 @@ A tool joins through a *skill*: one folder that gives authors a domain's element
 | manifest | `SKILL.md` | its name, what it is for, and which parts it has |
 | vocabulary | `*.moddle.yaml` | element types, their attributes, palette templates |
 | runners | `local.py`, `browser/` | what executes its elements in each runtime |
-| modeler module | `modeler.ts` | exports, imports, inspector sections, settings pages, parts for the New dialog |
+| modeler module | `modeler.ts` | exports, imports, inspector sections, settings pages, examples the New dialog leads with |
 | examples, tests | `examples/`, `tests/` | studies that use it, and its checks |
 
 ![The sets that ship with Studyflow: the required ones always load, the rest you switch on.](assets/img/diagrams/schema-map.studyflow.svg){#fig-schema-map fig-alt="A Studyflow diagram. When the modeler opens, it loads the required sets, studyflow and prov; then the skill sets switched on in Settings, Extensions, one per skill: cognitive, behaverse, eeg, agentic, reachy and reporting; then compiles the catalog, which gives the palette, the inspector tabs and the XML namespaces."}

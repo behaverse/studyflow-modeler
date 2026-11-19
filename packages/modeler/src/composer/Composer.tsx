@@ -267,7 +267,7 @@ export function Composer() {
             </button>
             <button type="button" className={s.start} onClick={() => openDialog('gallery')}>
               <i className={ICONS.examples} aria-hidden="true" />
-              Examples
+              Templates
             </button>
           </>
         )}

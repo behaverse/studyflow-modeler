@@ -54,8 +54,8 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       searchOnly: true,
       label: 'New...',
       icon: ICONS.fileNew,
-      // One gallery: the blank canvas, then every shipped example, shelved by what it demonstrates.
-      keywords: 'example gallery template blank',
+      // The start page: the empty study, every shipped example as a template, and the files opened lately.
+      keywords: 'example gallery template blank empty recent start',
       action: () => openDialog('gallery'),
     },
     {

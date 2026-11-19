@@ -12,6 +12,11 @@ export function galleryCategories(entries: Array<string | undefined>): string[] 
     .concat(present.includes(UNCATEGORIZED) ? [UNCATEGORIZED] : []);
 }
 
+/** The first `count` examples with the featured ones leading, each group in the order given. */
+export function leadingExamples<T extends { featured: boolean }>(entries: T[], count: number): T[] {
+  return [...entries.filter((entry) => entry.featured), ...entries.filter((entry) => !entry.featured)].slice(0, count);
+}
+
 export function compareExamples(
   a: { category: string; title: string },
   b: { category: string; title: string },

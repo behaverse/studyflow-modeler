@@ -54,9 +54,6 @@ export const fileStatus = {
   title: `flex flex-col items-start justify-center h-7 min-w-0 md:max-w-[280px] px-2 ${radius.button}
           text-left hover:bg-black/[0.05] data-[open]:bg-black/[0.08] transition-colors cursor-pointer`,
   name: `flex min-w-0 max-w-full text-xs/[14px] font-medium ${text.primary}`,
-  fileName: 'flex min-w-0 font-mono',
-  stem: 'truncate',
-  extension: `shrink-0 ${text.muted}`,
   /* No colour of its own: the status takes a tone's, else muted. */
   status: 'flex items-center gap-1 min-w-0 max-w-full text-[0.6875rem]/3 whitespace-nowrap',
   /* Where gives way before how far: the state is the part to keep. */

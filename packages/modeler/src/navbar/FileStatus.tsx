@@ -5,26 +5,15 @@ import { useModeler } from '@modeler/app/useModeler';
 import { getLink, subscribeLink, supportsFileSystemAccess } from '@modeler/diagram/fileHandle';
 import { saveLinkedFile } from '@modeler/diagram/save';
 import { autoSavable } from '@modeler/diagram/formats';
-import { filenameStem } from '@modeler/diagram/file';
 import { getSettings, subscribeSettings } from '@modeler/settings/store';
 import { APP_NAME } from '@modeler/constants';
 import { describeFile, type Status } from '@modeler/navbar/fileState';
 import { fileStatus as s } from '@modeler/navbar/styles';
+import { FileName } from '@modeler/ui/FileName';
 import { text } from '@modeler/ui/styles';
 
 const keepsBrowserCopy = () => getSettings().diagramAutoSave === 'local';
 const writesToFile = () => getSettings().autoSaveToFile;
-
-/** A file's name with its extension kept whole: with `truncate`, a long name gives way in its stem. */
-function FileName({ name, truncate = false }: { name: string; truncate?: boolean }) {
-  const stem = filenameStem(name);
-  return (
-    <span className={truncate ? s.fileName : 'font-mono'}>
-      <span className={truncate ? s.stem : undefined}>{stem}</span>
-      <span className={s.extension}>{name.slice(stem.length)}</span>
-    </span>
-  );
-}
 
 /** The status's words; short of room, `where` gives way first. */
 function StatusWords({ status }: { status: Status }) {
